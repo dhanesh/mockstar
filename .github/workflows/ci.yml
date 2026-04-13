@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.bun }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # O6: CI matrix covers minimum supported + latest stable Bun.
+        bun: ['1.1.8', 'latest']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ matrix.bun }}
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test --coverage
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  bench:
+    name: bench (${{ matrix.channel }})
+    runs-on: ubuntu-24.04
+    # O5 / RT-10: per-channel benchmark gate
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [library, bunx]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: latest }
+      - run: bun install --frozen-lockfile
+      - run: bun run bench/harness.ts --channel=${{ matrix.channel }} --duration=30 --rps=1000
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ matrix.channel }}-${{ github.run_id }}
+          path: bench/results/
+
+  build-binary:
+    runs-on: ubuntu-24.04
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: latest }
+      - run: bun install --frozen-lockfile
+      - run: bun run build:binary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mockstar-binary-${{ github.sha }}
+          path: dist/mockstar
+
+  build-docker:
+    # Satisfies U2 (Docker distribution channel). Build-only — publish lives in release.yml.
+    runs-on: ubuntu-24.04
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: mockstar:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke-test the built image
+        run: |
+          docker run -d --name mockstar-smoke -p 3000:3000 mockstar:ci-${{ github.sha }} /examples/mocks
+          for i in 1 2 3 4 5; do
+            if curl -sf http://127.0.0.1:3000/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs mockstar-smoke
+          exit 1

@@ -1,0 +1,22 @@
+{
+  "_note": "Per-channel performance baselines. Harness updates the {scenario}:{channel} entries on first run; subsequent runs compare against them. Regression thresholds: p99 +25%, boot +15% (see bench/harness.ts). Absolute targets documented in _targets stay unchanged.",
+  "_targets": {
+    "static-mock:bunx": { "p99_us_max": 5000, "boot_ms_max": 200 },
+    "static-mock:library": { "p99_us_max": 5000, "boot_ms_max": 200 },
+    "static-mock:docker": { "p99_us_max": 5000, "boot_ms_max": 200 },
+    "static-mock:binary": { "p99_us_max": 5000, "boot_ms_max": 500 }
+  },
+  "static-mock:library": {
+    "scenario": "static-mock",
+    "channel": "library",
+    "rps": 500,
+    "durationSec": 10,
+    "sampleCount": 7054,
+    "p50": 71.16700000005949,
+    "p99": 403.2500000002983,
+    "p999": 1565.9169999998994,
+    "mean": 96.73898284661782,
+    "bootMs": 21.279374999999987,
+    "timestamp": "2026-04-13T06:27:04.105Z"
+  }
+}

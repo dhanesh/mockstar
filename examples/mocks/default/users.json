@@ -1,0 +1,34 @@
+{
+  "mocks": [
+    {
+      "id": "get-user-by-id",
+      "match": { "method": "GET", "path": "/users/:id" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{request.params.id}}",
+          "uuid": "{{faker.uuid}}",
+          "name": "{{faker.name}}",
+          "email": "{{faker.email}}",
+          "tenant": "{{tenant}}"
+        }
+      }
+    },
+    {
+      "id": "create-user",
+      "match": { "method": "POST", "path": "/users" },
+      "response": {
+        "kind": "static",
+        "status": 201,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{faker.uuid}}",
+          "created": "{{faker.dateIso}}",
+          "echoBody": "{{request.body.name}}"
+        }
+      }
+    }
+  ]
+}

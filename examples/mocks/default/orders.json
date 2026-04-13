@@ -1,0 +1,25 @@
+{
+  "mocks": [
+    {
+      "id": "list-orders",
+      "match": { "method": "GET", "path": "/orders", "query": { "status": "pending" } },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "count": 2,
+          "orders": [
+            { "id": "{{faker.uuid}}", "currency": "INR", "amount": 4200 },
+            { "id": "{{faker.uuid}}", "currency": "INR", "amount": 1337 }
+          ]
+        }
+      }
+    },
+    {
+      "id": "compute-order-total",
+      "match": { "method": "POST", "path": "/orders/total" },
+      "response": { "kind": "dynamic", "handler": "computeOrderTotal" }
+    }
+  ]
+}

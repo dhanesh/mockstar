@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+bench/results
+.git
+.github
+.manifold
+tests

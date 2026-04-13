@@ -1,0 +1,33 @@
+// @constraint O6 — Bun version policy runtime check
+// @constraint G17 — runtime preflight
+
+import { describe, it, expect } from 'bun:test';
+import { compareVersion, preflight, MIN_BUN_VERSION } from '../src/core/preflight.ts';
+
+describe('preflight', () => {
+  it('compares versions correctly', () => {
+    expect(compareVersion('1.1.8', '1.1.8')).toBe(0);
+    expect(compareVersion('1.2.0', '1.1.8')).toBeGreaterThan(0);
+    expect(compareVersion('1.1.7', '1.1.8')).toBeLessThan(0);
+    expect(compareVersion('2.0.0', '1.1.8')).toBeGreaterThan(0);
+  });
+
+  it('flags below-minimum versions', () => {
+    const r = preflight('1.0.0');
+    expect(r.ok).toBe(false);
+    expect(r.warning).toContain(MIN_BUN_VERSION);
+  });
+
+  it('accepts the minimum version', () => {
+    const r = preflight(MIN_BUN_VERSION);
+    expect(r.ok).toBe(true);
+    expect(r.warning).toBeUndefined();
+  });
+
+  it('warns but does not fail when not running on Bun (library embed in Node)', () => {
+    // Explicit null bypasses the default detection (which would find Bun in the test runner).
+    const r = preflight(null);
+    expect(r.ok).toBe(true);
+    expect(r.warning ?? '').toContain('Bun');
+  });
+});

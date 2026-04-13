@@ -1,0 +1,55 @@
+# Prometheus alerting rules for Mockstar.
+# Each alert traces back to a constraint in .manifold/mockstar.md.
+groups:
+  - name: mockstar.rules
+    interval: 30s
+    rules:
+      # O5 — latency regression in running deployments
+      - alert: MockstarLatencyP99High
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, tenant) (rate(mockstar_request_latency_us_bucket[5m]))
+          ) > 5000
+        for: 10m
+        labels:
+          severity: warning
+          constraint: T3
+        annotations:
+          summary: "Mockstar tenant={{ $labels.tenant }} p99 > 5ms for 10m"
+          runbook: "ops/runbooks/latency-regression.md"
+
+      # RT-3.2 — crash-loop detection
+      - alert: MockstarRestarting
+        expr: |
+          sum(rate(kube_pod_container_status_restarts_total{container="mockstar"}[10m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          constraint: T10
+        annotations:
+          summary: "Mockstar pod is restarting (handler crash loop)"
+          runbook: "ops/runbooks/crash-loop-diagnosis.md"
+
+      # S1 / RT-7 — unusual admin auth failures
+      - alert: MockstarAdminAuthFailures
+        expr: |
+          sum(rate(mockstar_admin_auth_failures_total[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+          constraint: S3
+        annotations:
+          summary: "Mockstar admin authentication failures sustained"
+          description: "Likely a misconfigured client or a credential probe. Investigate source IPs."
+
+      # O3 — journal saturation indicates sustained traffic / possibly abuse
+      - alert: MockstarJournalNearCapacity
+        expr: |
+          mockstar_journal_size{tenant!=""} / mockstar_journal_capacity{tenant!=""} > 0.95
+        for: 15m
+        labels:
+          severity: info
+          constraint: O3
+        annotations:
+          summary: "Tenant {{ $labels.tenant }} journal at >95% capacity"
+          description: "Oldest journal entries are being overwritten faster than they are read. Consider increasing journalSize in tenant.json or reducing query frequency."
