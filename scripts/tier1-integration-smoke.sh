@@ -27,9 +27,18 @@ MOCK_PORT=3000
 cd /app
 
 # -----------------------------------------------------------------------------
-# Step 1: mkcert -install
+# Step 1: mkcert -install + manual CA wiring for Debian base images
 # -----------------------------------------------------------------------------
 mkcert -install
+# On the oven/bun:*-debian base, mkcert reports "system store not supported on this
+# Linux" and writes the CA only to $(mkcert -CAROOT). Wire it into the system bundle
+# so curl (which uses OpenSSL's default verify paths) trusts the leaf. This is what
+# `mkcert -install` does automatically on distros with NSS tooling properly detected;
+# here we do it manually so the smoke exercises the full trust path.
+CAROOT="$(mkcert -CAROOT)"
+mkdir -p /usr/local/share/ca-certificates
+cp "${CAROOT}/rootCA.pem" /usr/local/share/ca-certificates/mockstar-dev-ca.crt
+update-ca-certificates
 
 # -----------------------------------------------------------------------------
 # Step 2: write proxy config
@@ -56,12 +65,14 @@ bun run src/cli.ts proxy install --force --dns-mode=hosts
 # Step 4: start mockstar-core on :3000
 # -----------------------------------------------------------------------------
 mkdir -p /tmp/smoke-mocks/$TENANT
+# Use a custom path (not /health — that's a mockstar-core built-in route that would
+# shadow the configured mock and break the body assertion below).
 cat > /tmp/smoke-mocks/$TENANT/hello.json <<EOF
 {
   "mocks": [
     {
       "id": "hello",
-      "match": { "method": "GET", "path": "/health" },
+      "match": { "method": "GET", "path": "/v1/orders/smoke" },
       "response": {
         "kind": "static",
         "status": 200,
@@ -92,7 +103,7 @@ sleep 2
 # -----------------------------------------------------------------------------
 # Step 6 + 7: curl through the proxy, assert 200
 # -----------------------------------------------------------------------------
-STATUS=$(curl -s -o /tmp/proxy-response.json -w "%{http_code}" "https://${TEST_HOST}/health")
+STATUS=$(curl -s -o /tmp/proxy-response.json -w "%{http_code}" "https://${TEST_HOST}/v1/orders/smoke")
 cat /tmp/proxy-response.json
 if [ "$STATUS" != "200" ]; then
   echo "FAIL: proxy returned $STATUS (expected 200)"

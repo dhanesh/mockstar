@@ -7,7 +7,9 @@
 # an OS environment that actual `sudo setcap` / `dnsmasq` / `/etc/resolver` code paths
 # can execute against. The production Docker image for mockstar-core is the root Dockerfile.
 
-FROM oven/bun:1.3.11-debian AS test-env
+FROM oven/bun:1.3-debian AS test-env
+# Bun publishes patch-level tags only for the default (alpine) variant; -debian
+# variants pin to the minor line. `1.3-debian` currently resolves to Bun 1.3.11+.
 
 # OS packages: mkcert needs libnss3-tools for NSS integration; dnsmasq for DNS;
 # libcap2-bin for setcap; curl for the smoke test; openssl for integration-test cert gen.
@@ -16,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3-tools \
     dnsmasq \
     libcap2-bin \
+    ca-certificates \
     curl \
     openssl \
     sudo \
