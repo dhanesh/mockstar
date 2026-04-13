@@ -37,6 +37,17 @@ See [docs/CONFIG.md](./docs/CONFIG.md) for the full schema and [docs/HANDLERS.md
 
 See [CHANGELOG.md](./CHANGELOG.md). TL;DR: static + dynamic + pass-through + OpenAPI import + admin read endpoints + multi-tenancy ship in v1. Stateful mocks, scenarios, GraphQL, gRPC, fault injection, and a config-mutation admin API are explicitly deferred to v1.1.
 
+## HTTPS transparent upstream (`mockstar proxy`)
+
+Point real HTTPS traffic at your local mocks with zero application code changes — `https://api.razorpay.com` resolves to `127.0.0.1`, terminates on a mkcert-trusted leaf, and forwards to mockstar-on-3000. macOS + Linux only in v1.
+
+```bash
+mockstar proxy install           # one-time: installs CA, DNS, port-bind grant
+mockstar proxy start             # runs the HTTPS listener on :443
+```
+
+See [docs/PROXY.md](./docs/PROXY.md) for the full guide and [docs/PROXY-RECOVERY.md](./docs/PROXY-RECOVERY.md) for incident recovery.
+
 ## Security
 
 See [docs/SECURITY.md](./docs/SECURITY.md) for the threat model. Admin endpoints are disabled by default. Pass-through and OpenAPI import share a hardened URL validator that rejects private-range targets by default (addressing CVE-2026-39885-class OpenAPI `$ref` attacks).

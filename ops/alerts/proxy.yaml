@@ -1,0 +1,41 @@
+# Prometheus alerts for mockstar-proxy.
+# Each alert traces to a constraint in .manifold/tier1-https-proxy.md.
+groups:
+  - name: mockstar-proxy.rules
+    interval: 30s
+    rules:
+      - alert: MockstarProxyUpstreamErrors
+        expr: |
+          sum(rate(mockstar_proxy_requests_total{status=~"5.."}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          constraint: T10
+        annotations:
+          summary: "mockstar-proxy returning 5xx sustained"
+          runbook: "ops/runbooks/proxy-upstream-unreachable.md"
+
+      - alert: MockstarProxyLatencyP99High
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, tenant) (rate(mockstar_proxy_request_latency_us_bucket[5m]))
+          ) > 10000
+        for: 10m
+        labels:
+          severity: warning
+          constraint: O3
+        annotations:
+          summary: "mockstar-proxy p99 latency > 10ms (proxy + mockstar combined)"
+          description: "Check that mockstar core p99 is within budget (~5ms); proxy adds up to 2ms per O3."
+
+      - alert: MockstarProxyCaNotInstalled
+        expr: |
+          mockstar_proxy_ca_installed == 0
+        for: 1m
+        labels:
+          severity: critical
+          constraint: RT-1
+        annotations:
+          summary: "mockstar-proxy CA reports NOT INSTALLED while proxy is running"
+          description: "RT-1 (binding) is violated at runtime. Every TLS handshake will fail. Run 'mockstar proxy install'."
+          runbook: "docs/PROXY.md"

@@ -1,0 +1,39 @@
+# Satisfies: G1 + G2 — live OS integration test harness for `mockstar proxy`.
+# Builds a minimal Ubuntu image with Bun + mkcert + dnsmasq + libcap2-bin. CI runs
+# `mockstar proxy install` inside this container, then exercises the full TLS path
+# with curl, then runs the bench harness.
+#
+# This image is NOT a distribution artifact — it exists to give the tier-1 feature
+# an OS environment that actual `sudo setcap` / `dnsmasq` / `/etc/resolver` code paths
+# can execute against. The production Docker image for mockstar-core is the root Dockerfile.
+
+FROM oven/bun:1.3.11-debian AS test-env
+
+# OS packages: mkcert needs libnss3-tools for NSS integration; dnsmasq for DNS;
+# libcap2-bin for setcap; curl for the smoke test; openssl for integration-test cert gen.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    mkcert \
+    libnss3-tools \
+    dnsmasq \
+    libcap2-bin \
+    curl \
+    openssl \
+    sudo \
+  && rm -rf /var/lib/apt/lists/*
+
+# Allow the default bun user to invoke sudo without a password for the install commands
+# the tier-1 proxy shells out to. This is safe inside an ephemeral CI container.
+RUN echo 'bun ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/bun-passwordless \
+  && chmod 440 /etc/sudoers.d/bun-passwordless
+
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY . .
+
+# Run the test harness: install proxy, start mockstar-core in background, start proxy,
+# hit the tier-1 path via curl, run bench. Exits non-zero if any step fails.
+# Invoked from the CI workflow (see .github/workflows/tier1-integration.yml).
+CMD ["bash", "-c", "scripts/tier1-integration-smoke.sh"]

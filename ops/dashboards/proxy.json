@@ -1,0 +1,47 @@
+{
+  "_comment": "Grafana dashboard skeleton for mockstar-proxy. Each panel traces to a constraint.",
+  "title": "Mockstar Proxy",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Proxied request throughput by host (O2)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum by (host) (rate(mockstar_proxy_requests_total[1m]))" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Proxy latency p99 (RT-6 + RT-8 budget 5ms+2ms)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(mockstar_proxy_request_latency_us_bucket[5m])))", "legendFormat": "proxy p99 us" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Upstream errors (T10)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(rate(mockstar_proxy_requests_total{status=~\"5..\"}[1m])) by (status)" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "SNI rejections (S3, T4)",
+      "type": "stat",
+      "targets": [
+        { "expr": "sum(rate(mockstar_proxy_sni_rejected_total[5m]))" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Cert cache size (RT-4)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "mockstar_proxy_cert_cache_size" }
+      ]
+    }
+  ]
+}

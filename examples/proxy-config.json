@@ -1,0 +1,11 @@
+{
+  "hosts": [
+    { "host": "api.razorpay.com", "tenant": "razorpay" }
+  ],
+  "mockstarUrl": "http://127.0.0.1:3000",
+  "listenHost": "127.0.0.1",
+  "listenPort": 443,
+  "upstreamTimeoutMs": 5000,
+  "leafTtlHours": 24,
+  "dnsMode": "dnsmasq"
+}

@@ -14,6 +14,12 @@ CONTAINER_PORT ?= 3000
 MOCKS_DIR      ?= ./examples/mocks
 HANDLERS_DIR   ?= ./examples/handlers
 
+# Manifold feature (override: `make manifold-verify FEATURE=tier1-https-proxy`)
+FEATURE        ?= mockstar
+
+# Tier1 proxy integration image
+PROXY_IMAGE    ?= mockstar-tier1:dev
+
 .DEFAULT_GOAL := help
 
 # ============================================================================
@@ -86,17 +92,42 @@ docker-shell:  ## Open a shell inside the running container
 	docker exec -it $(CONTAINER_NAME) sh
 
 # ============================================================================
-# Manifold (constraint workflow helpers)
+# Tier 1 HTTPS proxy (`mockstar proxy`)
 # ============================================================================
 
-manifold-validate:  ## Validate manifold schema + linking
-	manifold validate mockstar
+proxy-install:  ## Install CA + DNS + port-bind for mockstar proxy (one-time, may sudo)
+	bun run src/cli.ts proxy install
 
-manifold-verify:  ## Verify generated artifacts vs declared
-	manifold verify mockstar
+proxy-start:  ## Start the HTTPS transparent upstream on :443 (Ctrl+C to stop)
+	bun run src/cli.ts proxy start
 
-manifold-drift:  ## Check for post-baseline drift
-	manifold drift mockstar
+proxy-status:  ## Print proxy install + snapshot diagnostics
+	bun run src/cli.ts proxy status
+
+proxy-uninstall:  ## Reverse install (LIFO): removes CA, DNS, port-bind grant
+	bun run src/cli.ts proxy uninstall
+
+proxy-bench:  ## Run the TLS handshake + warm-request bench (real cert, local)
+	bun run bench/proxy.bench.ts
+
+docker-proxy-build:  ## Build the tier1 integration Docker image
+	docker build -f Dockerfile.tier1-proxy -t $(PROXY_IMAGE) .
+
+docker-proxy-smoke: docker-proxy-build  ## Run the full tier1 live-OS smoke test in Docker
+	docker run --rm --cap-add=NET_BIND_SERVICE $(PROXY_IMAGE)
+
+# ============================================================================
+# Manifold (constraint workflow helpers; FEATURE=<name> to target a feature)
+# ============================================================================
+
+manifold-validate:  ## Validate manifold schema + linking (FEATURE=<name>)
+	manifold validate $(FEATURE)
+
+manifold-verify:  ## Verify generated artifacts vs declared (FEATURE=<name>)
+	manifold verify $(FEATURE)
+
+manifold-drift:  ## Check for post-baseline drift (FEATURE=<name>)
+	manifold drift $(FEATURE)
 
 # ============================================================================
 # Cleanup
@@ -108,8 +139,11 @@ clean:  ## Remove dist/, coverage/, bench/results/
 clean-all: clean docker-stop  ## Full cleanup: above + node_modules + Docker image
 	rm -rf node_modules
 	@docker rmi -f $(IMAGE) >/dev/null 2>&1 && echo "removed image $(IMAGE)" || echo "no image to remove"
+	@docker rmi -f $(PROXY_IMAGE) >/dev/null 2>&1 && echo "removed image $(PROXY_IMAGE)" || echo "no proxy image to remove"
 
 .PHONY: help install dev run test test-watch bench typecheck lint format \
         docker-build docker-run docker-stop docker-logs docker-shell \
+        proxy-install proxy-start proxy-status proxy-uninstall proxy-bench \
+        docker-proxy-build docker-proxy-smoke \
         manifold-validate manifold-verify manifold-drift \
         clean clean-all

@@ -34,6 +34,40 @@ All notable changes to Mockstar are documented here. The format follows [Keep a 
 - Compiled binary boot SLO is `< 500 ms` vs. `< 200 ms` for bunx / library / Docker-process — runtime init overhead is out of our control (see TN4 in `.manifold/mockstar.md`).
 - Production deployment requires a restart-capable orchestrator (Docker `restart=always`, K8s `RestartPolicy: Always`, systemd `Restart=on-failure`). See `docs/DEPLOYMENT.md`.
 
+## Tier 1 — HTTPS transparent upstream (`mockstar proxy`)
+
+_Constraint-first designed in `.manifold/tier1-https-proxy.md`. Binding constraint: RT-1 (local CA)._
+
+### In v1 proxy
+
+- **HTTPS termination** on `127.0.0.1:443` via Bun's TLS stack.
+- **Local CA** managed by [mkcert](https://github.com/FiloSottile/mkcert). CA common name includes user + hostname for self-identification (S5).
+- **On-demand leaf certificates** with 24-hour TTL (TN4); SNI-gated issuance refuses unknown hostnames (RT-3, S3).
+- **DNS** via dnsmasq (default) with automatic `/etc/hosts` fallback on hostile environments (RT-5 + TN2).
+- **Port 443 binding** via OS capability grants (Linux setcap / macOS launchd) — no sudo at runtime.
+- **Atomic install / uninstall** with append-only journal at `~/.mockstar/install-state.json`; LIFO rollback on failure (RT-7).
+- **Environment hostility detection** refuses install in CI/container environments (S4), warns on MDM / VPN DNS overrides (RT-10).
+- **Observability** reuses mockstar's logger + metrics primitives (RT-9).
+- **CLI** integrated as `mockstar proxy {install|start|uninstall|status|reload}`.
+- **Node.js gotcha** prominently documented: `NODE_EXTRA_CA_CERTS` required for Node-based SDKs (U4).
+
+### Deferred to v1.1 (proxy)
+
+- **Windows** native support. v1 is macOS + Linux only (B2). WSL2 works today.
+- **Traffic recording** — proxy observes but doesn't persist request/response bodies.
+- **Mutual TLS** (client-cert auth).
+- **Request transformation** — header rewrites, body mutation, etc.
+- **Wildcard hostnames** — configure subdomains explicitly in v1.
+- **OS keychain-backed CA key** — rootCA-key.pem lives in mkcert's default path with 0600 file perms today; keychain storage (Touch-ID-gated on macOS) is a v1.1 hardening.
+
+### Proxy known limitations
+
+- First TLS handshake per hostname is slower (~50–100 ms cert generation); subsequent handshakes hit the cache (~sub-ms).
+- SDKs that pin certificate fingerprints (not CAs) cannot be proxied. No known Razorpay/Stripe/Twilio SDK currently pins.
+- Production deployment is explicitly out of scope — this is a developer-laptop tool (B3).
+
+---
+
 ---
 
 ## [0.1.0-alpha.1] — 2026-04-13

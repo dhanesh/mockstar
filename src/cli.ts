@@ -6,9 +6,11 @@ import { resolve } from 'node:path';
 import { launch } from './index.ts';
 import { runImporter } from './features/openapi/index.ts';
 import { preflight } from './core/preflight.ts';
+import { dispatchProxyCommand } from './features/proxy/cli.ts';
 
 interface ParsedArgs {
-  command: 'serve' | 'import' | 'help' | 'version';
+  command: 'serve' | 'import' | 'proxy' | 'help' | 'version';
+  proxyArgs?: readonly string[];
   configRoot?: string;
   handlersDir?: string;
   port?: number;
@@ -25,6 +27,9 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   const [head, ...rest] = argv;
   if (!head || head === '--help' || head === '-h' || head === 'help') return { command: 'help' };
   if (head === '--version' || head === '-v' || head === 'version') return { command: 'version' };
+  if (head === 'proxy') {
+    return { command: 'proxy', proxyArgs: rest };
+  }
   if (head === 'import') {
     const specPath = rest[0];
     const outDir = rest.find((r, i) => i > 0 && !r.startsWith('-')) ?? './mocks';
@@ -72,6 +77,10 @@ async function main(): Promise<number> {
     }
     process.stdout.write(usage());
     return 0;
+  }
+
+  if (args.command === 'proxy') {
+    return dispatchProxyCommand(args.proxyArgs ?? []);
   }
 
   if (args.command === 'import') {
@@ -136,6 +145,7 @@ function usage(): string {
     'Commands:',
     '  serve [config-root]         Start the mock server (default command)',
     '  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON',
+    '  proxy <install|start|...>   Run the HTTPS transparent upstream proxy (tier1)',
     '  help                        Show this help',
     '  version                     Print version',
     '',
