@@ -1,0 +1,256 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dhanesh/manifold/main/install/manifold-structure.schema.json",
+  "schema_version": 3,
+  "feature": "tier2-request-derived-responses",
+  "phase": "TENSIONED",
+  "domain": "software",
+  "created": "2026-04-13T23:55:00Z",
+  "constraints": {
+    "business": [
+      {"id": "B1", "type": "invariant", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "B2", "type": "goal", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 2, "measurability": 2, "testability": 2}},
+      {"id": "B3", "type": "boundary", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "B4", "type": "invariant", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}}
+    ],
+    "technical": [
+      {"id": "T1", "type": "boundary", "source": "interview", "challenger": "technical-reality", "threshold": {"kind": "statistical", "p99": "5ms", "note": "inherits mockstar core RT-6 p99 budget"}, "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T2", "type": "invariant", "source": "interview", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T3", "type": "invariant", "source": "interview", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T4", "type": "invariant", "source": "interview", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T5", "type": "invariant", "source": "interview", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T6", "type": "invariant", "source": "interview", "challenger": "stakeholder", "threshold": {"kind": "statistical", "unique_rate": "100/100 in a burst", "confidence": ">99.9999% (nanoid@21 14-char base62)"}, "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T7", "type": "invariant", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T8", "type": "invariant", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T9", "type": "invariant", "source": "interview", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T10", "type": "invariant", "source": "interview", "challenger": "technical-reality", "validated_by_pre_mortem": true, "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T11", "type": "invariant", "source": "pre-mortem", "challenger": "stakeholder", "quality": {"specificity": 2, "measurability": 2, "testability": 3}},
+      {"id": "T12", "type": "invariant", "source": "pre-mortem", "challenger": "technical-reality", "quality": {"specificity": 2, "measurability": 3, "testability": 3}},
+      {"id": "T13", "type": "invariant", "source": "pre-mortem", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T14", "type": "invariant", "source": "pre-mortem", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "T15", "type": "invariant", "source": "pre-mortem", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}}
+    ],
+    "user_experience": [
+      {"id": "U1", "type": "goal", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 2}},
+      {"id": "U2", "type": "invariant", "source": "interview", "challenger": "stakeholder", "validated_by_pre_mortem": true, "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "U3", "type": "goal", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "U4", "type": "goal", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}}
+    ],
+    "security": [
+      {"id": "S1", "type": "invariant", "source": "interview", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "S2", "type": "invariant", "source": "interview", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "S3", "type": "invariant", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "S4", "type": "invariant", "source": "interview", "challenger": "stakeholder", "threshold": {"kind": "deterministic", "max_response_bytes": "1MB (inherits mockstar core body limit)"}, "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "S5", "type": "invariant", "source": "pre-mortem", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}}
+    ],
+    "operational": [
+      {"id": "O1", "type": "boundary", "source": "interview", "challenger": "technical-reality", "threshold": {"kind": "statistical", "p99_regression_cap": "25% over tier1 baseline"}, "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "O2", "type": "goal", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "O3", "type": "invariant", "source": "interview", "challenger": "stakeholder", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "O4", "type": "invariant", "source": "interview", "challenger": "technical-reality", "quality": {"specificity": 3, "measurability": 3, "testability": 3}},
+      {"id": "O5", "type": "goal", "source": "pre-mortem", "challenger": "stakeholder", "quality": {"specificity": 2, "measurability": 2, "testability": 2}},
+      {"id": "O6", "type": "invariant", "source": "pre-mortem", "challenger": "technical-reality", "threshold": {"kind": "statistical", "collision_rate": "0 in 1M draws at length 14 base62"}, "quality": {"specificity": 3, "measurability": 3, "testability": 3}}
+    ]
+  },
+  "tensions": [
+    {
+      "id": "TN1",
+      "type": "trade_off",
+      "between": ["T1", "T3"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "technical", "parameters": "speed vs correctness", "match": "exact", "principles": ["P10 prior-action", "P11 beforehand-cushioning", "P1 segmentation"]},
+      "validation_criteria": [
+        "Bench regression \u2264 25% vs Tier 1 baseline (O1)",
+        "Walker p99 scales with response-body size, not request-body size",
+        "Templates compile once at config-load (T5), not per-request"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "T5", "effect": "TIGHTENED", "note": "Compile-time walker must pre-bind all placeholder closures including nested paths; adds ~1ms one-time at load"},
+        {"constraint_id": "O1", "effect": "TIGHTENED", "note": "Bench gate enforcement becomes load-bearing for this tension's resolution"}
+      ]
+    },
+    {
+      "id": "TN2",
+      "type": "resource_tension",
+      "between": ["B4", "B3"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "technical", "parameters": "simplicity vs capability", "match": "exact", "principles": ["P1 segmentation", "P27 cheap-short-living"]},
+      "validation_criteria": [
+        "\u22658 regression tests exist (5 Razorpay + 1 Stripe + 1 Twilio + 1 PayPal)",
+        "Each non-Razorpay provider has exactly \u22651 endpoint (not 5)",
+        "Fixtures are JSON only \u2014 no SDK integration code"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "B4", "effect": "TIGHTENED", "note": "Minimum is now literally \u22651 per non-Razorpay provider, not 'a couple'"}
+      ]
+    },
+    {
+      "id": "TN3",
+      "type": "trade_off",
+      "between": ["U2", "T3"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "physical", "parameters": "standardisation vs flexibility", "match": "exact", "principles": ["P1 segmentation", "P3 local-quality"]},
+      "validation_criteria": [
+        "Existing header-template tests (from mockstar core) continue to pass untouched",
+        "JSON-body type-preservation tests pass for numbers / objects / arrays / null",
+        "URL-path and query-string templates remain string-mode"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "U2", "effect": "TIGHTENED", "note": "Explicit per-context distinction now required in templater API"},
+        {"constraint_id": "T3", "effect": "LOOSENED", "note": "Restricted scope (JSON-body only) makes T3 easier to implement"}
+      ]
+    },
+    {
+      "id": "TN4",
+      "type": "trade_off",
+      "between": ["T4", "T2"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "technical", "parameters": "global vs local optimum", "match": "approximate", "match_note": "nearest match \u2014 really 'reproducibility vs authenticity'", "principles": ["P10 prior-action", "P40 composite"]},
+      "validation_criteria": [
+        "Deterministic-mode byte-compare CI (O4) produces 0 diffs across 2 runs",
+        "Generated IDs in deterministic mode pass each provider's regex (T2)",
+        "Seed is derived from tenant + endpoint + request-counter, never from Date.now()"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "T9", "effect": "TIGHTENED", "note": "nanoid primitive must accept external PRNG (nanoid/non-secure/customRandom) to allow seeded mode"},
+        {"constraint_id": "T10", "effect": "TIGHTENED", "note": "Per-request seed derivation becomes the load-bearing mechanism"}
+      ]
+    },
+    {
+      "id": "TN5",
+      "type": "trade_off",
+      "between": ["B1", "U3"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "physical", "parameters": "standardisation vs flexibility", "match": "exact", "principles": ["P1 segmentation", "P2 extraction"]},
+      "validation_criteria": [
+        "`grep -ri 'razorpay\\|stripe\\|twilio\\|paypal' src/` returns 0 hits outside comments/tests",
+        "All provider-specific content lives under `examples/mocks/<provider>/`",
+        "Adding a new provider requires zero core code changes"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "B1", "effect": "TIGHTENED", "note": "'Zero core code for new provider' becomes a testable boundary, not a goal"}
+      ]
+    },
+    {
+      "id": "TN6",
+      "type": "hidden_dependency",
+      "between": ["T7", "T12"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "technical", "parameters": "simplicity vs capability", "match": "exact", "principles": ["P1 segmentation", "P24 intermediary"]},
+      "validation_criteria": [
+        "Enhancer accepts a --spec <path> flag pointing to the original OpenAPI/Postman file",
+        "Enhancer falls back to name-match heuristic when source spec is absent (with a warning)",
+        "Ambiguous mappings are NOT silently substituted \u2014 they are left as literal source-example values + warning"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "T7", "effect": "LOOSENED", "note": "Enhancer can re-parse the source spec WITHOUT modifying the importers \u2014 T7's separation is preserved"},
+        {"constraint_id": "T12", "effect": "TIGHTENED", "note": "Field-mapping rules must include explicit source-spec parsing logic + override mechanism"}
+      ]
+    },
+    {
+      "id": "TN7",
+      "type": "trade_off",
+      "between": ["O3", "T11"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "physical", "parameters": "standardisation vs flexibility", "match": "exact", "principles": ["P1 segmentation", "P17 another-dimension"]},
+      "validation_criteria": [
+        "Enhancer writes generated fields inside `_mockstarGenerated` top-level key",
+        "Running enhance twice on unchanged input produces byte-identical output (O3)",
+        "User-added sibling fields (outside `_mockstarGenerated`) survive a re-enhance (T11)",
+        "Field name `_mockstarGenerated` is tool-named (not `_tier2*` or manifold-jargon)"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "O3", "effect": "TIGHTENED", "note": "Idempotency scope narrows to INSIDE `_mockstarGenerated`; outside is user-owned and untouched"},
+        {"constraint_id": "T11", "effect": "LOOSENED", "note": "Mechanism is now concrete \u2014 a single well-known key, simple to test"}
+      ]
+    },
+    {
+      "id": "TN8",
+      "type": "hidden_dependency",
+      "between": ["T10", "T5"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "technical", "parameters": "performance vs reliability", "match": "exact", "principles": ["P10 prior-action", "P24 intermediary"]},
+      "validation_criteria": [
+        "Template compile-time binds a PRNG factory closure, not a PRNG instance",
+        "Each request invokes factory(requestCtx) to materialise an independent PRNG",
+        "Concurrency test (T6) passes in both deterministic and non-deterministic modes"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "T5", "effect": "TIGHTENED", "note": "Compile-time output is a closure factory, not a bound helper"},
+        {"constraint_id": "T10", "effect": "LOOSENED", "note": "Per-request scoping is a natural consequence of factory-per-request invocation"}
+      ]
+    },
+    {
+      "id": "TN9",
+      "type": "trade_off",
+      "between": ["S4", "T3"],
+      "status": "resolved",
+      "triz": {"contradiction_type": "technical", "parameters": "speed vs safety", "match": "exact", "principles": ["P11 beforehand-cushioning", "P35 parameter-changes"]},
+      "validation_criteria": [
+        "Echoing a 10MB request-body field triggers 413 Payload-Too-Large \u2014 before serialization, not after",
+        "Size bound is checked INCREMENTALLY during the walker pass, not as a post-serialization check",
+        "413 error body is itself bounded small (< 1KB)",
+        "T14 (cycle detection + max-depth) is the first-order safeguard; S4 is second-order"
+      ],
+      "propagation_effects": [
+        {"constraint_id": "T3", "effect": "TIGHTENED", "note": "Walker must maintain cumulative byte-count state and short-circuit on budget exceed"},
+        {"constraint_id": "S4", "effect": "LOOSENED", "note": "Size bound is now an incremental invariant, not a whole-response post-check"}
+      ]
+    }
+  ],
+  "anchors": {
+    "required_truths": []
+  },
+  "draft_required_truths": [
+    {"id": "DRT-1", "seed_from": ["T3", "T13", "T14"], "draft_statement": "A type-aware JSON templating engine must exist that (a) parses response templates as JSON-with-placeholders (not text); (b) walks request.body preserving JS types (number, string, bool, null, object, array) on substitution; (c) produces deterministic key ordering; (d) has cycle detection and max-recursion-depth.", "confidence": "high"},
+    {"id": "DRT-2", "seed_from": ["T4", "T9", "T10", "O6"], "draft_statement": "A dual-mode ID generator must exist: nanoid-with-custom-alphabet in non-deterministic mode (CSPRNG-backed via crypto.getRandomValues), and a seeded PRNG (Mulberry32 or equivalent) scoped per-request in deterministic mode. Both paths produce IDs matching the provider regex with 0 collisions over 1M draws at length 14.", "confidence": "high"},
+    {"id": "DRT-3", "seed_from": ["T7", "T11", "T12", "T15", "O3"], "draft_statement": "A `mockstar enhance <dir>` command must exist that reads existing imported mocks, detects the provider/format version, rewrites response bodies in place with Tier-2 placeholders, is idempotent, preserves user-made post-enhancement edits, and refuses unknown format versions with a clear error.", "confidence": "medium"},
+    {"id": "DRT-4", "seed_from": ["B1", "U3"], "draft_statement": "All provider-specific behavior must be expressible through generic helpers. Core contains zero provider-name conditionals; provider-shaped examples live under examples/mocks/<provider>/ as documentation of how the primitives compose.", "confidence": "high"},
+    {"id": "DRT-5", "seed_from": ["S1", "S5"], "draft_statement": "The template evaluator must be a sandboxed grammar evaluator with no access to process / filesystem / network / eval. Malformed request bodies must not crash the process; they must produce structured error responses.", "confidence": "high"},
+    {"id": "DRT-6", "seed_from": ["B4", "O2", "O4"], "draft_statement": "A cross-provider regression test harness must exist, exercised in CI on every commit, covering Razorpay (5 endpoints) + Stripe (\u22651) + Twilio (\u22651) + PayPal (\u22651), asserting ID shape, request echo, timestamp freshness, and deterministic-mode byte-identity.", "confidence": "high"},
+    {"id": "DRT-7", "seed_from": ["U1", "U2"], "draft_statement": "The templating contract must distinguish JSON-value context from string context. JSON-body templates are type-preserving; header, URL, and query-string templates remain string-mode (preserves existing behavior so Tier 2 is not a breaking change for non-JSON-body templates).", "confidence": "high"}
+  ],
+  "gap_checklist_compliance": [
+    {"gap": "GAP-03", "status": "COMPLETED", "note": "Core data path: HTTP request \u2192 matcher \u2192 template context build \u2192 helpers evaluated \u2192 JSON walker substitutes placeholders type-preservingly \u2192 response serialize \u2192 send. Each transition covered by T1 (budget), T3 (walker correctness), S1 (error isolation), O2 (regression tests per endpoint)."},
+    {"gap": "GAP-09", "status": "COMPLETED", "note": "Narrow scope: S2 requires CSPRNG for ID generation. No auth surface in Tier 2 (no crypto signing, no session, no session-token validation)."},
+    {"gap": "GAP-10", "status": "COMPLETED", "note": "S4 (bounded echo response size) and T14 (cycle detection + max depth) address amplification and unbounded recursion. Mockstar core already has a body-size limit at the HTTP layer."},
+    {"gap": "GAP-11", "status": "SKIPPED", "skip_reason": "Tier 2 is entirely in-process. No external HTTP dependencies, no DNS lookups, no external API calls during request handling."},
+    {"gap": "GAP-14", "status": "COMPLETED", "note": "S1 (malformed body graceful) + T8 (missing field fallback) + T12 (field-mapping rules) cover the input validation surface. Content-Type checking is inherited from mockstar core's request parser."},
+    {"gap": "GAP-17", "status": "COMPLETED", "note": "T6 (100 parallel unique IDs) + T10 (PRNG state per-request, not process-global) address concurrency. T3's walker is stateless per request; no shared mutable state. Templates compile once at config-load (T5); eval is pure-function."}
+  ],
+  "iterations": [
+    {
+      "number": 1,
+      "phase": "constrain",
+      "timestamp": "2026-04-14T00:10:00Z",
+      "result": "Discovered 34 constraints across 5 categories (4 B / 15 T / 4 U / 5 S / 6 O). Pre-mortem surfaced 8 new constraints (T11, T12, T13, T14, T15, S5, O5, O6) plus validated 2 existing (U2, T10) marked via validated_by_pre_mortem flag. Context lookup grounded T2 (Razorpay 14 confirmed; Stripe 'opaque \u2264255' reshapes claim; Twilio 34-char hex; PayPal 17-char uppercase) and T3 (Mockoon bodyRaw pattern is prior art). User extended cross-provider regression scope from Stripe-only to Stripe+Twilio+PayPal (B4). 7 DRTs seeded for m3.",
+      "constraints_added": 34,
+      "by_category": {"business": 4, "technical": 15, "user_experience": 4, "security": 5, "operational": 6}
+    },
+    {
+      "number": 2,
+      "phase": "tension",
+      "timestamp": "2026-04-14T00:45:00Z",
+      "result": "9 tensions surfaced and resolved \u2014 5 trade_offs (TN1/TN3/TN4/TN5/TN7/TN9), 1 resource_tension (TN2), 2 hidden_dependencies (TN6/TN8). TRIZ classification per tension: 8 exact-match parameter pairs (speed-vs-correctness, simplicity-vs-capability, standardisation-vs-flexibility, performance-vs-reliability, speed-vs-safety), 1 approximate (TN4 \u2014 reproducibility-vs-authenticity, nearest match 'global vs local optimum'). All 9 passed propagation check \u2014 zero VIOLATED effects. Resolutions converged on segmentation (P1) as the dominant principle across 6 tensions, with prior-action (P10) and beforehand-cushioning (P11) for the performance ones. Two genuine design choices resolved via AskUserQuestion: TN6 \u2192 enhancer re-parses source spec; TN7 \u2192 `_mockstarGenerated` top-level key as the generated/user boundary (user explicitly requested a tool-name, not a manifold-internal name like `_tier2*`). 2 hidden_dependencies become blocking_dependencies for m3.",
+      "tensions_found": 9,
+      "tensions_resolved": 9,
+      "by_type": {"trade_offs": 6, "resource_tensions": 1, "hidden_dependencies": 2}
+    }
+  ],
+  "blocking_dependencies": [
+    {"blocker": "T12", "blocked": "T7", "tension_id": "TN6", "note": "Enhancer must have source-spec re-parse capability before the `mockstar enhance` command can be finalized"},
+    {"blocker": "T5", "blocked": "T10", "tension_id": "TN8", "note": "Template compile-time must produce PRNG factory closure before per-request scoping works; factory is the prerequisite"}
+  ],
+  "convergence": {
+    "status": "IN_PROGRESS"
+  },
+  "evidence": [],
+  "constraint_graph": {
+    "version": 1,
+    "nodes": {},
+    "edges": {
+      "dependencies": [],
+      "conflicts": [],
+      "satisfies": []
+    }
+  }
+}
