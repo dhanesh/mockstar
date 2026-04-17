@@ -1,0 +1,55 @@
+{
+  "mocks": [
+    {
+      "id": "create-refund",
+      "match": { "method": "POST", "path": "/v1/payments/:id/refund" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{id(\"rfnd_\", 14)}}",
+          "entity": "refund",
+          "amount": "{{request.body.amount}}",
+          "currency": "INR",
+          "payment_id": "{{request.params.id}}",
+          "notes": "{{request.body.notes}}",
+          "receipt": null,
+          "acquirer_data": {
+            "arn": null
+          },
+          "created_at": "{{now.unix}}",
+          "batch_id": null,
+          "status": "processed",
+          "speed_processed": "normal",
+          "speed_requested": "normal"
+        }
+      }
+    },
+    {
+      "id": "list-refunds",
+      "match": { "method": "GET", "path": "/v1/refunds" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "entity": "collection",
+          "count": 1,
+          "items": [
+            {
+              "id": "{{id(\"rfnd_\", 14)}}",
+              "entity": "refund",
+              "amount": 20000,
+              "currency": "INR",
+              "payment_id": "{{id(\"pay_\", 14)}}",
+              "notes": {},
+              "status": "processed",
+              "created_at": "{{now.unix}}"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

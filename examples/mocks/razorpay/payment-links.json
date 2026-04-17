@@ -1,0 +1,43 @@
+{
+  "mocks": [
+    {
+      "id": "create-payment-link",
+      "match": { "method": "POST", "path": "/v1/payment_links" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{id(\"plink_\", 14)}}",
+          "entity": "payment_link",
+          "short_url": "https://rzp.io/i/{{id(\"\", 8)}}",
+          "view_less": true,
+          "amount": "{{request.body.amount}}",
+          "currency": "{{request.body.currency}}",
+          "accept_partial": false,
+          "first_min_partial_amount": 0,
+          "reference_id": "{{request.body.reference_id}}",
+          "description": "{{request.body.description}}",
+          "customer": {
+            "name": "{{request.body.customer.name}}",
+            "email": "{{request.body.customer.email}}",
+            "contact": "{{request.body.customer.contact}}"
+          },
+          "notify": {
+            "sms": true,
+            "email": true
+          },
+          "reminder_enable": true,
+          "notes": "{{request.body.notes}}",
+          "callback_url": "{{request.body.callback_url}}",
+          "callback_method": "{{request.body.callback_method}}",
+          "status": "created",
+          "created_at": "{{now.unix}}",
+          "updated_at": "{{now.unix}}",
+          "expire_by": null,
+          "expired_at": null
+        }
+      }
+    }
+  ]
+}

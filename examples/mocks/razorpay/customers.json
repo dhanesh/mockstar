@@ -1,0 +1,42 @@
+{
+  "mocks": [
+    {
+      "id": "create-customer",
+      "match": { "method": "POST", "path": "/v1/customers" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{id(\"cust_\", 14)}}",
+          "entity": "customer",
+          "name": "{{request.body.name}}",
+          "email": "{{request.body.email}}",
+          "contact": "{{request.body.contact}}",
+          "gstin": null,
+          "notes": "{{request.body.notes}}",
+          "created_at": "{{now.unix}}"
+        }
+      }
+    },
+    {
+      "id": "fetch-customer",
+      "match": { "method": "GET", "path": "/v1/customers/:id" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{request.params.id}}",
+          "entity": "customer",
+          "name": "Test User",
+          "email": "test@example.com",
+          "contact": "+919999999999",
+          "gstin": null,
+          "notes": {},
+          "created_at": "{{now.unix}}"
+        }
+      }
+    }
+  ]
+}

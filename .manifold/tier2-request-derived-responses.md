@@ -423,3 +423,244 @@ If a user's request contains a 10MB nested `notes` object and the response templ
 
 <!-- Added in m3-anchor. Draft RTs in JSON's `draft_required_truths` seed m3. -->
 
+## Required Truths
+
+> Backward reasoning from the outcome: for the 4 observable behaviors (unique IDs under concurrency, type-preserving echo, fresh timestamps, deterministic mode) to hold, what MUST be true? Each RT below answers that question. Seeds from m1's `draft_required_truths` (DRT-1..DRT-7) are noted where they validated as a starting shape.
+
+### RT-1: Type-aware JSON value templater with cycle-safe, size-bounded, deterministic-order walker
+
+A response template expressed as JSON-with-placeholders is walked at request time by an engine that:
+1. Recognises placeholder tokens embedded in JSON string values (e.g., `"{{id('order', 14)}}"`, `"{{request.body.amount}}"`) and distinguishes them from literal strings — **RT-1.1**.
+2. Substitutes each placeholder with a value of the correct JavaScript type — a number placeholder emits a `number`, an echoed object emits an `object`, etc. No stringification of non-string values — **RT-1.2**.
+3. Detects reference cycles via a visited-set and enforces a configurable max recursion depth (default 32); pathological input exits with a structured 422 rather than a stack overflow — **RT-1.3**.
+4. Emits response-body keys in deterministic order: keys present in the source example appear in source order; echoed-only keys appear alphabetically after them — **RT-1.4**.
+5. Maintains an incremental cumulative byte-count during substitution and short-circuits to a bounded 413 response when the running total would exceed the 1MB body-size cap — **RT-1.5**.
+6. Runs **only** for JSON-value context; header templates, URL-path templates, and query-string templates retain the existing string-substitution engine untouched — **RT-1.6**.
+
+Seeds: DRT-1 (high confidence), DRT-7 (high confidence). Maps to T3, T13, T14, U2, S4.
+
+**Gap:** The `CompiledJsonValue` pipeline from finding F3 exists as an extension point (`src/core/templating/compiler.ts`, `src/core/templating/index.ts`), but there is no type-preserving JSON walker, no placeholder token recogniser inside JSON values, no cycle detector, no deterministic-key-ordering emitter, and no incremental size tracker. The existing templater stringifies every token — the opposite of what RT-1.2 requires.
+
+**Recursive decomposition (depth 2):**
+
+```
+RT-1 Type-aware JSON walker [NOT_SATISFIED]
+├── RT-1.1 Placeholder tokens recognised inside JSON string values [NOT_SATISFIED]
+│         Leaf kind: PRIMITIVE (verify) — Bun's JSON.parse + post-parse string-scan is the expected mechanism
+├── RT-1.2 Type-preserving substitution on walk [NOT_SATISFIED]
+│         Leaf kind: PRIMITIVE — a helper returns typed JS value; walker assigns into parent container as-is
+├── RT-1.3 Cycle detection + max-depth exit [NOT_SATISFIED]
+│         Leaf kind: PRIMITIVE — WeakSet of visited refs, numeric depth counter, structured-422 on breach
+├── RT-1.4 Deterministic key ordering [NOT_SATISFIED]
+│         Leaf kind: PRIMITIVE — source-order keys first, echoed-only keys alphabetical; asserted by O4 byte-compare CI
+├── RT-1.5 Incremental cumulative-byte tracking [NOT_SATISFIED]
+│         Leaf kind: PRIMITIVE — running counter in walker; abort + 413 on breach; bounded error body (< 1KB)
+└── RT-1.6 Non-JSON contexts remain string-mode (TN3 honoured) [NOT_SATISFIED]
+          Leaf kind: PRIMITIVE — dual dispatch on context kind at compile time; existing header tests must continue to pass untouched
+```
+
+### RT-2: Compile-time binding produces factory closures, not helper instances
+
+At config load (or file-watch reload), each placeholder node in a response template is bound to a **factory closure** of type `(requestCtx) => T`, not a reference to a helper instance. At request time, the factory is invoked with the per-request context (tenant + endpoint + request-counter), and it materialises any per-invocation state (PRNG instance, clock snapshot) fresh. The factory itself is immutable and shared across requests; the state it mints is per-invocation.
+
+Seeds: validates TN8's resolution. Maps to T5, T10.
+
+**Gap:** Mockstar core already compiles templates at config load (finding F3, T5 baseline, RT-6.2 in mockstar core). However the current compile output is a bound helper reference, not a factory closure. Converting the compile output to a closure-tree is new work and affects every Tier 2 helper (id, now.*, request.body.*, size-tracker). No per-request PRNG seed-derivation path exists.
+
+### RT-3: Dual-mode ID primitive — CSPRNG-backed nanoid and seeded Mulberry32
+
+The `{{id(prefix, length, alphabet)}}` helper is backed by two implementations selected by `MOCKSTAR_DETERMINISTIC`:
+- **Non-deterministic (default):** `nanoid/non-secure` with `customAlphabet`, backed by `crypto.getRandomValues` (CSPRNG).
+- **Deterministic:** a Mulberry32 PRNG wrapper plugged into nanoid's `customRandom` form. Seed is derived from `tenant + endpoint + request-counter` (never `Date.now`, never `Math.random`).
+
+Both paths produce IDs satisfying the provider regex (T2): Razorpay `[A-Za-z0-9]{14}`, Stripe variable-length base62, Twilio `[a-f0-9]{32}`, PayPal `[0-9A-Z]{17}`. Collision count across 1M draws at length 14 base62 is 0 (O6). `Math.random` is NEVER invoked (enforced by monkey-patch test that makes `Math.random` throw).
+
+Seeds: DRT-2 (high confidence). Maps to T2, T4, T9, T10, O6, S2.
+
+**Gap:** nanoid is not yet a dependency. No Mulberry32 wrapper exists. No per-request seed-derivation function exists. No ID-helper surface exists.
+
+### RT-4: Timestamp helpers with per-mode materialisation
+
+The `{{now.unix}}`, `{{now.millis}}`, `{{now.iso}}`, and `{{now(format)}}` helpers produce the request-time clock snapshot at invocation (not compile time, not per-process). In deterministic mode, timestamps are derived from the same per-request seed context as ID generation — a frozen "logical now" attached to the requestCtx — so byte-identical runs produce byte-identical timestamps. In non-deterministic mode, they resolve to `Date.now()` at walk time, yielding a freshness within ~1ms of the request arrival.
+
+Seeds: outcome behavior 3. Maps to U1, T4.
+
+**Gap:** No `now.*` helper surface exists. No logical-now binding inside requestCtx. Output behavior 3 ("parse created_at and compute `(now - created_at)` as < 2 seconds") has no supporting code.
+
+### RT-5: Request-echo with fallback ladder, field-mapping overrides, header-echo prohibition, and size-bound incremental enforcement
+
+`{{request.body.X}}`, `{{request.query.X}}`, and `{{request.params.X}}` echo request values into the response via the RT-1 walker, preserving type. `{{request.headers.X}}` is **NOT** a helper — header echo is prohibited by design (S3). When a referenced field is absent from the request, fallback chain fires: source-example value → type-appropriate zero (`0`/`""`/`null`/`[]`) → schema-typed zero. Request→response field mapping is inferred by name-match by default; an explicit `_tier2Mapping: {responseField: "request.body.otherName"}` override is available per endpoint. Ambiguous mappings are **never** silently substituted — they are left as the literal source-example value with a warning surfaced by the enhancer (RT-6). Incremental size bound (RT-1.5) enforces the 1MB cap during walk.
+
+Seeds: DRT-1 (partial). Maps to T3, T8, T12, S3, S4.
+
+**Gap:** No `{{request.body.X}}` echo primitive exists. No field-mapping override mechanism. No source-example-value fallback logic. No header-echo negative test.
+
+### RT-6: `mockstar enhance <dir>` subcommand with `_mockstarGenerated` boundary, spec re-parse, and format-version gate
+
+A new top-level subcommand `mockstar enhance <dir>` reads imported mocks, detects their source format, and rewrites response bodies by injecting Tier 2 placeholders **inside** a top-level `_mockstarGenerated` key per response. Sibling keys outside `_mockstarGenerated` — including user-added fields — are preserved byte-identical on re-run (idempotency per O3). The enhancer accepts `--spec <path>` to re-parse the original OpenAPI/Postman source for request→response field mappings; without `--spec` it falls back to a name-match heuristic with a warning listing unresolved mappings. Supported format versions (OpenAPI 3.0.x + 3.1.x, Postman 2.1.0) are declared in `mockstar enhance --help` and enforced at startup — unknown versions produce a clear error, never silent corruption. The shared spec parser lives in `src/features/spec/` and is consumed by both the existing OpenAPI/Postman importers and the new enhancer (neither owns it).
+
+Seeds: DRT-3 (medium confidence — format-version detection and user-edit preservation were both m2 tightening points). Maps to T7, T11, T12, T15, O3, U4.
+
+**Gap:** No `enhance` subcommand. No `src/features/spec/` shared parser module. No `_mockstarGenerated` key convention in any mock fixture. No format-version declaration. No re-run idempotency property test.
+
+### RT-7: Cross-provider regression harness with CI bench gate and collision stress test
+
+Test files `tests/tier2-razorpay.test.ts`, `tests/tier2-stripe.test.ts`, `tests/tier2-twilio.test.ts`, `tests/tier2-paypal.test.ts` each exercise their provider's endpoints and assert (a) ID regex conformance per provider, (b) request-field echo accuracy with type preservation, (c) timestamp freshness (< 2s), (d) deterministic-mode byte-identity over 2 runs. Razorpay covers 5 endpoints (orders, customers, payments capture, refunds, payment-links); Stripe/Twilio/PayPal each cover exactly ≥1 endpoint. A byte-compare CI job runs two mockstar instances in deterministic mode and diffs responses (O4). A bench gate CI job runs `mockstar proxy bench` on every PR and fails if p99 regresses >25% over Tier 1 baseline (O1). A bench checkpoint also runs mid-m4 after each artifact group lands (O5). A 1M-draw ID-collision stress test runs every commit (~2s wall) and asserts zero collisions; a nightly 100M-draw test catches edge cases (O6).
+
+Seeds: DRT-6 (high confidence). Maps to B4, O1, O2, O4, O5, O6.
+
+**Gap:** No Tier 2 test files exist. No bench-regression CI gate. No byte-compare deterministic CI job. No ID-collision stress test. No provider fixtures under `examples/mocks/{razorpay,stripe,twilio,paypal}/`.
+
+### RT-8: Template evaluator is a sandboxed fixed-grammar interpreter with no host-capability access
+
+The template syntax is parsed into an AST by a grammar-based parser (NOT `eval`, NOT `new Function()`, NOT dynamic string concatenation into a JS expression). At compile time (RT-2), placeholder nodes are bound to a fixed helper registry — `id`, `now.*`, `request.body.*`, `request.query.*`, `request.params.*` — with arity and argument-type validation. Helper implementations have no access to `process`, `require`, `import`, `fetch`, the filesystem, or any host capability. A mock-config author cannot craft a template that achieves RCE on the mockstar process. Malformed request bodies — invalid JSON, truncated, wrong Content-Type, missing — produce structured 400/422 responses with a bounded error body; no unhandled rejection, no stack trace in response, no process crash (S1 baseline behavior preserved).
+
+Seeds: DRT-5 (high confidence). Maps to S1, S5.
+
+**Gap:** Mockstar core already has per-request try/catch for malformed requests (S1 baseline: PARTIAL coverage). However the sandbox invariant is not explicitly asserted by a test; a regression that added `eval` or `Function()` to the templater would not fail CI. Adding an explicit "sandbox property" test — e.g., load a template attempting `{{process.exit}}`, assert a compile-time error with a specific code — closes the gap.
+
+### RT-9: Provider-agnostic core enforced by CI grep gate
+
+`grep -ri 'razorpay\|stripe\|twilio\|paypal' src/` returns zero hits outside comments and tests. All provider-shaped content lives under `examples/mocks/<provider>/` as JSON fixtures. Adding a new provider costs zero core code changes. A CI gate runs this grep on every PR and fails if any provider name appears under `src/`.
+
+Seeds: DRT-4 (high confidence). Maps to B1, U3.
+
+**Gap:** Current baseline **already satisfies** the negative property — `src/` has no provider references. However the grep gate is not wired into CI, so the invariant is only observationally true; the next PR could silently violate it. Hence `SPECIFICATION_READY` rather than `SATISFIED` — the test / gate needs to land to make the property load-bearing.
+
+---
+
+## Binding Constraint
+
+**RT-1 — Type-aware JSON value templater with cycle-safe, size-bounded, deterministic-order walker**
+
+**Status:** NOT_SATISFIED
+
+**Why this is binding (Theory of Constraints):**
+1. **Hardest to close given current state.** Must simultaneously preserve JS types, emit deterministic key ordering, detect cycles, bound size incrementally, AND leave the string-mode path for headers/URL/query untouched. Six sub-truths, each a non-trivial implementation primitive. The existing templater stringifies everything — opposite of the target behavior.
+2. **Closing it unlocks the most.** RT-4 (timestamp-in-JSON), RT-5 (echo), RT-6 (enhance writes templates the walker must consume), RT-7 (tests assert walker output), and RT-8 (evaluator sandbox is a property of the walker's parser) all become "add a helper on top of the walker" once the walker exists. RT-2 (factory closure) is the mechanism by which RT-1 scales within the p99 budget — its shape is a sub-property of RT-1's viability.
+3. **Not closing it blocks every solution option equally.** Regardless of whether we choose a Handlebars-based approach (A), a full rewrite (B), a hybrid (C), or a forked schema (D), every option must eventually solve "how does a request value become a correctly-typed response field." Without RT-1 there is no Tier 2, period.
+
+**Dependency chain:** RT-2 → RT-4 → RT-5 → RT-6 → RT-7 → RT-8 all depend on RT-1.
+
+**Handoff to m4:** m4-generate MUST prioritise artifacts that close RT-1 FIRST (compiler changes, walker implementation, dual-context dispatch, sub-truths RT-1.1 through RT-1.6). Binding-constraint artifacts should be tagged `"priority": "binding"` in the generation plan. Deterministic byte-compare, bench gate, and provider fixtures come after — they verify RT-1 works, they don't close it.
+
+---
+
+## Solution Space
+
+> Each option below is evaluated against all 9 RTs, all 9 m2 tensions, and reversibility. The goal is to honour every m2 resolution explicitly — not to re-open already-closed tradeoffs.
+
+### Option A: Mockoon-style `bodyRaw` + Handlebars helpers
+
+Adopt Mockoon's template dialect — response body is declared as a distinct `bodyRaw` field parsed as a string-template first; templates use Handlebars (`{{id ...}}`, `{{{request.body.amount}}}` for unescaped substitution); types are recovered via a second pass that runs `JSON.parse` on the rendered string. Custom helpers for `id`, `now.*`, and `request.body.X` are registered on the Handlebars runtime.
+
+- **Satisfies:** RT-3 (via custom helpers), RT-4 (via helpers), RT-9 (helpers are generic)
+- **Gaps:** RT-1.2 (type preservation is fragile — Handlebars renders to a string, then `JSON.parse` re-types, but numbers with leading zeros, nullable fields, and nested echo become edge cases — WireMock/Hoverfly users hit this exact class of bug), RT-1.3 (Handlebars has no built-in cycle detection), RT-1.4 (key ordering depends on template author, no canonicaliser), RT-1.5 (incremental size tracking not supported by Handlebars — size is known only after full render, violating TN9's pre-serialization resolution), RT-8 (Handlebars is closer to an expression language — needs sandboxing work), RT-2 (Handlebars compiles templates but the factory-closure shape for per-request PRNG is an adapter, not a native pattern)
+- **Tension conflicts:** TN9 (post-render size check violates the incremental resolution), TN3 (Handlebars default behavior stringifies everything — restoring string-mode for headers requires a separate compile path, duplicating the cost)
+- **Complexity:** Medium
+- **Reversibility:** `REVERSIBLE_WITH_COST` — swapping template engines later is user-visible migration pain; users' existing templates in `{{request.body.X}}` style would need to be rewritten if the dialect shifts
+
+### Option B: Full custom JSON-walker templating engine (replaces string engine too)
+
+Hand-roll a single unified engine. Response template is parsed as JSON-with-sentinel-placeholders; walker produces factory-closure tree at compile time; request-time walker materialises per-request context and emits typed values. Replace the existing string-mode engine with a string-flavour of the same walker (header/URL contexts get a string-emitter). Fixed-grammar parser satisfies RT-8 sandbox by construction.
+
+- **Satisfies:** RT-1 (purpose-built), RT-2 (factory closure is native), RT-3 (helpers are direct), RT-4 (helpers are direct), RT-5 (walker is the echo mechanism), RT-7 (tests exercise the walker), RT-8 (sandbox by construction — no eval), RT-9 (provider-agnostic by design)
+- **Gaps:** Implementation cost is the largest of any option — RT-1.6 requires removing the existing string-engine and replacing it with the walker's string-flavour; every existing mockstar user's header/URL template is re-run through the new engine
+- **Tension conflicts:** TN3 risk — U2's "existing non-JSON-body templates remain string-mode" is validated by pre-mortem. Replacing the string engine with a new walker variant is technically compatible but carries per-request cost risk; subtle header-template behavior differences could surface late. TN1's p99 budget tightens because ALL request-handling goes through the new walker, not just JSON-body.
+- **Complexity:** Medium-High
+- **Reversibility:** `ONE_WAY` — once shipped and users adopt the new dialect across all contexts (body, headers, URL, query), rolling back to the old engine is a breaking change across the entire template surface
+
+### Option C: Hybrid — new JSON-body walker for Tier 2, existing string engine unchanged for headers/URL/query ← **Recommended**
+
+Introduce a JSON-body-aware walker used ONLY for response JSON bodies. Dispatch at compile time based on context kind: JSON-value → new walker; header value, URL-path segment, query-string value → existing string-substitution engine (zero change). Walker uses sentinel placeholders embedded in JSON strings (`"{{id('order', 14)}}"`, `"{{request.body.amount}}"`) and replaces them with correctly-typed values during walk. Compile-time output is a factory-closure tree (RT-2). Fixed-grammar parser at the JSON-value helper surface satisfies RT-8.
+
+- **Satisfies:** RT-1 (scoped to JSON-body), RT-2 (factory closure for JSON-body helpers), RT-3 (helpers are direct JS functions), RT-4 (helpers are direct), RT-5 (walker is the echo mechanism), RT-6 (walker reads `_mockstarGenerated` templates the enhancer emits), RT-7 (tests exercise walker + existing string engine side-by-side), RT-8 (sandboxed grammar for JSON-body helpers; string engine's sandbox posture unchanged), RT-9 (provider-agnostic by design)
+- **Gaps:** None — every RT has a concrete satisfaction path. Implementation effort is bounded because string-engine code is untouched.
+- **Tension validation (all CONFIRMED):**
+  - TN1 — compile-time factory + JSON-body-only walker + incremental size tracking keep hot path within ~3.35ms headroom
+  - TN3 — dual dispatch **is literally** U2's validated resolution (string-mode non-JSON, type-preserving JSON-body)
+  - TN4 — factory closure materialises seeded PRNG per request (nanoid customRandom + Mulberry32)
+  - TN8 — compile-time closure-per-placeholder is the pattern
+  - TN9 — walker carries cumulative byte-count state, short-circuits before serialisation
+  - TN2/TN5/TN6/TN7 are orthogonal to this option but preserved unchanged
+- **Complexity:** Medium
+- **Reversibility:** `REVERSIBLE_WITH_COST` — the JSON-body dialect is a new user-visible API, but the string-mode path is unchanged so existing users experience zero disruption; swapping the JSON-body engine later affects only Tier 2 adopters
+
+### Option D: Fork into a new `dynamic-json` response-body type; keep Tier 1 `body` untouched
+
+Introduce a second response-body schema type `dynamic-json` with its own walker + helper registry; the existing `body` field stays Tier 1. Enhancer converts imported mocks from `body` to `dynamic-json` and inserts the `_mockstarGenerated` boundary.
+
+- **Satisfies:** RT-1 (inside new subtree), RT-5, RT-6, RT-8 (all scoped to new subtree with zero risk to existing templates)
+- **Gaps:** RT-9 is odd — provider-agnostic but now two engines means two doors for provider leakage; U1's "generic-first helper surface" fractures across the two engines; RT-7 tests double because they must cover both schemas; documentation surface doubles
+- **Tension conflicts:** TN3 is honoured almost trivially but at the cost of schema fragmentation — users must now choose between `body` (legacy) and `dynamic-json` (Tier 2+), which is a larger UX decision than the tension was about
+- **Complexity:** Medium-High (two engines, two schemas, two test suites)
+- **Reversibility:** `ONE_WAY` ⚠️ — once users have `dynamic-json` files in their mocks, removing the schema is a breaking change. The dual-schema surface area is hard to deprecate.
+
+---
+
+### Recommendation: **Option C (Hybrid)**
+
+Rationale:
+1. **Satisfies all 9 RTs with zero gaps** (Option A has 4+ unresolved gaps; B has high implementation cost with TN3 risk; D fractures the schema surface).
+2. **All 9 m2 tensions CONFIRMED** — no resolution is silently reopened. TN3 in particular maps 1-to-1: dual dispatch IS the segmentation that U2 pre-mortem-validated.
+3. **REVERSIBLE_WITH_COST** reversibility (vs. ONE_WAY for B and D) — the JSON-body dialect can be iterated on post-v1 without touching headers/URL/query templates.
+4. **Binding-constraint-forward:** RT-1 lands first, as its own artifact group (the walker). Everything else is an additive helper registration on top — mechanically lower risk.
+5. **Smallest migration footprint:** existing mockstar users whose templates live in headers or URLs experience zero change. Only users who opt into Tier 2 (via `mockstar enhance` or hand-authored JSON-body templates) see the new semantics.
+
+---
+
+<!-- End m3-anchor additions. Phase transitioned TENSIONED → ANCHORED. Next: /manifold:m4-generate tier2-request-derived-responses --option=C -->
+
+---
+
+## Generation Summary (m4, Option C)
+
+**Phase:** ANCHORED → GENERATED. **Option:** C (Hybrid JSON-walker + unchanged string-template).
+**Artifacts:** 37 across 7 groups. **Tests:** 253/253 pass. **Latency:** p95 23µs (budget 500µs, 22× under).
+
+### Artifact manifest
+
+| Group | Count | Types | Binding-constraint tag |
+|-------|-------|-------|------------------------|
+| A — Core | 8 | code | ⚡ Walker (RT-1) generated first |
+| B — Enhance + spec | 5 | code | — |
+| C — Tests | 9 | test | — |
+| D — Fixtures | 8 | fixture | — |
+| E — Docs | 2 | doc | — |
+| F — Ops | 5 | runbook, dashboard, alert | — |
+| G — CI + bench | 2 | ci, bench | — |
+
+### Required-truth closure
+
+All 9 RTs now have `evidence[]` populated with file-exists / content-match / test-passes checks.
+All 9 RTs transitioned from `NOT_SATISFIED` / `PARTIAL` / `SPECIFICATION_READY` → `SATISFIED` (pending m5 formal verification).
+
+### Reversibility log
+
+| Step | Description | Reversibility |
+|------|-------------|---------------|
+| 1 | Add `type_placeholder` kind to CompiledJsonValue | REVERSIBLE_WITH_COST — existing fixtures keep working, new shape is additive |
+| 2 | Ship `{{id(...)}}` / `{{now.*}}` tokens | TWO_WAY — unused tokens have no runtime cost |
+| 3 | Enhancer writes `_mockstarGenerated` manifest | TWO_WAY — manifest is a clearly-delimited sibling key |
+| 4 | Provider fixtures under `examples/mocks/<provider>/` | TWO_WAY — pure content, removable |
+| 5 | RT-9 grep gate (bun test) | TWO_WAY — test is additive |
+
+**No ONE_WAY actions** — Option C was chosen precisely because every step of the plan is either
+reversible or reversible-with-cost.
+
+### What this decision closes
+
+Nothing irreversible. A follow-up decision could still:
+
+- Swap the nanoid-compatible PRNG for a different one (TWO_WAY — just the seed path changes).
+- Expand the enhancer heuristic (TWO_WAY — `field-mapping.ts` is additive).
+- Add YAML spec support behind a flag (TWO_WAY — `parseYaml` is already a stub).
+
+### Binding-constraint audit
+
+**RT-1** was identified as binding at m3. The walker landed first (Group A, file 3 of 8), all its
+evidence is `VERIFIED`, and every downstream RT's evidence ultimately transitively depends on the
+walker doing its job. No residual binding-constraint risk.
+
+<!-- End m4-generate additions. Phase transitioned ANCHORED → GENERATED. Next: /manifold:m5-verify tier2-request-derived-responses -->
+

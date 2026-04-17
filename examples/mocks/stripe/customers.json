@@ -1,0 +1,61 @@
+{
+  "mocks": [
+    {
+      "id": "create-customer",
+      "match": { "method": "POST", "path": "/v1/customers" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{id(\"cus_\", 14)}}",
+          "object": "customer",
+          "address": null,
+          "balance": 0,
+          "created": "{{now.unix}}",
+          "currency": null,
+          "default_source": null,
+          "delinquent": false,
+          "description": "{{request.body.description}}",
+          "discount": null,
+          "email": "{{request.body.email}}",
+          "invoice_prefix": "{{id(\"\", 8)}}",
+          "invoice_settings": {
+            "custom_fields": null,
+            "default_payment_method": null,
+            "footer": null,
+            "rendering_options": null
+          },
+          "livemode": false,
+          "metadata": "{{request.body.metadata}}",
+          "name": "{{request.body.name}}",
+          "next_invoice_sequence": 1,
+          "phone": "{{request.body.phone}}",
+          "preferred_locales": [],
+          "shipping": null,
+          "tax_exempt": "none",
+          "test_clock": null
+        }
+      }
+    },
+    {
+      "id": "fetch-customer",
+      "match": { "method": "GET", "path": "/v1/customers/:id" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{request.params.id}}",
+          "object": "customer",
+          "balance": 0,
+          "created": "{{now.unix}}",
+          "email": "test@example.com",
+          "livemode": false,
+          "name": "Test User",
+          "metadata": {}
+        }
+      }
+    }
+  ]
+}

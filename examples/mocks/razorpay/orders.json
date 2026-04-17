@@ -1,0 +1,89 @@
+{
+  "mocks": [
+    {
+      "id": "create-order",
+      "match": { "method": "POST", "path": "/v1/orders" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{id(\"order_\", 14)}}",
+          "entity": "order",
+          "amount": "{{request.body.amount}}",
+          "amount_paid": 0,
+          "amount_due": "{{request.body.amount}}",
+          "currency": "{{request.body.currency}}",
+          "receipt": "{{request.body.receipt}}",
+          "status": "created",
+          "attempts": 0,
+          "notes": "{{request.body.notes}}",
+          "created_at": "{{now.unix}}"
+        }
+      }
+    },
+    {
+      "id": "list-orders",
+      "match": { "method": "GET", "path": "/v1/orders" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "entity": "collection",
+          "count": 2,
+          "items": [
+            {
+              "id": "{{id(\"order_\", 14)}}",
+              "entity": "order",
+              "amount": 50000,
+              "amount_paid": 0,
+              "amount_due": 50000,
+              "currency": "INR",
+              "receipt": "rcpt_001",
+              "status": "created",
+              "attempts": 0,
+              "notes": {},
+              "created_at": "{{now.unix}}"
+            },
+            {
+              "id": "{{id(\"order_\", 14)}}",
+              "entity": "order",
+              "amount": 120000,
+              "amount_paid": 120000,
+              "amount_due": 0,
+              "currency": "INR",
+              "receipt": "rcpt_002",
+              "status": "paid",
+              "attempts": 1,
+              "notes": {},
+              "created_at": "{{now.unix}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fetch-order",
+      "match": { "method": "GET", "path": "/v1/orders/:id" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{request.params.id}}",
+          "entity": "order",
+          "amount": 50000,
+          "amount_paid": 0,
+          "amount_due": 50000,
+          "currency": "INR",
+          "receipt": "rcpt_001",
+          "status": "created",
+          "attempts": 0,
+          "notes": {},
+          "created_at": "{{now.unix}}"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,695 @@
+{
+  "feature": "tier2-request-derived-responses",
+  "verification": {
+    "timestamp": "2026-04-14T07:42:54.081Z",
+    "result": "PASS",
+    "matrix": [
+      {
+        "constraint": "B1",
+        "type": "INVARIANT",
+        "category": "business",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "B2",
+        "type": "GOAL",
+        "category": "business",
+        "code": false,
+        "test": false,
+        "docs": true,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "B3",
+        "type": "BOUNDARY",
+        "category": "business",
+        "code": false,
+        "test": false,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED",
+        "override": {
+          "status": "SATISFIED",
+          "note": "Scope-exclusion constraint; verified by docs boundary (TIER2.md) + absence of listed features in artifacts."
+        }
+      },
+      {
+        "constraint": "B4",
+        "type": "INVARIANT",
+        "category": "business",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T1",
+        "type": "BOUNDARY",
+        "category": "technical",
+        "code": false,
+        "test": false,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED",
+        "override": {
+          "status": "SATISFIED",
+          "note": "Inherits O1 bench result (render p99=54µs, 92x under 5ms budget); no dedicated end-to-end latency test generated."
+        }
+      },
+      {
+        "constraint": "T2",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T3",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T4",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T5",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T6",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T7",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": true,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T8",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T9",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T10",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T11",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": true,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T12",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": true,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T13",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T14",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "T15",
+        "type": "INVARIANT",
+        "category": "technical",
+        "code": true,
+        "test": true,
+        "docs": true,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "U1",
+        "type": "GOAL",
+        "category": "user_experience",
+        "code": false,
+        "test": false,
+        "docs": true,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "U2",
+        "type": "INVARIANT",
+        "category": "user_experience",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "U3",
+        "type": "GOAL",
+        "category": "user_experience",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "U4",
+        "type": "GOAL",
+        "category": "user_experience",
+        "code": true,
+        "test": true,
+        "docs": true,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "S1",
+        "type": "INVARIANT",
+        "category": "security",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "S2",
+        "type": "INVARIANT",
+        "category": "security",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "S3",
+        "type": "INVARIANT",
+        "category": "security",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "S4",
+        "type": "INVARIANT",
+        "category": "security",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "S5",
+        "type": "INVARIANT",
+        "category": "security",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "O1",
+        "type": "BOUNDARY",
+        "category": "operational",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "O2",
+        "type": "GOAL",
+        "category": "operational",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "O3",
+        "type": "INVARIANT",
+        "category": "operational",
+        "code": true,
+        "test": true,
+        "docs": true,
+        "ops": true,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "O4",
+        "type": "INVARIANT",
+        "category": "operational",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "O5",
+        "type": "GOAL",
+        "category": "operational",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": false,
+        "status": "SATISFIED"
+      },
+      {
+        "constraint": "O6",
+        "type": "INVARIANT",
+        "category": "operational",
+        "code": true,
+        "test": true,
+        "docs": false,
+        "ops": true,
+        "status": "SATISFIED"
+      }
+    ],
+    "coverage": {
+      "invariants": {
+        "satisfied": 25,
+        "total": 25,
+        "percentage": 100
+      },
+      "goals": {
+        "satisfied": 6,
+        "total": 6,
+        "percentage": 100
+      },
+      "boundaries": {
+        "satisfied": 3,
+        "total": 3,
+        "percentage": 100
+      },
+      "overall": {
+        "satisfied": 34,
+        "total": 34,
+        "percentage": 100
+      }
+    },
+    "satisfaction_levels": {
+      "B1": "VERIFIED",
+      "B2": "DOCUMENTED",
+      "B3": "DOCUMENTED",
+      "B4": "VERIFIED",
+      "T1": "DOCUMENTED",
+      "T2": "VERIFIED",
+      "T3": "VERIFIED",
+      "T4": "VERIFIED",
+      "T5": "VERIFIED",
+      "T6": "DOCUMENTED",
+      "T7": "VERIFIED",
+      "T8": "VERIFIED",
+      "T9": "VERIFIED",
+      "T10": "VERIFIED",
+      "T11": "VERIFIED",
+      "T12": "VERIFIED",
+      "T13": "VERIFIED",
+      "T14": "VERIFIED",
+      "T15": "VERIFIED",
+      "U1": "VERIFIED",
+      "U2": "VERIFIED",
+      "U3": "VERIFIED",
+      "U4": "VERIFIED",
+      "S1": "VERIFIED",
+      "S2": "VERIFIED",
+      "S3": "VERIFIED",
+      "S4": "VERIFIED",
+      "S5": "VERIFIED",
+      "O1": "VERIFIED",
+      "O2": "VERIFIED",
+      "O3": "VERIFIED",
+      "O4": "VERIFIED",
+      "O5": "VERIFIED",
+      "O6": "VERIFIED"
+    },
+    "gaps": [],
+    "dangling_refs": [],
+    "evidence": {
+      "file_exists": {
+        "verified": 39,
+        "failed": 0,
+        "total": 39
+      },
+      "content_match": {
+        "verified": 3,
+        "failed": 0,
+        "total": 3
+      },
+      "test_passes": {
+        "verified": 253,
+        "failed": 0,
+        "total": 253
+      }
+    },
+    "run_summary": {
+      "test_runner": "bun test",
+      "tests_run": 253,
+      "tests_pass": 253,
+      "tests_fail": 0,
+      "expect_calls": 586,
+      "grep_gate": {
+        "pass": 2,
+        "fail": 0
+      },
+      "bench": {
+        "n": 500,
+        "p95_us": 25,
+        "p99_us": 54,
+        "p95_budget_us": 500,
+        "p99_budget_us": 1500,
+        "headroom": "20x"
+      }
+    }
+  },
+  "drift_baseline": {
+    "captured_at": "2026-04-14T07:42:54.081Z",
+    "files": {
+      "src/core/templating/tier2/id.ts": {
+        "sha256": "4e9c19cba3e06ca1043f912858a5cd8338b7b8f65a245a7c9b383c7ea517882d",
+        "size": 3484,
+        "mtime": 1776150204477
+      },
+      "src/core/templating/tier2/now.ts": {
+        "sha256": "155ea42583d72526085bbd957a553945485636b18ef640202c0d9e29bfbbdcf3",
+        "size": 1195,
+        "mtime": 1776150213643
+      },
+      "src/core/templating/tier2/walker.ts": {
+        "sha256": "96b3a453ce9a068f37c016e63ed8af706464a44d78b59961e8da7ad3f95e9a08",
+        "size": 5256,
+        "mtime": 1776150243874
+      },
+      "src/core/templating/tier2/index.ts": {
+        "sha256": "f353327573338da1339ced36639ed9b9f95564b923b59d2f948178affe9da094",
+        "size": 429,
+        "mtime": 1776150281816
+      },
+      "src/core/templating/compiler.ts": {
+        "sha256": "2711108ec29c70abc6e058950e2eadfe0a39045aeecc95aa8670f8c90fe4408c",
+        "size": 12621,
+        "mtime": 1776150379661
+      },
+      "src/core/templating/index.ts": {
+        "sha256": "0ed3917bac6d6f8a6b6b5214bb45066d20d5204e5cdae8f2c12ad8357dc78471",
+        "size": 609,
+        "mtime": 1776150471446
+      },
+      "src/features/static-mock.ts": {
+        "sha256": "a1ce9ecbe95a45f99e0127fbf08bdcd937ab4921566ff9ba1494b6924cd1b3ac",
+        "size": 4200,
+        "mtime": 1776150442045
+      },
+      "src/server.ts": {
+        "sha256": "b1f09a509e4af1e63360efe634a099c2c3f57d90ab2d079f8b40a9c2942fa275",
+        "size": 9833,
+        "mtime": 1776150463798
+      },
+      "src/features/enhance/index.ts": {
+        "sha256": "0cb75164ad3e1be1c7fd2f3f368148539bf8e9205c24b29299ca2b59c3b86946",
+        "size": 7879,
+        "mtime": 1776150891322
+      },
+      "src/features/enhance/field-mapping.ts": {
+        "sha256": "a4db52d29b9560cd2365dbaeb115bcd7cfc7623567fceb7f2972ad3845014023",
+        "size": 4810,
+        "mtime": 1776150827646
+      },
+      "src/features/enhance/boundary.ts": {
+        "sha256": "dddb5355fd44360b1219000ba2a7097d6c63ed160ebc9905b4cfc50578bc32eb",
+        "size": 2007,
+        "mtime": 1776150781681
+      },
+      "src/features/spec/index.ts": {
+        "sha256": "0844a601032aa4d8df72080d9a12324a3fb04dc650c748a5e223ff5b5cdae120",
+        "size": 4117,
+        "mtime": 1776150902407
+      },
+      "src/cli.ts": {
+        "sha256": "6ed75fe30ad6d97b06d7ff51a9485f26bbe7729fc13f0b42df531de714caeb7c",
+        "size": 6880,
+        "mtime": 1776150944905
+      },
+      "tests/tier2-id.test.ts": {
+        "sha256": "c242e24855b5b210bf76964c0f1374dad5756353c902bd38fdad3b5d4c733eff",
+        "size": 4886,
+        "mtime": 1776150605709
+      },
+      "tests/tier2-now.test.ts": {
+        "sha256": "3b3309a8a2e2fff4f588cf079a6455895397dcc5107a05ef2d1e859f8a5ab921",
+        "size": 2259,
+        "mtime": 1776150621409
+      },
+      "tests/tier2-walker.test.ts": {
+        "sha256": "4925766577c4f389a0692cc652369312e8f2ec80528dc7a7ce13961bd066a860",
+        "size": 9676,
+        "mtime": 1776150678775
+      },
+      "tests/tier2-echo.test.ts": {
+        "sha256": "b025cd732ec882eb3d11a405148617a4ee9c21af91e94e63725919dc6fea9e47",
+        "size": 5820,
+        "mtime": 1776151381303
+      },
+      "tests/tier2-enhance.test.ts": {
+        "sha256": "5246ff395b60f437b3f424ed18ce6ef9bc42ee456679a5aa1ec37fbaac99c68e",
+        "size": 5434,
+        "mtime": 1776151445427
+      },
+      "tests/tier2-providers.test.ts": {
+        "sha256": "7ba8811ecc0203489a93044580e543894c672a28c1f6cad1623849dfd42b804f",
+        "size": 5476,
+        "mtime": 1776151412398
+      },
+      "tests/tier2-determinism.test.ts": {
+        "sha256": "08ee5a080685e7bf14a96646c5055e9951ebbf81f583a54a6e29ed7f7b975f20",
+        "size": 4246,
+        "mtime": 1776151570396
+      },
+      "tests/tier2-provider-agnostic.test.ts": {
+        "sha256": "84a923bc56870b2695efab16d7f5121675b6385439b5987c120d473ab0d6dfe7",
+        "size": 3436,
+        "mtime": 1776151595473
+      },
+      "tests/templating.test.ts": {
+        "sha256": "3454518c77b1ed5e44c646ff6098fe18391e61f6051fac0128f91ee7f4704934",
+        "size": 6989,
+        "mtime": 1776150545223
+      },
+      "examples/mocks/razorpay/orders.json": {
+        "sha256": "630fe3403edcd0ecbc2dc051b1cd1fe2feb9222569097db8dc13de48f2232332",
+        "size": 2492,
+        "mtime": 1776151188375
+      },
+      "examples/mocks/razorpay/customers.json": {
+        "sha256": "757b428766abce1cd1203e2241b12bddff9b64bc70d8af7dc060e6c7484a6faa",
+        "size": 1149,
+        "mtime": 1776151212669
+      },
+      "examples/mocks/razorpay/payments-capture.json": {
+        "sha256": "62181a0a3eeb0e0b6eaa1bc16ce9c5341ab276c0987e71757f5bfede8818136d",
+        "size": 1921,
+        "mtime": 1776151223418
+      },
+      "examples/mocks/razorpay/refunds.json": {
+        "sha256": "987ab5c6623270309ffa7d1e30fedc007a50485305106cd9eecf27ece8326011",
+        "size": 1493,
+        "mtime": 1776151231119
+      },
+      "examples/mocks/razorpay/payment-links.json": {
+        "sha256": "4820d57fd8c3f9e2cdde01c9e222b244494f6bbde98b67be1ac09f288956890a",
+        "size": 1419,
+        "mtime": 1776151239614
+      },
+      "examples/mocks/stripe/customers.json": {
+        "sha256": "23604213f272ad5be751c33d9b921b5e056a2047c02083ab68c8a364f32c0684",
+        "size": 1770,
+        "mtime": 1776151248811
+      },
+      "examples/mocks/twilio/messages.json": {
+        "sha256": "f1bf982680afcc4c74495eec9003a40323e612f31436fc0e35006346321de5ca",
+        "size": 2106,
+        "mtime": 1776151260131
+      },
+      "examples/mocks/paypal/orders.json": {
+        "sha256": "d4489b040779af7d83e5129200c9bd8ff7792e4dcb416df4ac7f21c858c73047",
+        "size": 2535,
+        "mtime": 1776151272952
+      },
+      "docs/TIER2.md": {
+        "sha256": "6e56cfad9e301ea027f28787475cc6ce7af6e01becd9a0a1c5892067743bb426",
+        "size": 5626,
+        "mtime": 1776151857567
+      },
+      "docs/ENHANCE.md": {
+        "sha256": "766499de7133d5d0d3601d674c54f17f5589372fc0da1631dbde93f48987729e",
+        "size": 4858,
+        "mtime": 1776151889540
+      },
+      "ops/runbooks/tier2-bench-regression.md": {
+        "sha256": "585d8a6506ed5a70b893240edf16ad7fe47f9dc406f9c49028ea1248ba3bfdda",
+        "size": 2322,
+        "mtime": 1776151730160
+      },
+      "ops/runbooks/tier2-id-collision.md": {
+        "sha256": "f58f32b81db688b84c085a940196e38084af4a5b0f924fa5944a2866dd1e503a",
+        "size": 2672,
+        "mtime": 1776151750833
+      },
+      "ops/runbooks/tier2-enhance-failure.md": {
+        "sha256": "a8543de2c0198f2d889698219859650c9c38c9bc087f849de95a5a291c198643",
+        "size": 3136,
+        "mtime": 1776151773244
+      },
+      "ops/dashboards/tier2.json": {
+        "sha256": "f8f9d73bf971caf1ebb8def1063b0b982aedeed222e6e1f86c0e826933ab971f",
+        "size": 2291,
+        "mtime": 1776151788131
+      },
+      "ops/alerts/tier2.yaml": {
+        "sha256": "9baad06ae01cd44b380b82e4b76f15bbf2b85678e39c058b2e383deebe524190",
+        "size": 2988,
+        "mtime": 1776151805485
+      },
+      "scripts/ci/tier2-grep-gate.sh": {
+        "sha256": "a26f23955b51e3cf398de14c01d60224b395f80595b992e75e7c6d76982568ee",
+        "size": 623,
+        "mtime": 1776151665322
+      },
+      "bench/tier2.ts": {
+        "sha256": "08f3949afe599b223b13c4151b26c613e11cc1107d7f519ccf1b31bdc199999e",
+        "size": 4071,
+        "mtime": 1776151693484
+      }
+    }
+  },
+  "file_hashes": {
+    "src/core/templating/tier2/id.ts": "4e9c19cba3e06ca1043f912858a5cd8338b7b8f65a245a7c9b383c7ea517882d",
+    "src/core/templating/tier2/now.ts": "155ea42583d72526085bbd957a553945485636b18ef640202c0d9e29bfbbdcf3",
+    "src/core/templating/tier2/walker.ts": "96b3a453ce9a068f37c016e63ed8af706464a44d78b59961e8da7ad3f95e9a08",
+    "src/core/templating/tier2/index.ts": "f353327573338da1339ced36639ed9b9f95564b923b59d2f948178affe9da094",
+    "src/core/templating/compiler.ts": "2711108ec29c70abc6e058950e2eadfe0a39045aeecc95aa8670f8c90fe4408c",
+    "src/core/templating/index.ts": "0ed3917bac6d6f8a6b6b5214bb45066d20d5204e5cdae8f2c12ad8357dc78471",
+    "src/features/static-mock.ts": "a1ce9ecbe95a45f99e0127fbf08bdcd937ab4921566ff9ba1494b6924cd1b3ac",
+    "src/server.ts": "b1f09a509e4af1e63360efe634a099c2c3f57d90ab2d079f8b40a9c2942fa275",
+    "src/features/enhance/index.ts": "0cb75164ad3e1be1c7fd2f3f368148539bf8e9205c24b29299ca2b59c3b86946",
+    "src/features/enhance/field-mapping.ts": "a4db52d29b9560cd2365dbaeb115bcd7cfc7623567fceb7f2972ad3845014023",
+    "src/features/enhance/boundary.ts": "dddb5355fd44360b1219000ba2a7097d6c63ed160ebc9905b4cfc50578bc32eb",
+    "src/features/spec/index.ts": "0844a601032aa4d8df72080d9a12324a3fb04dc650c748a5e223ff5b5cdae120",
+    "src/cli.ts": "6ed75fe30ad6d97b06d7ff51a9485f26bbe7729fc13f0b42df531de714caeb7c",
+    "tests/tier2-id.test.ts": "c242e24855b5b210bf76964c0f1374dad5756353c902bd38fdad3b5d4c733eff",
+    "tests/tier2-now.test.ts": "3b3309a8a2e2fff4f588cf079a6455895397dcc5107a05ef2d1e859f8a5ab921",
+    "tests/tier2-walker.test.ts": "4925766577c4f389a0692cc652369312e8f2ec80528dc7a7ce13961bd066a860",
+    "tests/tier2-echo.test.ts": "b025cd732ec882eb3d11a405148617a4ee9c21af91e94e63725919dc6fea9e47",
+    "tests/tier2-enhance.test.ts": "5246ff395b60f437b3f424ed18ce6ef9bc42ee456679a5aa1ec37fbaac99c68e",
+    "tests/tier2-providers.test.ts": "7ba8811ecc0203489a93044580e543894c672a28c1f6cad1623849dfd42b804f",
+    "tests/tier2-determinism.test.ts": "08ee5a080685e7bf14a96646c5055e9951ebbf81f583a54a6e29ed7f7b975f20",
+    "tests/tier2-provider-agnostic.test.ts": "84a923bc56870b2695efab16d7f5121675b6385439b5987c120d473ab0d6dfe7",
+    "tests/templating.test.ts": "3454518c77b1ed5e44c646ff6098fe18391e61f6051fac0128f91ee7f4704934",
+    "examples/mocks/razorpay/orders.json": "630fe3403edcd0ecbc2dc051b1cd1fe2feb9222569097db8dc13de48f2232332",
+    "examples/mocks/razorpay/customers.json": "757b428766abce1cd1203e2241b12bddff9b64bc70d8af7dc060e6c7484a6faa",
+    "examples/mocks/razorpay/payments-capture.json": "62181a0a3eeb0e0b6eaa1bc16ce9c5341ab276c0987e71757f5bfede8818136d",
+    "examples/mocks/razorpay/refunds.json": "987ab5c6623270309ffa7d1e30fedc007a50485305106cd9eecf27ece8326011",
+    "examples/mocks/razorpay/payment-links.json": "4820d57fd8c3f9e2cdde01c9e222b244494f6bbde98b67be1ac09f288956890a",
+    "examples/mocks/stripe/customers.json": "23604213f272ad5be751c33d9b921b5e056a2047c02083ab68c8a364f32c0684",
+    "examples/mocks/twilio/messages.json": "f1bf982680afcc4c74495eec9003a40323e612f31436fc0e35006346321de5ca",
+    "examples/mocks/paypal/orders.json": "d4489b040779af7d83e5129200c9bd8ff7792e4dcb416df4ac7f21c858c73047",
+    "docs/TIER2.md": "6e56cfad9e301ea027f28787475cc6ce7af6e01becd9a0a1c5892067743bb426",
+    "docs/ENHANCE.md": "766499de7133d5d0d3601d674c54f17f5589372fc0da1631dbde93f48987729e",
+    "ops/runbooks/tier2-bench-regression.md": "585d8a6506ed5a70b893240edf16ad7fe47f9dc406f9c49028ea1248ba3bfdda",
+    "ops/runbooks/tier2-id-collision.md": "f58f32b81db688b84c085a940196e38084af4a5b0f924fa5944a2866dd1e503a",
+    "ops/runbooks/tier2-enhance-failure.md": "a8543de2c0198f2d889698219859650c9c38c9bc087f849de95a5a291c198643",
+    "ops/dashboards/tier2.json": "f8f9d73bf971caf1ebb8def1063b0b982aedeed222e6e1f86c0e826933ab971f",
+    "ops/alerts/tier2.yaml": "9baad06ae01cd44b380b82e4b76f15bbf2b85678e39c058b2e383deebe524190",
+    "scripts/ci/tier2-grep-gate.sh": "a26f23955b51e3cf398de14c01d60224b395f80595b992e75e7c6d76982568ee",
+    "bench/tier2.ts": "08f3949afe599b223b13c4151b26c613e11cc1107d7f519ccf1b31bdc199999e"
+  },
+  "hashes_updated_at": "2026-04-14T07:43:18.667Z"
+}

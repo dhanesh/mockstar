@@ -1,0 +1,61 @@
+{
+  "mocks": [
+    {
+      "id": "create-message",
+      "match": { "method": "POST", "path": "/2010-04-01/Accounts/:accountSid/Messages.json" },
+      "response": {
+        "kind": "static",
+        "status": 201,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "account_sid": "{{request.params.accountSid}}",
+          "api_version": "2010-04-01",
+          "body": "{{request.body.Body}}",
+          "date_created": "{{now.iso}}",
+          "date_sent": null,
+          "date_updated": "{{now.iso}}",
+          "direction": "outbound-api",
+          "error_code": null,
+          "error_message": null,
+          "from": "{{request.body.From}}",
+          "messaging_service_sid": null,
+          "num_media": "0",
+          "num_segments": "1",
+          "price": null,
+          "price_unit": "USD",
+          "sid": "{{id(\"SM\", 32, \"0123456789abcdef\")}}",
+          "status": "queued",
+          "subresource_uris": {
+            "media": "/2010-04-01/Accounts/{{request.params.accountSid}}/Messages/{{id(\"SM\", 32, \"0123456789abcdef\")}}/Media.json"
+          },
+          "to": "{{request.body.To}}",
+          "uri": "/2010-04-01/Accounts/{{request.params.accountSid}}/Messages/{{id(\"SM\", 32, \"0123456789abcdef\")}}.json"
+        }
+      }
+    },
+    {
+      "id": "fetch-message",
+      "match": { "method": "GET", "path": "/2010-04-01/Accounts/:accountSid/Messages/:sid.json" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "account_sid": "{{request.params.accountSid}}",
+          "sid": "{{request.params.sid}}",
+          "status": "delivered",
+          "direction": "outbound-api",
+          "from": "+15551234567",
+          "to": "+15557654321",
+          "body": "Hello from mockstar",
+          "date_created": "{{now.iso}}",
+          "date_sent": "{{now.iso}}",
+          "date_updated": "{{now.iso}}",
+          "num_segments": "1",
+          "price": "-0.00750",
+          "price_unit": "USD"
+        }
+      }
+    }
+  ]
+}

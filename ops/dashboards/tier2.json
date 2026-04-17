@@ -1,0 +1,62 @@
+{
+  "$schema": "https://github.com/grafana/grafana/blob/main/docs/sources/dashboards/json-model/index.md",
+  "title": "Mockstar Tier 2 — Request-Derived Responses",
+  "description": "Observability for the Tier 2 JSON-walker render path. Each panel traces to a GOAL constraint.",
+  "tags": ["mockstar", "tier2"],
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Tier 2 render latency (p50 / p95 / p99)",
+      "satisfies": ["O1"],
+      "type": "timeseries",
+      "unit": "µs",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (le) (rate(mockstar_tier2_render_latency_us_bucket[5m])))", "legend": "p50" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(mockstar_tier2_render_latency_us_bucket[5m])))", "legend": "p95" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(mockstar_tier2_render_latency_us_bucket[5m])))", "legend": "p99" }
+      ],
+      "thresholds": [{ "value": 500, "op": "gt", "color": "red", "label": "O1 p95 budget" }]
+    },
+    {
+      "id": 2,
+      "title": "Tier 2 413 Payload-Too-Large responses",
+      "satisfies": ["S4", "RT-1.5"],
+      "type": "timeseries",
+      "unit": "req/s",
+      "targets": [
+        { "expr": "sum by (tenant) (rate(mockstar_tier2_render_errors_total{code=\"PAYLOAD_TOO_LARGE\"}[5m]))", "legend": "{{tenant}}" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Tier 2 render errors by code",
+      "satisfies": ["RT-1.3", "S4"],
+      "type": "timeseries",
+      "unit": "req/s",
+      "targets": [
+        { "expr": "sum by (code) (rate(mockstar_tier2_render_errors_total[5m]))", "legend": "{{code}}" }
+      ],
+      "notes": "Breakdown: PAYLOAD_TOO_LARGE (413), MAX_DEPTH_EXCEEDED (500), CYCLE_DETECTED (500)."
+    },
+    {
+      "id": 4,
+      "title": "Tier 2 render throughput",
+      "satisfies": ["O1"],
+      "type": "timeseries",
+      "unit": "req/s",
+      "targets": [
+        { "expr": "sum by (tenant) (rate(mockstar_tier2_render_total[5m]))", "legend": "{{tenant}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Enhance invocation count (bench-time only)",
+      "satisfies": ["RT-6", "O3"],
+      "type": "stat",
+      "targets": [
+        { "expr": "sum(mockstar_enhance_invocations_total)", "legend": "total" }
+      ]
+    }
+  ]
+}

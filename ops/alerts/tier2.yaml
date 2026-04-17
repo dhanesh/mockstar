@@ -1,0 +1,74 @@
+# Satisfies: O1 (latency invariant), RT-1.5 (413 on oversize), RT-3 (no id collisions)
+# Each alert detects an INVARIANT violation and pages when the condition holds for > `for` duration.
+
+groups:
+  - name: mockstar-tier2
+    rules:
+      - alert: Tier2RenderLatencyP95Over500us
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(mockstar_tier2_render_latency_us_bucket[5m]))
+          ) > 500
+        for: 10m
+        labels:
+          severity: warning
+          constraint: O1
+          feature: tier2
+        annotations:
+          summary: "Tier 2 render p95 above 500µs"
+          description: |
+            Tier 2 render p95 latency has exceeded 500µs for 10 minutes. This violates O1
+            (render-path latency budget). Check recent commits under src/core/templating/ or
+            src/features/static-mock.ts.
+          runbook: ops/runbooks/tier2-bench-regression.md
+
+      - alert: Tier2RenderLatencyP99Over1500us
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (le) (rate(mockstar_tier2_render_latency_us_bucket[5m]))
+          ) > 1500
+        for: 5m
+        labels:
+          severity: critical
+          constraint: O1
+          feature: tier2
+        annotations:
+          summary: "Tier 2 render p99 above 1500µs"
+          description: |
+            Tier 2 render p99 latency exceeds 1.5ms for 5 minutes. Likely GC churn or a blocking
+            sync call in the hot path.
+          runbook: ops/runbooks/tier2-bench-regression.md
+
+      - alert: Tier2PayloadTooLargeSpike
+        expr: |
+          sum by (tenant) (rate(mockstar_tier2_render_errors_total{code="PAYLOAD_TOO_LARGE"}[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+          constraint: RT-1.5
+          feature: tier2
+        annotations:
+          summary: "Tier 2 413 responses >1/s per tenant"
+          description: |
+            Tenant {{ $labels.tenant }} is seeing sustained PAYLOAD_TOO_LARGE responses. Either a
+            fixture has grown to exceed the body budget, or a pathological request is producing
+            a large template expansion. Check the fixture for recursive / large array templates.
+
+      - alert: Tier2CycleOrDepthErrors
+        expr: |
+          sum(rate(mockstar_tier2_render_errors_total{code=~"CYCLE_DETECTED|MAX_DEPTH_EXCEEDED"}[15m])) > 0
+        for: 15m
+        labels:
+          severity: critical
+          constraint: RT-1.3
+          feature: tier2
+        annotations:
+          summary: "Tier 2 cycle / max-depth render errors detected"
+          description: |
+            The walker hit a cycle or max-depth guard. This should be impossible with user-authored
+            fixtures (the cycle check is for self-referencing request bodies reflected back via
+            {{request.body.*}}). Investigate immediately — these should never happen in a
+            well-formed deployment.
+          runbook: ops/runbooks/tier2-bench-regression.md

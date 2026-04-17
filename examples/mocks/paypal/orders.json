@@ -1,0 +1,74 @@
+{
+  "mocks": [
+    {
+      "id": "create-order",
+      "match": { "method": "POST", "path": "/v2/checkout/orders" },
+      "response": {
+        "kind": "static",
+        "status": 201,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{id(\"\", 17, \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\")}}",
+          "intent": "{{request.body.intent}}",
+          "status": "CREATED",
+          "purchase_units": "{{request.body.purchase_units}}",
+          "create_time": "{{now.iso}}",
+          "links": [
+            {
+              "href": "https://api-m.sandbox.paypal.com/v2/checkout/orders/{{id(\"\", 17, \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\")}}",
+              "rel": "self",
+              "method": "GET"
+            },
+            {
+              "href": "https://www.sandbox.paypal.com/checkoutnow?token={{id(\"\", 17, \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\")}}",
+              "rel": "approve",
+              "method": "GET"
+            },
+            {
+              "href": "https://api-m.sandbox.paypal.com/v2/checkout/orders/{{id(\"\", 17, \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\")}}/capture",
+              "rel": "capture",
+              "method": "POST"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "capture-order",
+      "match": { "method": "POST", "path": "/v2/checkout/orders/:id/capture" },
+      "response": {
+        "kind": "static",
+        "status": 201,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{request.params.id}}",
+          "status": "COMPLETED",
+          "payer": {
+            "name": { "given_name": "Test", "surname": "User" },
+            "email_address": "payer@example.com",
+            "payer_id": "{{id(\"\", 13, \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\")}}"
+          },
+          "purchase_units": [
+            {
+              "reference_id": "default",
+              "payments": {
+                "captures": [
+                  {
+                    "id": "{{id(\"\", 17, \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\")}}",
+                    "status": "COMPLETED",
+                    "amount": { "currency_code": "USD", "value": "100.00" },
+                    "final_capture": true,
+                    "create_time": "{{now.iso}}",
+                    "update_time": "{{now.iso}}"
+                  }
+                ]
+              }
+            }
+          ],
+          "create_time": "{{now.iso}}",
+          "update_time": "{{now.iso}}"
+        }
+      }
+    }
+  ]
+}

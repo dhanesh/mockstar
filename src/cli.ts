@@ -7,9 +7,10 @@ import { launch } from './index.ts';
 import { runImporter } from './features/openapi/index.ts';
 import { preflight } from './core/preflight.ts';
 import { dispatchProxyCommand } from './features/proxy/cli.ts';
+import { runEnhance } from './features/enhance/index.ts';
 
 interface ParsedArgs {
-  command: 'serve' | 'import' | 'proxy' | 'help' | 'version';
+  command: 'serve' | 'import' | 'enhance' | 'proxy' | 'help' | 'version';
   proxyArgs?: readonly string[];
   configRoot?: string;
   handlersDir?: string;
@@ -21,6 +22,8 @@ interface ParsedArgs {
   deterministic?: boolean;
   watch?: boolean;
   allowPrivate?: boolean;
+  enhanceDir?: string;
+  dryRun?: boolean;
 }
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
@@ -39,6 +42,15 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       outDir,
       tenantName: rest.find((r) => r.startsWith('--tenant='))?.slice('--tenant='.length),
       allowPrivate: rest.includes('--allow-private'),
+    };
+  }
+  if (head === 'enhance') {
+    const enhanceDir = rest.find((r) => !r.startsWith('-'));
+    return {
+      command: 'enhance',
+      enhanceDir,
+      specPath: getFlag(rest, '--spec'),
+      dryRun: rest.includes('--dry-run'),
     };
   }
   // Default: serve from positional config root.
@@ -100,6 +112,24 @@ async function main(): Promise<number> {
     return 0;
   }
 
+  if (args.command === 'enhance') {
+    if (!args.enhanceDir) {
+      process.stderr.write(usage());
+      return 2;
+    }
+    const result = await runEnhance({
+      inputDir: resolve(args.enhanceDir),
+      specPath: args.specPath,
+      dryRun: args.dryRun,
+    });
+    process.stdout.write(
+      `Enhanced ${result.filesChanged}/${result.filesScanned} files (${result.rewrites} rewrites)` +
+      (result.warnings.length ? `\nWarnings:\n  ${result.warnings.join('\n  ')}` : '') +
+      '\n',
+    );
+    return 0;
+  }
+
   const configRoot = resolve(args.configRoot ?? './mocks');
   const adminEnabled = Boolean(process.env.MOCKSTAR_ADMIN_TOKEN);
 
@@ -145,6 +175,7 @@ function usage(): string {
     'Commands:',
     '  serve [config-root]         Start the mock server (default command)',
     '  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON',
+    '  enhance <mocks-dir>         Rewrite imported mocks with Tier 2 placeholders',
     '  proxy <install|start|...>   Run the HTTPS transparent upstream proxy (tier1)',
     '  help                        Show this help',
     '  version                     Print version',

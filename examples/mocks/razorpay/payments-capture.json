@@ -1,0 +1,66 @@
+{
+  "mocks": [
+    {
+      "id": "capture-payment",
+      "match": { "method": "POST", "path": "/v1/payments/:id/capture" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{request.params.id}}",
+          "entity": "payment",
+          "amount": "{{request.body.amount}}",
+          "currency": "{{request.body.currency}}",
+          "status": "captured",
+          "order_id": "{{id(\"order_\", 14)}}",
+          "invoice_id": null,
+          "international": false,
+          "method": "card",
+          "amount_refunded": 0,
+          "refund_status": null,
+          "captured": true,
+          "description": "Capture via mockstar",
+          "card_id": "{{id(\"card_\", 14)}}",
+          "bank": null,
+          "wallet": null,
+          "vpa": null,
+          "email": "test@example.com",
+          "contact": "+919999999999",
+          "notes": {},
+          "fee": 118,
+          "tax": 18,
+          "error_code": null,
+          "error_description": null,
+          "error_source": null,
+          "error_step": null,
+          "error_reason": null,
+          "acquirer_data": {
+            "auth_code": "{{id(\"\", 6, \"0123456789\")}}"
+          },
+          "created_at": "{{now.unix}}"
+        }
+      }
+    },
+    {
+      "id": "fetch-payment",
+      "match": { "method": "GET", "path": "/v1/payments/:id" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{request.params.id}}",
+          "entity": "payment",
+          "amount": 50000,
+          "currency": "INR",
+          "status": "captured",
+          "order_id": "{{id(\"order_\", 14)}}",
+          "method": "card",
+          "captured": true,
+          "created_at": "{{now.unix}}"
+        }
+      }
+    }
+  ]
+}

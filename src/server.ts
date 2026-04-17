@@ -14,6 +14,7 @@ import { renderDynamic } from './features/dynamic-mock.ts';
 import { renderPassThrough } from './features/pass-through.ts';
 import { adminRouter } from './features/admin/index.ts';
 import { createFaker, type FakerInstance } from './core/templating/faker.ts';
+import { createClock, type Clock } from './core/templating/tier2/now.ts';
 
 // Hono variable augmentation — all middleware reads typed `ctx.var.*`.
 declare module 'hono' {
@@ -66,6 +67,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     : (): void => undefined;
 
   const faker: FakerInstance = createFaker({ deterministic: opts.deterministic ?? false });
+  const clock: Clock = createClock({ deterministic: opts.deterministic ?? false });
   const handlerTimeoutMs = opts.handlerTimeoutMs ?? 5_000;
 
   const app = new Hono();
@@ -82,7 +84,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
   );
 
   // Main mock dispatcher.
-  app.all('*', async (ctx) => dispatch(ctx, { opts, logger, faker, journal, metrics, handlerTimeoutMs }));
+  app.all('*', async (ctx) => dispatch(ctx, { opts, logger, faker, clock, journal, metrics, handlerTimeoutMs }));
 
   return { hono: app, journal, metrics, ready, uninstallCrashHandlers };
 }
@@ -91,6 +93,7 @@ interface DispatchDeps {
   opts: CreateServerOptions;
   logger: StructuredLogger;
   faker: FakerInstance;
+  clock: Clock;
   journal: JournalRegistry;
   metrics: Metrics;
   handlerTimeoutMs: number;
@@ -227,6 +230,9 @@ async function routeToMock(
         ctx,
         params: hit.params,
         faker: deps.faker,
+        clock: deps.clock,
+        deterministic: deps.opts.deterministic ?? false,
+        maxResponseBytes: tenantSnap.limits.maxBodyBytes,
         tenant,
         requestId,
         body,

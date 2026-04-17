@@ -10,11 +10,15 @@ import {
   type TemplateContext,
 } from '../src/core/templating/compiler.ts';
 import { createFaker } from '../src/core/templating/faker.ts';
+import { createClock } from '../src/core/templating/tier2/now.ts';
+import { createIdHelpers } from '../src/core/templating/tier2/id.ts';
 
 const ctx: TemplateContext = {
   faker: createFaker({ deterministic: true, seed: 42 }),
   tenant: 'acme',
   requestId: 'req-00000001',
+  clock: createClock({ deterministic: true }),
+  idHelpers: createIdHelpers({ deterministic: true, tenant: 'acme', endpoint: 'test', requestCounter: 1 }),
   request: {
     method: 'GET',
     path: '/users/42',
@@ -94,9 +98,11 @@ describe('JSON-body templating (F3 regression)', () => {
       score: '{{faker.integer(1, 10)}}',
     });
     const rendered = renderCompiledJson(compiled, jsonCtx) as Record<string, unknown>;
-    expect(['available', 'pending', 'sold']).toContain(rendered.status);
-    expect(Number.parseInt(rendered.score as string, 10)).toBeGreaterThanOrEqual(1);
-    expect(Number.parseInt(rendered.score as string, 10)).toBeLessThanOrEqual(10);
+    // Tier 2 RT-1.2 type preservation: pure placeholders return raw faker value types.
+    expect(['available', 'pending', 'sold']).toContain(rendered.status as string);
+    expect(typeof rendered.score).toBe('number');
+    expect(rendered.score as number).toBeGreaterThanOrEqual(1);
+    expect(rendered.score as number).toBeLessThanOrEqual(10);
   });
 
   it('compiles string leaves inside arrays (recursion through array items)', () => {
@@ -135,17 +141,20 @@ describe('JSON-body templating (F3 regression)', () => {
   });
 
   it('renderCompiledJson is the only allocation on the hot path for JSON bodies (RT-6.2)', () => {
-    // Regression intent: every string leaf must be a pre-built CompiledTemplate, not a string
-    // that gets parsed at request time. Prove this by inspecting the compiled tree shape.
+    // Regression intent: every string leaf must be a pre-built op-sequence, not a string
+    // that gets parsed at request time. Pure placeholders → `type_placeholder` (Tier 2 RT-1.2);
+    // mixed strings → `template`; strings with no `{{` → `literal`.
     const compiled = compileJsonValue({
       a: '{{faker.uuid}}',
       b: 'plain',
       c: { d: '{{tenant}}' },
+      e: 'hello-{{tenant}}-world',
     });
     if (compiled.kind !== 'object') throw new Error('expected object');
-    expect(compiled.entries.a?.kind).toBe('template');
+    expect(compiled.entries.a?.kind).toBe('type_placeholder');
     expect(compiled.entries.b?.kind).toBe('literal');
     if (compiled.entries.c?.kind !== 'object') throw new Error('expected nested object');
-    expect(compiled.entries.c.entries.d?.kind).toBe('template');
+    expect(compiled.entries.c.entries.d?.kind).toBe('type_placeholder');
+    expect(compiled.entries.e?.kind).toBe('template');
   });
 });
