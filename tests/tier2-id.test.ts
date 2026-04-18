@@ -52,6 +52,52 @@ describe('createIdHelpers — non-deterministic mode (T4, T9)', () => {
   it('rejects a degenerate alphabet', () => {
     expect(() => helpers.id('', 5, 'x')).toThrow();
   });
+
+  it('rejects an alphabet longer than 256 (REV-3: unreachable-index guard)', () => {
+    // `draw()` indexes by a single byte, so positions beyond 255 are unreachable.
+    // The helper must reject such alphabets rather than silently bias the distribution.
+    const oversized = 'a'.repeat(257);
+    expect(() => helpers.id('', 5, oversized)).toThrow(/alphabet too large/);
+  });
+
+  it('accepts an alphabet of exactly 256 (upper bound allowed)', () => {
+    const exactly256 = Array.from({ length: 256 }, (_, i) => String.fromCharCode(i < 128 ? i + 33 : i)).join('').slice(0, 256);
+    expect(() => helpers.id('', 5, exactly256)).not.toThrow();
+  });
+});
+
+describe('createIdHelpers — namedId memoisation (REV-5, cross-reference consistency)', () => {
+  it('returns the same value for repeated calls with the same name', () => {
+    const h = createIdHelpers({ deterministic: false, tenant: 't', endpoint: 'e', requestCounter: 1 });
+    const a = h.namedId('order_id', '', 17, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    const b = h.namedId('order_id', '', 17, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    const c = h.namedId('order_id', '', 17, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    expect(a).toBe(b);
+    expect(b).toBe(c);
+    expect(a).toMatch(/^[0-9A-Z]{17}$/);
+  });
+
+  it('produces distinct values for distinct names within one request', () => {
+    const h = createIdHelpers({ deterministic: false, tenant: 't', endpoint: 'e', requestCounter: 1 });
+    const order = h.namedId('order_id', '', 17, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    const capture = h.namedId('capture_id', '', 17, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    expect(order).not.toBe(capture);
+  });
+
+  it('isolates cache across separate helper instances (per-request scope, TN8)', () => {
+    const a = createIdHelpers({ deterministic: false, tenant: 't', endpoint: 'e', requestCounter: 1 });
+    const b = createIdHelpers({ deterministic: false, tenant: 't', endpoint: 'e', requestCounter: 2 });
+    const first = a.namedId('order_id', '', 17, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    const second = b.namedId('order_id', '', 17, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    expect(first).not.toBe(second);
+  });
+
+  it('keeps namedId and id() independent (they do not share cache)', () => {
+    const h = createIdHelpers({ deterministic: false, tenant: 't', endpoint: 'e', requestCounter: 1 });
+    const named = h.namedId('x', 'cust_', 14);
+    const anon = h.id('cust_', 14);
+    expect(named).not.toBe(anon);
+  });
 });
 
 describe('createIdHelpers — deterministic mode (T4, T10, TN8)', () => {

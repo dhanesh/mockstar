@@ -40,6 +40,7 @@ export type TemplateOp =
   | { kind: 'request'; path: readonly string[] }
   | { kind: 'var'; name: 'tenant' | 'requestId' }
   | { kind: 'id'; prefix: string; length: number; alphabet: string }
+  | { kind: 'id_named'; name: string; prefix: string; length: number; alphabet: string }
   | { kind: 'now'; field: 'unix' | 'millis' | 'iso' };
 
 export interface CompiledTemplate {
@@ -105,6 +106,7 @@ function parseToken(expr: string): TemplateOp {
   //   request.body.user.id | request.query.page | request.headers.authorization
   //   tenant | requestId
   //   id("prefix_", 14) | id("cust_", 14, "0123456789ABCDEF")
+  //   id.named("order_id", "", 17, "0123456789ABC...") — memoised per-request per-name
   //   now.unix | now.millis | now.iso
   const trimmed = expr.trim();
   if (trimmed === 'tenant' || trimmed === 'requestId') {
@@ -112,6 +114,16 @@ function parseToken(expr: string): TemplateOp {
   }
   if (trimmed === 'now.unix' || trimmed === 'now.millis' || trimmed === 'now.iso') {
     return { kind: 'now', field: trimmed.slice('now.'.length) as 'unix' | 'millis' | 'iso' };
+  }
+  if (trimmed.startsWith('id.named(')) {
+    const argsSource = trimmed.slice('id.named('.length, trimmed.lastIndexOf(')'));
+    const args = JSON.parse(`[${argsSource}]`) as unknown[];
+    const name = typeof args[0] === 'string' ? args[0] : '';
+    if (!name) throw new Error(`id.named(): first argument must be a non-empty string name`);
+    const prefix = typeof args[1] === 'string' ? args[1] : '';
+    const length = typeof args[2] === 'number' ? args[2] : 14;
+    const alphabet = typeof args[3] === 'string' ? args[3] : BASE62;
+    return { kind: 'id_named', name, prefix, length, alphabet };
   }
   if (trimmed.startsWith('id(')) {
     const argsSource = trimmed.slice('id('.length, trimmed.lastIndexOf(')'));
@@ -162,6 +174,8 @@ function executeOp(op: TemplateOp, ctx: TemplateContext): string {
     }
     case 'id':
       return ctx.idHelpers.id(op.prefix, op.length, op.alphabet);
+    case 'id_named':
+      return ctx.idHelpers.namedId(op.name, op.prefix, op.length, op.alphabet);
     case 'now':
       return op.field === 'iso' ? ctx.clock.iso() : String(op.field === 'unix' ? ctx.clock.unix() : ctx.clock.millis());
   }
@@ -186,6 +200,8 @@ function executeOpTyped(op: TemplateOp, ctx: TemplateContext): unknown {
     }
     case 'id':
       return ctx.idHelpers.id(op.prefix, op.length, op.alphabet);
+    case 'id_named':
+      return ctx.idHelpers.namedId(op.name, op.prefix, op.length, op.alphabet);
     case 'now':
       return op.field === 'iso' ? ctx.clock.iso() : op.field === 'unix' ? ctx.clock.unix() : ctx.clock.millis();
   }

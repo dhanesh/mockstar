@@ -23,13 +23,13 @@
           "num_segments": "1",
           "price": null,
           "price_unit": "USD",
-          "sid": "{{id(\"SM\", 32, \"0123456789abcdef\")}}",
+          "sid": "{{id.named(\"message_sid\", \"SM\", 32, \"0123456789abcdef\")}}",
           "status": "queued",
           "subresource_uris": {
-            "media": "/2010-04-01/Accounts/{{request.params.accountSid}}/Messages/{{id(\"SM\", 32, \"0123456789abcdef\")}}/Media.json"
+            "media": "/2010-04-01/Accounts/{{request.params.accountSid}}/Messages/{{id.named(\"message_sid\", \"SM\", 32, \"0123456789abcdef\")}}/Media.json"
           },
           "to": "{{request.body.To}}",
-          "uri": "/2010-04-01/Accounts/{{request.params.accountSid}}/Messages/{{id(\"SM\", 32, \"0123456789abcdef\")}}.json"
+          "uri": "/2010-04-01/Accounts/{{request.params.accountSid}}/Messages/{{id.named(\"message_sid\", \"SM\", 32, \"0123456789abcdef\")}}.json"
         }
       }
     },

@@ -22,17 +22,40 @@ export interface IdSeed {
 export interface IdHelpers {
   /** Generate an opaque ID of `length` characters prefixed with `prefix` from `alphabet` (default base62). */
   id(prefix: string, length: number, alphabet?: string): string;
+  /**
+   * Like `id()` but memoised by `name` within this helper instance (i.e. per request).
+   * Multiple `{{id.named("order_id", ...)}}` tokens in the same fixture resolve to the *same*
+   * value, so cross-referenced fields (e.g. `body.id` and `body.links[].href`) stay consistent.
+   * First call wins — later calls with different prefix/length/alphabet are *ignored* and the
+   * cached value is returned (they would produce a mismatch anyway).
+   */
+  namedId(name: string, prefix: string, length: number, alphabet?: string): string;
 }
 
 export function createIdHelpers(seed: IdSeed): IdHelpers {
   const rand = seed.deterministic
     ? mulberry32(fnv1a(`${seed.tenant}|${seed.endpoint}|${seed.requestCounter}`))
     : cryptoRand;
+  const cache = new Map<string, string>();
+  const mintId = (prefix: string, length: number, alphabet: string): string => {
+    if (length <= 0) throw new Error(`id(): length must be positive, got ${length}`);
+    if (alphabet.length < 2) throw new Error(`id(): alphabet too small (${alphabet.length})`);
+    // The rejection-sampling draw indexes by a single byte (`byte & mask`), so any alphabet
+    // position beyond 255 is unreachable and would silently bias the distribution. Reject
+    // rather than misbehave — fixing this would require multi-byte indices (future work).
+    if (alphabet.length > 256) throw new Error(`id(): alphabet too large (${alphabet.length}); max 256`);
+    return `${prefix}${draw(alphabet, length, rand)}`;
+  };
   return {
     id(prefix: string, length: number, alphabet: string = BASE62): string {
-      if (length <= 0) throw new Error(`id(): length must be positive, got ${length}`);
-      if (alphabet.length < 2) throw new Error(`id(): alphabet too small (${alphabet.length})`);
-      return `${prefix}${draw(alphabet, length, rand)}`;
+      return mintId(prefix, length, alphabet);
+    },
+    namedId(name: string, prefix: string, length: number, alphabet: string = BASE62): string {
+      const cached = cache.get(name);
+      if (cached !== undefined) return cached;
+      const minted = mintId(prefix, length, alphabet);
+      cache.set(name, minted);
+      return minted;
     },
   };
 }

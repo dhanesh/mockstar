@@ -1308,6 +1308,49 @@
       "gaps": 0,
       "coverage_percentage": 100,
       "evidence_verified": 295
+    },
+    {
+      "number": 6,
+      "phase": "review",
+      "timestamp": "2026-04-18T22:17:05.636Z",
+      "result": "Code review surfaced 6 Important findings (0 Critical). Original 34/34 constraint verification remains valid; findings are refinements. Tasks #14-20 created for resolution. Phase stays VERIFIED; re-verify gated by task #20.",
+      "reviewer": "superpowers:code-reviewer",
+      "findings_count": {
+        "critical": 0,
+        "important": 6,
+        "minor": 8
+      },
+      "findings_ids": [
+        "REV-1",
+        "REV-2",
+        "REV-3",
+        "REV-4",
+        "REV-5",
+        "REV-6"
+      ],
+      "tasks_created": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "convergence_impact": "none - constraints remain SATISFIED; findings are refinements to existing semantics"
+    },
+    {
+      "number": 7,
+      "phase": "verify",
+      "timestamp": "2026-04-19T00:00:00.000Z",
+      "result": "Re-verification PASS after REV-1..REV-6 fixes landed. 34/34 constraints still SATISFIED; 263/263 tests pass (was 253, +10 new regression tests); 616 expect() calls (was 586); grep gate clean; drift baseline recaptured for 41 files (2 newly added: src/core/config/schema.ts, docs/CONFIG.md). All 6 post-review findings marked resolved with per-finding resolution notes in .verify.json.",
+      "matrix_rows": 34,
+      "satisfied": 34,
+      "gaps": 0,
+      "coverage_percentage": 100,
+      "tests_pass": 263,
+      "tests_delta": 10,
+      "resolved_findings": ["REV-1", "REV-2", "REV-3", "REV-4", "REV-5", "REV-6"]
     }
   ],
   "blocking_dependencies": [
@@ -1330,7 +1373,9 @@
     "required_truths_total": 9,
     "constraints_satisfied": 34,
     "constraints_total": 34,
-    "verified_at": "2026-04-14T07:43:13.686Z"
+    "verified_at": "2026-04-14T07:43:13.686Z",
+    "re_verified_at": "2026-04-19T00:00:00.000Z",
+    "re_verify_iteration": 7
   },
   "evidence": [],
   "constraint_graph": {
@@ -1774,5 +1819,14 @@
       "constraints_total": 9,
       "percentage": 100
     }
+  },
+  "post_verify_review": {
+    "reviewed_at": "2026-04-18T22:17:05.636Z",
+    "status": "findings_open",
+    "pending_refinements": 6,
+    "blocks_ship_of": [
+      "mockstar enhance (Important #1, #2 are data-corruption risks)"
+    ],
+    "re_verify_gate": "task #20 (blocked by #14-19)"
   }
 }

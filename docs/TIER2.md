@@ -16,6 +16,7 @@ Inside any static `response.body` field, you can use these template tokens:
 | `{{request.headers.<name>}}` | Extract a request header (case-insensitive lookup) |
 | `{{id("prefix_", 14)}}` | Mint an opaque ID with a prefix and base62 alphabet (14 random chars) |
 | `{{id("prefix_", 14, "0123456789abcdef")}}` | Mint an ID with a custom alphabet (hex shown here) |
+| `{{id.named("order_id", "", 17, "0-9A-Z")}}` | Mint once per request per name — repeated `id.named("order_id", ...)` calls return the same value |
 | `{{now.unix}}` | Current time as unix seconds (number) |
 | `{{now.millis}}` | Current time as unix milliseconds (number) |
 | `{{now.iso}}` | Current time as ISO 8601 string |
@@ -64,6 +65,32 @@ The ID generator is an inline, nanoid-compatible rejection-sampling algorithm. I
 mode (`--deterministic` or `MOCKSTAR_DETERMINISTIC=1`) the seed is `(tenant, endpoint, requestId)` —
 so replays produce byte-identical IDs.
 
+> **Alphabet size** — the draw indexes by a single byte, so `alphabet.length` must be between 2
+> and 256 inclusive. Values outside that range throw at call time. No realistic provider alphabet
+> exceeds 256 (base62 is 62, hex 16, uppercase-alnum 36), so this only matters for exotic custom
+> alphabets.
+
+### Cross-reference consistency: `id.named(name, prefix, length, alphabet?)`
+
+When a single response embeds the same ID in multiple places (e.g. PayPal's `body.id` plus three
+`links[].href` values, or Twilio's `sid` plus `subresource_uris.media` plus `uri`), use
+`{{id.named("<name>", ...)}}`. The first call with a given `<name>` mints a value and caches it;
+subsequent calls with the same name in the same request return that cached value. Different names
+get independent values. The cache is scoped per-request (per-helper-instance), so concurrent
+requests never share IDs.
+
+```jsonc
+{
+  "id":   "{{id.named(\"order_id\", \"\", 17, \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\")}}",
+  "links": [
+    { "href": "https://api/orders/{{id.named(\"order_id\", \"\", 17, \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\")}}", "rel": "self" }
+  ]
+}
+```
+
+The `id` field and the `href` path segment resolve to the same 17-char string, so clients that
+assert `body.id === body.links[0].href.split('/').pop()` pass.
+
 ## The deterministic clock
 
 In deterministic mode `{{now.*}}` returns a fixed epoch: `2026-01-01T00:00:00.000Z`. This is what
@@ -73,9 +100,17 @@ each `{{now.*}}` expansion reads the clock.
 ## Response-body size cap
 
 The walker tracks an incremental byte estimate during render. If the estimate exceeds the
-configured cap (default 1 MB, per-tenant via `tenant.json.limits.maxBodyBytes`), the request gets
-a `413 Payload Too Large` response with a structured JSON error body — **before** any serialisation
-happens. This is a boundary guard, not a post-hoc check.
+configured cap (default 1 MB, per-tenant via `tenant.json.limits.maxResponseBytes`), the request
+gets a `413 Payload Too Large` response with a structured JSON error body — **before** any
+serialisation happens. This is a boundary guard, not a post-hoc check.
+
+> **`maxResponseBytes` vs `maxBodyBytes`** — these are *separate* limits:
+>
+> - `maxBodyBytes` (S5) caps inbound request payloads — `Content-Length > maxBodyBytes` → 413.
+> - `maxResponseBytes` (S4) caps outbound rendered responses — Tier 2 render exceeds budget → 413.
+>
+> They default to the same value (1 MB) but should be tuned independently. Raising `maxBodyBytes`
+> to accept large uploads does **not** loosen the response cap.
 
 ## Worked example: Razorpay order creation
 

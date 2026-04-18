@@ -69,6 +69,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
   const faker: FakerInstance = createFaker({ deterministic: opts.deterministic ?? false });
   const clock: Clock = createClock({ deterministic: opts.deterministic ?? false });
   const handlerTimeoutMs = opts.handlerTimeoutMs ?? 5_000;
+  const genRequestId = createRequestIdGenerator(opts.deterministic ?? false);
 
   const app = new Hono();
 
@@ -84,7 +85,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
   );
 
   // Main mock dispatcher.
-  app.all('*', async (ctx) => dispatch(ctx, { opts, logger, faker, clock, journal, metrics, handlerTimeoutMs }));
+  app.all('*', async (ctx) => dispatch(ctx, { opts, logger, faker, clock, journal, metrics, handlerTimeoutMs, genRequestId }));
 
   return { hono: app, journal, metrics, ready, uninstallCrashHandlers };
 }
@@ -97,13 +98,14 @@ interface DispatchDeps {
   journal: JournalRegistry;
   metrics: Metrics;
   handlerTimeoutMs: number;
+  genRequestId: () => string;
 }
 
 async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   const snapshot: ConfigSnapshot = deps.opts.holder.get(); // RT-5.3: captured once for this request
   const tenant = ctx.var.tenant;
   const tenantSnap = snapshot.tenants.get(tenant);
-  const requestId = genRequestId(deps.opts.deterministic ?? false);
+  const requestId = deps.genRequestId();
   ctx.set('requestId', requestId);
   const startedUs = performance.now() * 1000;
 
@@ -232,7 +234,7 @@ async function routeToMock(
         faker: deps.faker,
         clock: deps.clock,
         deterministic: deps.opts.deterministic ?? false,
-        maxResponseBytes: tenantSnap.limits.maxBodyBytes,
+        maxResponseBytes: tenantSnap.limits.maxResponseBytes,
         tenant,
         requestId,
         body,
@@ -285,11 +287,17 @@ async function safeParseBody(ctx: Context): Promise<unknown> {
   }
 }
 
-let deterministicCounter = 0;
-function genRequestId(deterministic: boolean): string {
-  if (deterministic) {
-    deterministicCounter += 1;
-    return `req-${deterministicCounter.toString().padStart(8, '0')}`;
-  }
-  return crypto.randomUUID();
+/**
+ * Per-server request-ID generator. The deterministic counter lives in closure scope so each
+ * `createServer()` call gets an isolated counter — two back-to-back launches in the same process
+ * produce byte-identical IDs for matching request sequences (prevents flaky cross-launch replay
+ * assertions).
+ */
+function createRequestIdGenerator(deterministic: boolean): () => string {
+  if (!deterministic) return (): string => crypto.randomUUID();
+  let counter = 0;
+  return (): string => {
+    counter += 1;
+    return `req-${counter.toString().padStart(8, '0')}`;
+  };
 }

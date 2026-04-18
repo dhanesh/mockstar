@@ -77,9 +77,10 @@ export const MocksFile = z.object({
 // -- Per-tenant config --
 
 export const TenantLimits = z.object({
-  maxBodyBytes: z.number().int().positive().default(1_048_576), // S5: 1 MB default
-  requestsPerSecond: z.number().int().positive().default(1000), // S5: 1000 rps default
-  journalSize: z.number().int().positive().default(1000),        // O3: 1000 entries default
+  maxBodyBytes: z.number().int().positive().default(1_048_576),      // S5: inbound request cap, 1 MB default
+  maxResponseBytes: z.number().int().positive().default(1_048_576),  // S4: outbound response cap (Tier 2 render), 1 MB default
+  requestsPerSecond: z.number().int().positive().default(1000),      // S5: 1000 rps default
+  journalSize: z.number().int().positive().default(1000),             // O3: 1000 entries default
 }).strict();
 
 export const TenantConfig = z.object({

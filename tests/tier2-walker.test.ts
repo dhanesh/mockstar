@@ -94,6 +94,29 @@ describe('RT-1.2 — type-preserving substitution', () => {
     const rendered = renderCompiledJson(compiled, mkCtx()) as Record<string, unknown>;
     expect(rendered.oid).toMatch(/^order_[0-9A-Za-z]{14}$/);
   });
+
+  it('id.named() resolves cross-references to the same value within one response (REV-5)', () => {
+    // Regression test for code-review REV-5. Multiple references to the same named ID
+    // (e.g. `body.id` and `body.links[].href`) must resolve to a single minted value so
+    // clients that assert `body.id === links[0].href.split('/').pop()` don't break.
+    const compiled = compileJsonValue({
+      id: '{{id.named("order_id", "", 17, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")}}',
+      links: [
+        { href: '/orders/{{id.named("order_id", "", 17, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")}}', rel: 'self' },
+        { href: '/orders/{{id.named("order_id", "", 17, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")}}/capture', rel: 'capture' },
+      ],
+      capture_id: '{{id.named("capture_id", "", 17, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")}}',
+    });
+    const rendered = renderCompiledJson(compiled, mkCtx()) as {
+      id: string; links: Array<{ href: string; rel: string }>; capture_id: string;
+    };
+    const selfId = rendered.links[0]!.href.slice('/orders/'.length);
+    const captureUrlId = rendered.links[1]!.href.slice('/orders/'.length, -'/capture'.length);
+    expect(selfId).toBe(rendered.id);
+    expect(captureUrlId).toBe(rendered.id);
+    // Different name → different value (no accidental conflation).
+    expect(rendered.capture_id).not.toBe(rendered.id);
+  });
 });
 
 describe('RT-1.6 — string-mode dual path (TN3 segmentation)', () => {

@@ -664,3 +664,41 @@ walker doing its job. No residual binding-constraint risk.
 
 <!-- End m4-generate additions. Phase transitioned ANCHORED → GENERATED. Next: /manifold:m5-verify tier2-request-derived-responses -->
 
+---
+
+## Post-Verify Code Review (Iteration #6)
+
+Reviewed via `superpowers:code-reviewer` after phase=VERIFIED was reached. **Verdict: Ready to
+ship with Important items tracked (0 Critical).** The reviewer confirmed the load-bearing
+architectural pieces — per-request PRNG isolation (TN8), rejection-sampling mask derivation,
+RenderBudget short-circuit, string-vs-JSON-value mode separation — all correct. Six Important
+findings surfaced that the constraint-count verification didn't catch, because they are
+refinements to existing constraint *semantics* rather than missing satisfactions.
+
+### Findings (6 Important, 0 Critical)
+
+| ID     | Refines | Risk              | Summary                                                                   | Task |
+| ------ | ------- | ----------------- | ------------------------------------------------------------------------- | ---- |
+| REV-1  | TN6     | Data corruption   | Enhancer heuristic false-positives on `format`/`grid`/`paid`/`flat`/etc. | #14  |
+| REV-2  | O3/TN7  | Data corruption   | Manifest restore has no drift detection vs stored `original`              | #15  |
+| REV-3  | S4      | Policy clarity    | `maxResponseBytes` inherits from `maxBodyBytes` (conflated limits)        | #16  |
+| REV-4  | T6      | Correctness       | `id.draw()` undersamples alphabets >256 chars                             | #17  |
+| REV-5  | U3      | Fixture quality   | PayPal/Twilio fixtures lack cross-reference consistency                   | #18  |
+| REV-6  | TN8     | Test isolation    | `deterministicCounter` at module scope, not per-launch                    | #19  |
+
+### Shipping posture
+
+- **Library core (walker/id/now/echo/templating):** ships cleanly.
+- **`mockstar enhance`:** REV-1 and REV-2 are data-corruption risks on user fixtures — **do not
+  recommend for production fixture libraries until fixed**.
+- **Re-verify:** task #20 is blocked by #14–19; on completion, re-run `/manifold:m5-verify
+  tier2-request-derived-responses` and append iteration #7.
+
+### Convergence impact
+
+None. The original 34/34 verification remains valid — the constraints as *written* are
+satisfied. These findings are additions to the semantic contract, not missing coverage.
+Convergence stays `CONVERGED`; `post_verify_review.status = findings_open` tracks the follow-ups.
+
+<!-- End iteration #6 (review). Phase remains VERIFIED. Next: address tasks #14-19, then re-run /manifold:m5-verify -->
+

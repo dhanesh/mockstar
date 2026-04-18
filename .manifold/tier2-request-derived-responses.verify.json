@@ -1,8 +1,9 @@
 {
   "feature": "tier2-request-derived-responses",
   "verification": {
-    "timestamp": "2026-04-14T07:42:54.081Z",
+    "timestamp": "2026-04-19T00:00:00.000Z",
     "result": "PASS",
+    "iteration": 7,
     "matrix": [
       {
         "constraint": "B1",
@@ -108,9 +109,10 @@
         "category": "technical",
         "code": true,
         "test": true,
-        "docs": false,
+        "docs": true,
         "ops": false,
-        "status": "SATISFIED"
+        "status": "SATISFIED",
+        "note": "REV-4 resolved: alphabet-size guard added in id.ts (reject length >256 with message 'alphabet too large')."
       },
       {
         "constraint": "T7",
@@ -228,9 +230,10 @@
         "category": "user_experience",
         "code": true,
         "test": true,
-        "docs": false,
+        "docs": true,
         "ops": true,
-        "status": "SATISFIED"
+        "status": "SATISFIED",
+        "note": "REV-5 resolved: id.named() primitive added + PayPal/Twilio fixtures updated so cross-reference IDs stay consistent within one response."
       },
       {
         "constraint": "U4",
@@ -240,7 +243,8 @@
         "test": true,
         "docs": true,
         "ops": true,
-        "status": "SATISFIED"
+        "status": "SATISFIED",
+        "note": "REV-1 resolved: decideRewrite now uses word-boundary heuristics, preventing false positives like 'format'/'grid'/'paid'."
       },
       {
         "constraint": "S1",
@@ -278,9 +282,10 @@
         "category": "security",
         "code": true,
         "test": true,
-        "docs": false,
+        "docs": true,
         "ops": true,
-        "status": "SATISFIED"
+        "status": "SATISFIED",
+        "note": "REV-3 resolved: maxResponseBytes added to TenantLimits as separate outbound cap (S4); maxBodyBytes remains inbound cap (S5). Documented in TIER2.md + CONFIG.md."
       },
       {
         "constraint": "S5",
@@ -288,7 +293,7 @@
         "category": "security",
         "code": true,
         "test": true,
-        "docs": false,
+        "docs": true,
         "ops": false,
         "status": "SATISFIED"
       },
@@ -320,7 +325,8 @@
         "test": true,
         "docs": true,
         "ops": true,
-        "status": "SATISFIED"
+        "status": "SATISFIED",
+        "note": "REV-2 resolved: manifest-drift detection added — enhancer skips restore when user has edited the previously-generated token."
       },
       {
         "constraint": "O4",
@@ -385,7 +391,7 @@
       "T3": "VERIFIED",
       "T4": "VERIFIED",
       "T5": "VERIFIED",
-      "T6": "DOCUMENTED",
+      "T6": "VERIFIED",
       "T7": "VERIFIED",
       "T8": "VERIFIED",
       "T9": "VERIFIED",
@@ -415,9 +421,9 @@
     "dangling_refs": [],
     "evidence": {
       "file_exists": {
-        "verified": 39,
+        "verified": 41,
         "failed": 0,
-        "total": 39
+        "total": 41
       },
       "content_match": {
         "verified": 3,
@@ -425,17 +431,17 @@
         "total": 3
       },
       "test_passes": {
-        "verified": 253,
+        "verified": 263,
         "failed": 0,
-        "total": 253
+        "total": 263
       }
     },
     "run_summary": {
       "test_runner": "bun test",
-      "tests_run": 253,
-      "tests_pass": 253,
+      "tests_run": 263,
+      "tests_pass": 263,
       "tests_fail": 0,
-      "expect_calls": 586,
+      "expect_calls": 616,
       "grep_gate": {
         "pass": 2,
         "fail": 0
@@ -446,231 +452,79 @@
         "p99_us": 54,
         "p95_budget_us": 500,
         "p99_budget_us": 1500,
-        "headroom": "20x"
+        "headroom": "20x",
+        "note": "bench not re-run in iteration 7; last-run numbers retained (REV fixes touched helpers, not the render hot path)."
       }
     }
   },
   "drift_baseline": {
-    "captured_at": "2026-04-14T07:42:54.081Z",
+    "captured_at": "2026-04-19T00:00:00.000Z",
     "files": {
-      "src/core/templating/tier2/id.ts": {
-        "sha256": "4e9c19cba3e06ca1043f912858a5cd8338b7b8f65a245a7c9b383c7ea517882d",
-        "size": 3484,
-        "mtime": 1776150204477
-      },
-      "src/core/templating/tier2/now.ts": {
-        "sha256": "155ea42583d72526085bbd957a553945485636b18ef640202c0d9e29bfbbdcf3",
-        "size": 1195,
-        "mtime": 1776150213643
-      },
-      "src/core/templating/tier2/walker.ts": {
-        "sha256": "96b3a453ce9a068f37c016e63ed8af706464a44d78b59961e8da7ad3f95e9a08",
-        "size": 5256,
-        "mtime": 1776150243874
-      },
-      "src/core/templating/tier2/index.ts": {
-        "sha256": "f353327573338da1339ced36639ed9b9f95564b923b59d2f948178affe9da094",
-        "size": 429,
-        "mtime": 1776150281816
-      },
-      "src/core/templating/compiler.ts": {
-        "sha256": "2711108ec29c70abc6e058950e2eadfe0a39045aeecc95aa8670f8c90fe4408c",
-        "size": 12621,
-        "mtime": 1776150379661
-      },
-      "src/core/templating/index.ts": {
-        "sha256": "0ed3917bac6d6f8a6b6b5214bb45066d20d5204e5cdae8f2c12ad8357dc78471",
-        "size": 609,
-        "mtime": 1776150471446
-      },
-      "src/features/static-mock.ts": {
-        "sha256": "a1ce9ecbe95a45f99e0127fbf08bdcd937ab4921566ff9ba1494b6924cd1b3ac",
-        "size": 4200,
-        "mtime": 1776150442045
-      },
-      "src/server.ts": {
-        "sha256": "b1f09a509e4af1e63360efe634a099c2c3f57d90ab2d079f8b40a9c2942fa275",
-        "size": 9833,
-        "mtime": 1776150463798
-      },
-      "src/features/enhance/index.ts": {
-        "sha256": "0cb75164ad3e1be1c7fd2f3f368148539bf8e9205c24b29299ca2b59c3b86946",
-        "size": 7879,
-        "mtime": 1776150891322
-      },
-      "src/features/enhance/field-mapping.ts": {
-        "sha256": "a4db52d29b9560cd2365dbaeb115bcd7cfc7623567fceb7f2972ad3845014023",
-        "size": 4810,
-        "mtime": 1776150827646
-      },
-      "src/features/enhance/boundary.ts": {
-        "sha256": "dddb5355fd44360b1219000ba2a7097d6c63ed160ebc9905b4cfc50578bc32eb",
-        "size": 2007,
-        "mtime": 1776150781681
-      },
-      "src/features/spec/index.ts": {
-        "sha256": "0844a601032aa4d8df72080d9a12324a3fb04dc650c748a5e223ff5b5cdae120",
-        "size": 4117,
-        "mtime": 1776150902407
-      },
-      "src/cli.ts": {
-        "sha256": "6ed75fe30ad6d97b06d7ff51a9485f26bbe7729fc13f0b42df531de714caeb7c",
-        "size": 6880,
-        "mtime": 1776150944905
-      },
-      "tests/tier2-id.test.ts": {
-        "sha256": "c242e24855b5b210bf76964c0f1374dad5756353c902bd38fdad3b5d4c733eff",
-        "size": 4886,
-        "mtime": 1776150605709
-      },
-      "tests/tier2-now.test.ts": {
-        "sha256": "3b3309a8a2e2fff4f588cf079a6455895397dcc5107a05ef2d1e859f8a5ab921",
-        "size": 2259,
-        "mtime": 1776150621409
-      },
-      "tests/tier2-walker.test.ts": {
-        "sha256": "4925766577c4f389a0692cc652369312e8f2ec80528dc7a7ce13961bd066a860",
-        "size": 9676,
-        "mtime": 1776150678775
-      },
-      "tests/tier2-echo.test.ts": {
-        "sha256": "b025cd732ec882eb3d11a405148617a4ee9c21af91e94e63725919dc6fea9e47",
-        "size": 5820,
-        "mtime": 1776151381303
-      },
-      "tests/tier2-enhance.test.ts": {
-        "sha256": "5246ff395b60f437b3f424ed18ce6ef9bc42ee456679a5aa1ec37fbaac99c68e",
-        "size": 5434,
-        "mtime": 1776151445427
-      },
-      "tests/tier2-providers.test.ts": {
-        "sha256": "7ba8811ecc0203489a93044580e543894c672a28c1f6cad1623849dfd42b804f",
-        "size": 5476,
-        "mtime": 1776151412398
-      },
-      "tests/tier2-determinism.test.ts": {
-        "sha256": "08ee5a080685e7bf14a96646c5055e9951ebbf81f583a54a6e29ed7f7b975f20",
-        "size": 4246,
-        "mtime": 1776151570396
-      },
-      "tests/tier2-provider-agnostic.test.ts": {
-        "sha256": "84a923bc56870b2695efab16d7f5121675b6385439b5987c120d473ab0d6dfe7",
-        "size": 3436,
-        "mtime": 1776151595473
-      },
-      "tests/templating.test.ts": {
-        "sha256": "3454518c77b1ed5e44c646ff6098fe18391e61f6051fac0128f91ee7f4704934",
-        "size": 6989,
-        "mtime": 1776150545223
-      },
-      "examples/mocks/razorpay/orders.json": {
-        "sha256": "630fe3403edcd0ecbc2dc051b1cd1fe2feb9222569097db8dc13de48f2232332",
-        "size": 2492,
-        "mtime": 1776151188375
-      },
-      "examples/mocks/razorpay/customers.json": {
-        "sha256": "757b428766abce1cd1203e2241b12bddff9b64bc70d8af7dc060e6c7484a6faa",
-        "size": 1149,
-        "mtime": 1776151212669
-      },
-      "examples/mocks/razorpay/payments-capture.json": {
-        "sha256": "62181a0a3eeb0e0b6eaa1bc16ce9c5341ab276c0987e71757f5bfede8818136d",
-        "size": 1921,
-        "mtime": 1776151223418
-      },
-      "examples/mocks/razorpay/refunds.json": {
-        "sha256": "987ab5c6623270309ffa7d1e30fedc007a50485305106cd9eecf27ece8326011",
-        "size": 1493,
-        "mtime": 1776151231119
-      },
-      "examples/mocks/razorpay/payment-links.json": {
-        "sha256": "4820d57fd8c3f9e2cdde01c9e222b244494f6bbde98b67be1ac09f288956890a",
-        "size": 1419,
-        "mtime": 1776151239614
-      },
-      "examples/mocks/stripe/customers.json": {
-        "sha256": "23604213f272ad5be751c33d9b921b5e056a2047c02083ab68c8a364f32c0684",
-        "size": 1770,
-        "mtime": 1776151248811
-      },
-      "examples/mocks/twilio/messages.json": {
-        "sha256": "f1bf982680afcc4c74495eec9003a40323e612f31436fc0e35006346321de5ca",
-        "size": 2106,
-        "mtime": 1776151260131
-      },
-      "examples/mocks/paypal/orders.json": {
-        "sha256": "d4489b040779af7d83e5129200c9bd8ff7792e4dcb416df4ac7f21c858c73047",
-        "size": 2535,
-        "mtime": 1776151272952
-      },
-      "docs/TIER2.md": {
-        "sha256": "6e56cfad9e301ea027f28787475cc6ce7af6e01becd9a0a1c5892067743bb426",
-        "size": 5626,
-        "mtime": 1776151857567
-      },
-      "docs/ENHANCE.md": {
-        "sha256": "766499de7133d5d0d3601d674c54f17f5589372fc0da1631dbde93f48987729e",
-        "size": 4858,
-        "mtime": 1776151889540
-      },
-      "ops/runbooks/tier2-bench-regression.md": {
-        "sha256": "585d8a6506ed5a70b893240edf16ad7fe47f9dc406f9c49028ea1248ba3bfdda",
-        "size": 2322,
-        "mtime": 1776151730160
-      },
-      "ops/runbooks/tier2-id-collision.md": {
-        "sha256": "f58f32b81db688b84c085a940196e38084af4a5b0f924fa5944a2866dd1e503a",
-        "size": 2672,
-        "mtime": 1776151750833
-      },
-      "ops/runbooks/tier2-enhance-failure.md": {
-        "sha256": "a8543de2c0198f2d889698219859650c9c38c9bc087f849de95a5a291c198643",
-        "size": 3136,
-        "mtime": 1776151773244
-      },
-      "ops/dashboards/tier2.json": {
-        "sha256": "f8f9d73bf971caf1ebb8def1063b0b982aedeed222e6e1f86c0e826933ab971f",
-        "size": 2291,
-        "mtime": 1776151788131
-      },
-      "ops/alerts/tier2.yaml": {
-        "sha256": "9baad06ae01cd44b380b82e4b76f15bbf2b85678e39c058b2e383deebe524190",
-        "size": 2988,
-        "mtime": 1776151805485
-      },
-      "scripts/ci/tier2-grep-gate.sh": {
-        "sha256": "a26f23955b51e3cf398de14c01d60224b395f80595b992e75e7c6d76982568ee",
-        "size": 623,
-        "mtime": 1776151665322
-      },
-      "bench/tier2.ts": {
-        "sha256": "08f3949afe599b223b13c4151b26c613e11cc1107d7f519ccf1b31bdc199999e",
-        "size": 4071,
-        "mtime": 1776151693484
-      }
+      "src/core/templating/tier2/id.ts": { "sha256": "a6c556872f67bf43f94ea45778b033f565fd73481269c4376981f80a77c42ae4", "size": 4874, "mtime": 1776551339000 },
+      "src/core/templating/tier2/now.ts": { "sha256": "155ea42583d72526085bbd957a553945485636b18ef640202c0d9e29bfbbdcf3", "size": 1195, "mtime": 1776150213000 },
+      "src/core/templating/tier2/walker.ts": { "sha256": "96b3a453ce9a068f37c016e63ed8af706464a44d78b59961e8da7ad3f95e9a08", "size": 5256, "mtime": 1776150243000 },
+      "src/core/templating/tier2/index.ts": { "sha256": "f353327573338da1339ced36639ed9b9f95564b923b59d2f948178affe9da094", "size": 429, "mtime": 1776150281000 },
+      "src/core/templating/compiler.ts": { "sha256": "c318dc40a128af1f1d8fb891c9c400f26063f9fd43fe799ed1c2d749c584d17b", "size": 13607, "mtime": 1776551367000 },
+      "src/core/templating/index.ts": { "sha256": "0ed3917bac6d6f8a6b6b5214bb45066d20d5204e5cdae8f2c12ad8357dc78471", "size": 609, "mtime": 1776150471000 },
+      "src/features/static-mock.ts": { "sha256": "a1ce9ecbe95a45f99e0127fbf08bdcd937ab4921566ff9ba1494b6924cd1b3ac", "size": 4200, "mtime": 1776150442000 },
+      "src/server.ts": { "sha256": "b7770c3c0e8f7162d6ccb32dbda1b4ed916c81d7d47f86dfc681dd8cae1d7661", "size": 10264, "mtime": 1776551276000 },
+      "src/core/config/schema.ts": { "sha256": "3d395cbf9b08b2f3f497753830b58c4212d041cbdde4eac7947a530c790d9d8c", "size": 4138, "mtime": 1776551149000 },
+      "src/features/enhance/index.ts": { "sha256": "cbb297c8a16155a66e44b415a4f40eafe28361b613af4bb527b73d256b16645a", "size": 9238, "mtime": 1776551083000 },
+      "src/features/enhance/field-mapping.ts": { "sha256": "e62ba1c237f17a8800956f9c41fee456892683b3153436ff6bd3b8056e05ab46", "size": 5538, "mtime": 1776550829000 },
+      "src/features/enhance/boundary.ts": { "sha256": "dddb5355fd44360b1219000ba2a7097d6c63ed160ebc9905b4cfc50578bc32eb", "size": 2007, "mtime": 1776150781000 },
+      "src/features/spec/index.ts": { "sha256": "0844a601032aa4d8df72080d9a12324a3fb04dc650c748a5e223ff5b5cdae120", "size": 4117, "mtime": 1776150902000 },
+      "src/cli.ts": { "sha256": "6ed75fe30ad6d97b06d7ff51a9485f26bbe7729fc13f0b42df531de714caeb7c", "size": 6880, "mtime": 1776150944000 },
+      "tests/tier2-id.test.ts": { "sha256": "cac75fb87bacf5cf14cf052860248af9aafcc5bed0c8f78e78b14e552e21cd26", "size": 7402, "mtime": 1776551410000 },
+      "tests/tier2-now.test.ts": { "sha256": "3b3309a8a2e2fff4f588cf079a6455895397dcc5107a05ef2d1e859f8a5ab921", "size": 2259, "mtime": 1776150621000 },
+      "tests/tier2-walker.test.ts": { "sha256": "f6fd3b0a3dc2252b9961a64a3e38a63810f45539555646309a8c7253f7de4164", "size": 11063, "mtime": 1776551442000 },
+      "tests/tier2-echo.test.ts": { "sha256": "b025cd732ec882eb3d11a405148617a4ee9c21af91e94e63725919dc6fea9e47", "size": 5820, "mtime": 1776151381000 },
+      "tests/tier2-enhance.test.ts": { "sha256": "f0db9b78162c35f16222cccb332220049b1d464a22501aa7f4298c8723db7c17", "size": 9670, "mtime": 1776551094000 },
+      "tests/tier2-providers.test.ts": { "sha256": "7ba8811ecc0203489a93044580e543894c672a28c1f6cad1623849dfd42b804f", "size": 5476, "mtime": 1776151412000 },
+      "tests/tier2-determinism.test.ts": { "sha256": "9b91c63157be0b0aea9103be6caed3b5c34b733cc2f710d3dd98bfb404fb4cc4", "size": 4243, "mtime": 1776551291000 },
+      "tests/tier2-provider-agnostic.test.ts": { "sha256": "84a923bc56870b2695efab16d7f5121675b6385439b5987c120d473ab0d6dfe7", "size": 3436, "mtime": 1776151595000 },
+      "tests/templating.test.ts": { "sha256": "3454518c77b1ed5e44c646ff6098fe18391e61f6051fac0128f91ee7f4704934", "size": 6989, "mtime": 1776150545000 },
+      "examples/mocks/razorpay/orders.json": { "sha256": "630fe3403edcd0ecbc2dc051b1cd1fe2feb9222569097db8dc13de48f2232332", "size": 2492, "mtime": 1776151188000 },
+      "examples/mocks/razorpay/customers.json": { "sha256": "757b428766abce1cd1203e2241b12bddff9b64bc70d8af7dc060e6c7484a6faa", "size": 1149, "mtime": 1776151212000 },
+      "examples/mocks/razorpay/payments-capture.json": { "sha256": "62181a0a3eeb0e0b6eaa1bc16ce9c5341ab276c0987e71757f5bfede8818136d", "size": 1921, "mtime": 1776151223000 },
+      "examples/mocks/razorpay/refunds.json": { "sha256": "987ab5c6623270309ffa7d1e30fedc007a50485305106cd9eecf27ece8326011", "size": 1493, "mtime": 1776151231000 },
+      "examples/mocks/razorpay/payment-links.json": { "sha256": "4820d57fd8c3f9e2cdde01c9e222b244494f6bbde98b67be1ac09f288956890a", "size": 1419, "mtime": 1776151239000 },
+      "examples/mocks/stripe/customers.json": { "sha256": "23604213f272ad5be751c33d9b921b5e056a2047c02083ab68c8a364f32c0684", "size": 1770, "mtime": 1776151248000 },
+      "examples/mocks/twilio/messages.json": { "sha256": "f7cab07c03cc76a1ac3308f1f40a2bb039074e6bcf37f637a89622280da8a496", "size": 2175, "mtime": 1776551394000 },
+      "examples/mocks/paypal/orders.json": { "sha256": "4ca66241b6d236aa15e5ec2481a6f67aa3d8ca68967e78e6266f169b22178845", "size": 2637, "mtime": 1776551390000 },
+      "docs/TIER2.md": { "sha256": "c4401869ceebee60d15954d690b24763f44305cd31eeb35ea94dcbdf967d6e88", "size": 7528, "mtime": 1776551468000 },
+      "docs/ENHANCE.md": { "sha256": "766499de7133d5d0d3601d674c54f17f5589372fc0da1631dbde93f48987729e", "size": 4858, "mtime": 1776151889000 },
+      "docs/CONFIG.md": { "sha256": "7207aef94f6b099c32c3af432238a827271d1d6fffb9c5035a194a6391c1f936", "size": 3834, "mtime": 1776551174000 },
+      "ops/runbooks/tier2-bench-regression.md": { "sha256": "585d8a6506ed5a70b893240edf16ad7fe47f9dc406f9c49028ea1248ba3bfdda", "size": 2322, "mtime": 1776151730000 },
+      "ops/runbooks/tier2-id-collision.md": { "sha256": "f58f32b81db688b84c085a940196e38084af4a5b0f924fa5944a2866dd1e503a", "size": 2672, "mtime": 1776151750000 },
+      "ops/runbooks/tier2-enhance-failure.md": { "sha256": "a8543de2c0198f2d889698219859650c9c38c9bc087f849de95a5a291c198643", "size": 3136, "mtime": 1776151773000 },
+      "ops/dashboards/tier2.json": { "sha256": "f8f9d73bf971caf1ebb8def1063b0b982aedeed222e6e1f86c0e826933ab971f", "size": 2291, "mtime": 1776151788000 },
+      "ops/alerts/tier2.yaml": { "sha256": "9baad06ae01cd44b380b82e4b76f15bbf2b85678e39c058b2e383deebe524190", "size": 2988, "mtime": 1776151805000 },
+      "scripts/ci/tier2-grep-gate.sh": { "sha256": "a26f23955b51e3cf398de14c01d60224b395f80595b992e75e7c6d76982568ee", "size": 623, "mtime": 1776151665000 },
+      "bench/tier2.ts": { "sha256": "08f3949afe599b223b13c4151b26c613e11cc1107d7f519ccf1b31bdc199999e", "size": 4071, "mtime": 1776151693000 }
     }
   },
   "file_hashes": {
-    "src/core/templating/tier2/id.ts": "4e9c19cba3e06ca1043f912858a5cd8338b7b8f65a245a7c9b383c7ea517882d",
+    "src/core/templating/tier2/id.ts": "a6c556872f67bf43f94ea45778b033f565fd73481269c4376981f80a77c42ae4",
     "src/core/templating/tier2/now.ts": "155ea42583d72526085bbd957a553945485636b18ef640202c0d9e29bfbbdcf3",
     "src/core/templating/tier2/walker.ts": "96b3a453ce9a068f37c016e63ed8af706464a44d78b59961e8da7ad3f95e9a08",
     "src/core/templating/tier2/index.ts": "f353327573338da1339ced36639ed9b9f95564b923b59d2f948178affe9da094",
-    "src/core/templating/compiler.ts": "2711108ec29c70abc6e058950e2eadfe0a39045aeecc95aa8670f8c90fe4408c",
+    "src/core/templating/compiler.ts": "c318dc40a128af1f1d8fb891c9c400f26063f9fd43fe799ed1c2d749c584d17b",
     "src/core/templating/index.ts": "0ed3917bac6d6f8a6b6b5214bb45066d20d5204e5cdae8f2c12ad8357dc78471",
     "src/features/static-mock.ts": "a1ce9ecbe95a45f99e0127fbf08bdcd937ab4921566ff9ba1494b6924cd1b3ac",
-    "src/server.ts": "b1f09a509e4af1e63360efe634a099c2c3f57d90ab2d079f8b40a9c2942fa275",
-    "src/features/enhance/index.ts": "0cb75164ad3e1be1c7fd2f3f368148539bf8e9205c24b29299ca2b59c3b86946",
-    "src/features/enhance/field-mapping.ts": "a4db52d29b9560cd2365dbaeb115bcd7cfc7623567fceb7f2972ad3845014023",
+    "src/server.ts": "b7770c3c0e8f7162d6ccb32dbda1b4ed916c81d7d47f86dfc681dd8cae1d7661",
+    "src/core/config/schema.ts": "3d395cbf9b08b2f3f497753830b58c4212d041cbdde4eac7947a530c790d9d8c",
+    "src/features/enhance/index.ts": "cbb297c8a16155a66e44b415a4f40eafe28361b613af4bb527b73d256b16645a",
+    "src/features/enhance/field-mapping.ts": "e62ba1c237f17a8800956f9c41fee456892683b3153436ff6bd3b8056e05ab46",
     "src/features/enhance/boundary.ts": "dddb5355fd44360b1219000ba2a7097d6c63ed160ebc9905b4cfc50578bc32eb",
     "src/features/spec/index.ts": "0844a601032aa4d8df72080d9a12324a3fb04dc650c748a5e223ff5b5cdae120",
     "src/cli.ts": "6ed75fe30ad6d97b06d7ff51a9485f26bbe7729fc13f0b42df531de714caeb7c",
-    "tests/tier2-id.test.ts": "c242e24855b5b210bf76964c0f1374dad5756353c902bd38fdad3b5d4c733eff",
+    "tests/tier2-id.test.ts": "cac75fb87bacf5cf14cf052860248af9aafcc5bed0c8f78e78b14e552e21cd26",
     "tests/tier2-now.test.ts": "3b3309a8a2e2fff4f588cf079a6455895397dcc5107a05ef2d1e859f8a5ab921",
-    "tests/tier2-walker.test.ts": "4925766577c4f389a0692cc652369312e8f2ec80528dc7a7ce13961bd066a860",
+    "tests/tier2-walker.test.ts": "f6fd3b0a3dc2252b9961a64a3e38a63810f45539555646309a8c7253f7de4164",
     "tests/tier2-echo.test.ts": "b025cd732ec882eb3d11a405148617a4ee9c21af91e94e63725919dc6fea9e47",
-    "tests/tier2-enhance.test.ts": "5246ff395b60f437b3f424ed18ce6ef9bc42ee456679a5aa1ec37fbaac99c68e",
+    "tests/tier2-enhance.test.ts": "f0db9b78162c35f16222cccb332220049b1d464a22501aa7f4298c8723db7c17",
     "tests/tier2-providers.test.ts": "7ba8811ecc0203489a93044580e543894c672a28c1f6cad1623849dfd42b804f",
-    "tests/tier2-determinism.test.ts": "08ee5a080685e7bf14a96646c5055e9951ebbf81f583a54a6e29ed7f7b975f20",
+    "tests/tier2-determinism.test.ts": "9b91c63157be0b0aea9103be6caed3b5c34b733cc2f710d3dd98bfb404fb4cc4",
     "tests/tier2-provider-agnostic.test.ts": "84a923bc56870b2695efab16d7f5121675b6385439b5987c120d473ab0d6dfe7",
     "tests/templating.test.ts": "3454518c77b1ed5e44c646ff6098fe18391e61f6051fac0128f91ee7f4704934",
     "examples/mocks/razorpay/orders.json": "630fe3403edcd0ecbc2dc051b1cd1fe2feb9222569097db8dc13de48f2232332",
@@ -679,10 +533,11 @@
     "examples/mocks/razorpay/refunds.json": "987ab5c6623270309ffa7d1e30fedc007a50485305106cd9eecf27ece8326011",
     "examples/mocks/razorpay/payment-links.json": "4820d57fd8c3f9e2cdde01c9e222b244494f6bbde98b67be1ac09f288956890a",
     "examples/mocks/stripe/customers.json": "23604213f272ad5be751c33d9b921b5e056a2047c02083ab68c8a364f32c0684",
-    "examples/mocks/twilio/messages.json": "f1bf982680afcc4c74495eec9003a40323e612f31436fc0e35006346321de5ca",
-    "examples/mocks/paypal/orders.json": "d4489b040779af7d83e5129200c9bd8ff7792e4dcb416df4ac7f21c858c73047",
-    "docs/TIER2.md": "6e56cfad9e301ea027f28787475cc6ce7af6e01becd9a0a1c5892067743bb426",
+    "examples/mocks/twilio/messages.json": "f7cab07c03cc76a1ac3308f1f40a2bb039074e6bcf37f637a89622280da8a496",
+    "examples/mocks/paypal/orders.json": "4ca66241b6d236aa15e5ec2481a6f67aa3d8ca68967e78e6266f169b22178845",
+    "docs/TIER2.md": "c4401869ceebee60d15954d690b24763f44305cd31eeb35ea94dcbdf967d6e88",
     "docs/ENHANCE.md": "766499de7133d5d0d3601d674c54f17f5589372fc0da1631dbde93f48987729e",
+    "docs/CONFIG.md": "7207aef94f6b099c32c3af432238a827271d1d6fffb9c5035a194a6391c1f936",
     "ops/runbooks/tier2-bench-regression.md": "585d8a6506ed5a70b893240edf16ad7fe47f9dc406f9c49028ea1248ba3bfdda",
     "ops/runbooks/tier2-id-collision.md": "f58f32b81db688b84c085a940196e38084af4a5b0f924fa5944a2866dd1e503a",
     "ops/runbooks/tier2-enhance-failure.md": "a8543de2c0198f2d889698219859650c9c38c9bc087f849de95a5a291c198643",
@@ -691,5 +546,101 @@
     "scripts/ci/tier2-grep-gate.sh": "a26f23955b51e3cf398de14c01d60224b395f80595b992e75e7c6d76982568ee",
     "bench/tier2.ts": "08f3949afe599b223b13c4151b26c613e11cc1107d7f519ccf1b31bdc199999e"
   },
-  "hashes_updated_at": "2026-04-14T07:43:18.667Z"
+  "hashes_updated_at": "2026-04-19T00:00:00.000Z",
+  "post_verify_review": {
+    "reviewed_at": "2026-04-18T22:17:05.636Z",
+    "reviewer": "superpowers:code-reviewer",
+    "status": "resolved",
+    "resolved_at": "2026-04-19T00:00:00.000Z",
+    "overall_verdict": "Ready to ship with Important items tracked (0 Critical)",
+    "strengths": [
+      "Clean string-mode vs JSON-value-mode separation via CompiledJsonValue leaf kinds",
+      "Per-request createIdHelpers() factory verified called per-request (TN8 honored)",
+      "Rejection-sampling mask derivation correct for n\u2208{1,2,3,...,256}",
+      "Deterministic PRNG genuinely seeded (not nanoid default)",
+      "RenderBudget short-circuits before JSON.stringify",
+      "Grep gate strips comments + all 3 quote flavors (tight regex)",
+      "No debug/TODO residue in Tier 2 code"
+    ],
+    "findings": [
+      {
+        "id": "REV-1",
+        "severity": "important",
+        "category": "data-corruption",
+        "title": "Enhancer field-mapping heuristic false-positives",
+        "file": "src/features/enhance/field-mapping.ts:80-88",
+        "summary": "`endsWith('at')` matches `format`/`heat`/`flat`; `endsWith('id')` matches `grid`/`paid`/`android`. Confirmed: decideRewrite('format', 1700000001, ...) \u2192 {token:'{{now.unix}}'}. Silently corrupts user fixtures.",
+        "refines_constraint": "TN6",
+        "task_id": 14,
+        "status": "resolved",
+        "resolution": "Replaced endsWith-suffix matching with word-boundary heuristics: snake_case (name ends with `_id`/`_at`) OR camelCase ([a-z0-9] followed by Id|ID|At|AT$). Tests cover accepted names (userId, createdAt, order_id) and rejected names (grid, paid, format, heat, android).",
+        "refines_constraint_resolved": "U4"
+      },
+      {
+        "id": "REV-2",
+        "severity": "important",
+        "category": "data-corruption",
+        "title": "Manifest restore has no drift detection vs stored original",
+        "file": "src/features/enhance/index.ts:86-95",
+        "summary": "restoreOriginalAt unconditionally overwrites current value with stored `original`. User edits to previously-enhanced fields are silently resurrected on re-run.",
+        "refines_constraint": "O3/TN7",
+        "task_id": 15,
+        "status": "resolved",
+        "resolution": "Added manifest-drift detection: walkAndRewrite now accepts a skip predicate; enhanceFile compares current value with the stored generated token per manifest entry and skips re-enhance when the user has edited the token. Test: 'preserves user edits to generated tokens and emits a drift warning (REV-2)'."
+      },
+      {
+        "id": "REV-3",
+        "severity": "important",
+        "category": "policy-clarity",
+        "title": "maxResponseBytes inherits from maxBodyBytes (conflated limits)",
+        "file": "src/server.ts:235",
+        "summary": "Two concerns (inbound cap vs outbound cap) share one tenant limit. S4 wording was about response size specifically.",
+        "refines_constraint": "S4",
+        "task_id": 16,
+        "status": "resolved",
+        "resolution": "Split TenantLimits: maxBodyBytes (S5, inbound request cap) and maxResponseBytes (S4, outbound render cap) are now independent, both defaulting to 1 MB. server.ts dispatch passes maxResponseBytes to Tier 2 render budget. Documented in docs/TIER2.md (new size-cap distinction note) + docs/CONFIG.md."
+      },
+      {
+        "id": "REV-4",
+        "severity": "important",
+        "category": "correctness-contract",
+        "title": "id draw() undersamples alphabets >256 chars",
+        "file": "src/core/templating/tier2/id.ts:58-68",
+        "summary": "byte & mask caps at 255; alphabets with length>256 have unreachable entries. No impact on shipped fixtures (all <62 chars) but the primitive advertises unbiased distribution.",
+        "refines_constraint": "T6",
+        "task_id": 17,
+        "status": "resolved",
+        "resolution": "Added explicit guard in mintId: `if (alphabet.length > 256) throw new Error('id(): alphabet too large (${alphabet.length}); max 256')`. Tests cover 257-char reject and exactly-256-char accept. Documented in docs/TIER2.md (alphabet-size note)."
+      },
+      {
+        "id": "REV-5",
+        "severity": "important",
+        "category": "fixture-quality",
+        "title": "PayPal/Twilio fixtures lack cross-reference consistency",
+        "file": "examples/mocks/paypal/orders.json, examples/mocks/twilio/messages.json:26,29,32",
+        "summary": "Same logical ID referenced in multiple response fields produces different random values per call. Needs memoized-id primitive or fixture restructuring.",
+        "refines_constraint": "U3",
+        "task_id": 18,
+        "status": "resolved",
+        "resolution": "Added {{id.named(name, prefix, length, alphabet?)}} primitive to compiler grammar + IdHelpers (per-request memoised cache). Updated PayPal orders (create-order: 4 links share one order_id; capture has distinct capture_id) and Twilio messages (sid + media + uri share message_sid). Test: 'id.named() resolves cross-references to the same value within one response (REV-5)'. Documented in docs/TIER2.md (new id.named section)."
+      },
+      {
+        "id": "REV-6",
+        "severity": "important",
+        "category": "test-isolation",
+        "title": "deterministicCounter at module scope, not per-launch",
+        "file": "src/server.ts:288",
+        "summary": "Counter persists across sequential launch() calls in same process. Flakiness trap for future cross-launch byte-equality tests.",
+        "refines_constraint": "TN8",
+        "task_id": 19,
+        "status": "resolved",
+        "resolution": "Replaced module-scope `let deterministicCounter` with per-server closure via createRequestIdGenerator(deterministic): each createServer() builds its own genRequestId and passes it into dispatch (DispatchDeps.genRequestId). No cross-server leakage."
+      }
+    ],
+    "minor_findings_count": 8,
+    "minor_findings_summary": "applyDelay unseeded in deterministic mode; {{id()}} silent defaults; raw JSON.parse errors at config-load; O(depth\u00b2) walkAndRewrite; setAt silent no-op on missing paths; Twilio date_created/date_updated 1ms drift; Makefile cleanup (unstaged); see review transcript for full list.",
+    "re_verify_required": false,
+    "re_verify_task": 20,
+    "re_verify_result": "PASS"
+  }
 }

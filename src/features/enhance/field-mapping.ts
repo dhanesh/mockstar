@@ -30,11 +30,11 @@ export function decideRewrite(
   hint: EnhanceHint,
 ): FieldRewrite | null {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
-  const name = fieldName.toLowerCase();
+  const lower = fieldName.toLowerCase();
 
   // ID-like fields: literal strings that look like opaque IDs get replaced with `{{id(...)}}`
-  if (looksLikeIdField(name) && typeof value === 'string' && looksLikeIdValue(value)) {
-    const { prefix, length, alphabet } = idShapeFor(hint.providerTag, name, value);
+  if (looksLikeIdField(fieldName, lower) && typeof value === 'string' && looksLikeIdValue(value)) {
+    const { prefix, length, alphabet } = idShapeFor(hint.providerTag, lower, value);
     const prefixArg = JSON.stringify(prefix);
     const alphaArg = alphabet ? `, ${JSON.stringify(alphabet)}` : '';
     return {
@@ -44,7 +44,7 @@ export function decideRewrite(
   }
 
   // Timestamp-ish fields
-  if (looksLikeTimestampField(name)) {
+  if (looksLikeTimestampField(fieldName, lower)) {
     if (typeof value === 'string' && ISO_RE.test(value)) {
       return { token: '{{now.iso}}', reason: 'iso8601-timestamp' };
     }
@@ -66,25 +66,39 @@ const ID_FIELD_NAMES = new Set([
   'refundid', 'refund_id',
   'entityid', 'entity_id',
   'messagesid', 'messages_id', 'sid',
+  'userid', 'user_id',
+  'transactionid', 'transaction_id',
+  'accountid', 'account_id',
+  'subscriptionid', 'subscription_id',
 ]);
 
 const TIMESTAMP_FIELD_NAMES = new Set([
   'created', 'created_at', 'createdat',
   'updated', 'updated_at', 'updatedat',
   'timestamp', 'date_created', 'datecreated',
+  'date_updated', 'dateupdated',
   'issued_at', 'expires_at', 'expiresat',
 ]);
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/;
 
-function looksLikeIdField(name: string): boolean {
-  return ID_FIELD_NAMES.has(name) || name.endsWith('_id') || name.endsWith('id');
+// Word-boundary detection: a letter-or-digit followed by "Id" / "ID" (camelCase boundary).
+// This distinguishes `userId`/`userID`/`orderId` (matches) from `grid`/`paid`/`android` (does not).
+const CAMEL_ID_RE = /[a-z0-9](Id|ID)$/;
+const CAMEL_AT_RE = /[a-z0-9](At|AT)$/;
+
+function looksLikeIdField(rawName: string, lowerName: string): boolean {
+  if (ID_FIELD_NAMES.has(lowerName)) return true;
+  if (lowerName.endsWith('_id')) return true;  // snake_case boundary
+  if (CAMEL_ID_RE.test(rawName)) return true;   // camelCase boundary
+  return false;
 }
 
-function looksLikeTimestampField(name: string): boolean {
-  return TIMESTAMP_FIELD_NAMES.has(name)
-    || name.endsWith('_at')
-    || name.endsWith('at') && name.length > 2;
+function looksLikeTimestampField(rawName: string, lowerName: string): boolean {
+  if (TIMESTAMP_FIELD_NAMES.has(lowerName)) return true;
+  if (lowerName.endsWith('_at')) return true;   // snake_case boundary
+  if (CAMEL_AT_RE.test(rawName)) return true;    // camelCase boundary
+  return false;
 }
 
 function looksLikeIdValue(s: string): boolean {

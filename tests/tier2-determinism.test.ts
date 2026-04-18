@@ -50,9 +50,9 @@ describe('tier2 determinism — replay invariant', () => {
   it('idHelpers seeded with identical (tenant, endpoint, requestCounter) produce identical sequences', async () => {
     // This is the load-bearing invariant for RT-1.4: the tuple uniquely seeds the PRNG, so
     // any two replays with the same tuple yield byte-identical IDs. End-to-end byte-identity
-    // across two servers would additionally require a per-server request-ID counter, which
-    // is an orthogonal concern (the counter is intentionally global in-process to prevent
-    // ID collisions between concurrently-booted tenants in the same host).
+    // across two servers is supported by the per-server request-ID counter — each `createServer()`
+    // owns its own closure-scoped counter, so two launches in the same process yield the same
+    // request-ID sequence for matching request sequences.
     const { createIdHelpers } = await import('../src/core/templating/tier2/id.ts');
     const seed = { deterministic: true, tenant: 'acme', endpoint: 'create', requestCounter: 42 };
     const a = createIdHelpers(seed);

@@ -106,6 +106,96 @@ describe('runEnhance — idempotency and boundary', () => {
     expect(after).toBe(before);
   });
 
+  it('does not rewrite English-word fields that happen to end in "id" or "at" (REV-1)', async () => {
+    // Regression test for code-review finding REV-1. Pre-fix, `endsWith("id")` and `endsWith("at")`
+    // matched fields like `format`/`grid`/`paid`/`android` and silently corrupted their values.
+    const { file } = await setup({
+      mocks: [{
+        id: 'negative-test',
+        match: { method: 'GET', path: '/x' },
+        response: {
+          kind: 'static',
+          status: 200,
+          body: {
+            grid: 'abc_0123456789',            // endsWith("id") + looksLikeIdValue — must NOT rewrite
+            format: 1700000001,                 // endsWith("at") + > 1e9         — must NOT rewrite
+            paid: 'abc_0123456789',             // endsWith("id") + looksLikeIdValue
+            flat: '2024-01-15T10:30:00Z',       // endsWith("at") + ISO_RE
+            android: 'xyz_0123456789',          // endsWith("id")
+            void: 'abc_0123456789',             // endsWith("id")
+            heat: 1700000001,                   // endsWith("at") + > 1e9
+            chat: '2024-01-15T10:30:00Z',       // endsWith("at") + ISO_RE
+          },
+        },
+      }],
+    });
+    const dir = await parentOf(file);
+    const result = await runEnhance({ inputDir: dir, now: FIXED_NOW });
+    expect(result.rewrites).toBe(0);
+    const after = await readJson(file);
+    const body = (after.mocks as Array<{ response: { body: Record<string, unknown> } }>)[0]!.response.body;
+    expect(body.grid).toBe('abc_0123456789');
+    expect(body.format).toBe(1700000001);
+    expect(body.paid).toBe('abc_0123456789');
+    expect(body.flat).toBe('2024-01-15T10:30:00Z');
+    expect(body.android).toBe('xyz_0123456789');
+    expect(body.void).toBe('abc_0123456789');
+    expect(body.heat).toBe(1700000001);
+    expect(body.chat).toBe('2024-01-15T10:30:00Z');
+    expect(after[GENERATED_KEY]).toBeUndefined();
+  });
+
+  it('still rewrites camelCase id/timestamp fields via word-boundary detection', async () => {
+    const { file } = await setup({
+      mocks: [{
+        id: 'camel-case',
+        match: { method: 'POST', path: '/users' },
+        response: {
+          kind: 'static',
+          status: 200,
+          body: {
+            userId: 'user_ABC123DEF456',
+            orderId: 'order_GHI789JKL012',
+            createdAt: '2024-01-15T10:30:00Z',
+            updatedAt: 1700000001,
+          },
+        },
+      }],
+    });
+    const dir = await parentOf(file);
+    const result = await runEnhance({ inputDir: dir, now: FIXED_NOW });
+    expect(result.rewrites).toBe(4);
+    const after = await readJson(file);
+    const body = (after.mocks as Array<{ response: { body: Record<string, unknown> } }>)[0]!.response.body;
+    expect(body.userId).toBe('{{id("user_", 12)}}');
+    expect(body.orderId).toBe('{{id("order_", 12)}}');
+    expect(body.createdAt).toBe('{{now.iso}}');
+    expect(body.updatedAt).toBe('{{now.unix}}');
+  });
+
+  it('preserves user edits to generated tokens and emits a drift warning (REV-2)', async () => {
+    const { file } = await setup(literalFixture);
+    const dir = await parentOf(file);
+    await runEnhance({ inputDir: dir, now: FIXED_NOW });
+
+    // User overwrites the generated token for `id` with a literal they prefer.
+    const edited = await readJson(file);
+    const bodyRef = (edited.mocks as Array<{ response: { body: Record<string, unknown> } }>)[0]!.response.body;
+    bodyRef.id = 'order_HAND_WRITTEN_99';
+    await writeFile(file, JSON.stringify(edited, null, 2) + '\n', 'utf-8');
+
+    const result = await runEnhance({ inputDir: dir, now: FIXED_NOW });
+    expect(result.warnings.some((w) => w.includes('user-drift') && w.includes('create-order.body.id'))).toBe(true);
+
+    const final = await readJson(file);
+    const finalBody = (final.mocks as Array<{ response: { body: Record<string, unknown> } }>)[0]!.response.body;
+    // User's value must be preserved — not re-enhanced, not reverted to original literal.
+    expect(finalBody.id).toBe('order_HAND_WRITTEN_99');
+    // Other enhanced fields (not user-edited) remain as Tier 2 tokens.
+    expect(finalBody.customer_id).toBe('{{id("cust_", 12)}}');
+    expect(finalBody.created_at).toBe('{{now.iso}}');
+  });
+
   it('ambiguous field values are left as literals (conservative heuristic)', async () => {
     const { file } = await setup({
       mocks: [{

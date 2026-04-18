@@ -84,11 +84,25 @@ async function enhanceFile(
   opts: EnhanceOptions,
 ): Promise<void> {
   const prior = readManifest(raw);
+  // Drift-detection (REV-2): paths where user has edited the enhancer's token. We neither restore
+  // the original nor re-enhance — the user has taken ownership of that position.
+  const userOwnedPaths = new Set<string>();
 
   // Step 1 — restore originals from prior manifest (if any) so re-enhance starts from a clean base.
   // This keeps rewrites idempotent (O3) without clobbering user edits on non-enhanced siblings.
   if (prior) {
     for (const entry of prior.entries) {
+      const currentValue = getEntryValue(raw, entry);
+      if (currentValue !== entry.token) {
+        // User has edited the field we previously enhanced. Preserve their value and skip
+        // re-enhancement for this path on this run.
+        result.warnings.push(
+          `user-drift at ${entry.entry}.${entry.path}: manifest expected token ${entry.token}, ` +
+            `file has ${JSON.stringify(currentValue)}. Preserving user edit; skipping re-enhance for this path.`,
+        );
+        userOwnedPaths.add(`${entry.entry}|${entry.path}`);
+        continue;
+      }
       restoreOriginalAt(raw, entry);
     }
     clearManifest(raw);
@@ -103,10 +117,18 @@ async function enhanceFile(
       providerTag: spec?.providerTag ?? inferProviderFromPath(filePath),
       knownFieldNames: spec?.fieldsByEndpoint.get(methodPathKey(mock)),
     };
-    walkAndRewrite(mock.response, ['body'], hint, (path, token, original) => {
-      entries.push({ entry: mock.id, path: path.join('.'), token, original });
-      result.rewrites++;
-    });
+    const skipPath = (path: string[]): boolean =>
+      userOwnedPaths.has(`${mock.id}|${path.join('.')}`);
+    walkAndRewrite(
+      mock.response,
+      ['body'],
+      hint,
+      (path, token, original) => {
+        entries.push({ entry: mock.id, path: path.join('.'), token, original });
+        result.rewrites++;
+      },
+      skipPath,
+    );
   }
 
   // Step 3 — write back the manifest if any rewrites happened OR a prior manifest existed.
@@ -129,12 +151,13 @@ function walkAndRewrite(
   path: string[],
   hint: EnhanceHint,
   onRewrite: (path: string[], token: string, original: unknown) => void,
+  skip?: (path: string[]) => boolean,
 ): void {
   const current = getAt(root, path);
   if (current === null || current === undefined) return;
   if (Array.isArray(current)) {
     for (let i = 0; i < current.length; i++) {
-      walkAndRewrite(root, [...path, String(i)], hint, onRewrite);
+      walkAndRewrite(root, [...path, String(i)], hint, onRewrite, skip);
     }
     return;
   }
@@ -142,9 +165,10 @@ function walkAndRewrite(
   for (const [key, value] of Object.entries(current as Record<string, unknown>)) {
     const childPath = [...path, key];
     if (value !== null && typeof value === 'object') {
-      walkAndRewrite(root, childPath, hint, onRewrite);
+      walkAndRewrite(root, childPath, hint, onRewrite, skip);
       continue;
     }
+    if (skip?.(childPath)) continue;
     const rewrite = decideRewrite(key, value, hint);
     if (rewrite) {
       const original = (current as Record<string, unknown>)[key];
@@ -201,6 +225,14 @@ function restoreOriginalAt(raw: Record<string, unknown>, entry: GeneratedEntry):
     : undefined;
   if (!mock?.response) return;
   setAt(mock.response, entry.path.split('.'), entry.original);
+}
+
+function getEntryValue(raw: Record<string, unknown>, entry: GeneratedEntry): unknown {
+  const mock = Array.isArray(raw.mocks)
+    ? (raw.mocks as Mock[]).find((m) => m.id === entry.entry)
+    : undefined;
+  if (!mock?.response) return undefined;
+  return getAt(mock.response, entry.path.split('.'));
 }
 
 function methodPathKey(mock: Mock): string {

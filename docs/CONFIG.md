@@ -91,9 +91,10 @@ Upstream URLs are validated against the SSRF guard (RT-8 / S6). Private ranges a
   "adminToken": "per-tenant-secret-32-chars-min",   // RT-7.1
   "allowPrivateUpstreams": false,                    // RT-8.1
   "limits": {
-    "maxBodyBytes": 1048576,     // 1 MB (S5)
-    "requestsPerSecond": 1000,    // (S5 — enforcement in v1.1)
-    "journalSize": 1000           // O3 — bounded ring buffer
+    "maxBodyBytes": 1048576,      // S5 — inbound request cap, 1 MB
+    "maxResponseBytes": 1048576,  // S4 — outbound Tier 2 render cap, 1 MB
+    "requestsPerSecond": 1000,     // S5 — (enforcement in v1.1)
+    "journalSize": 1000            // O3 — bounded ring buffer
   }
 }
 ```
