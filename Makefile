@@ -13,6 +13,7 @@ HOST_PORT      ?= 3000
 CONTAINER_PORT ?= 3000
 MOCKS_DIR      ?= ./examples/mocks
 HANDLERS_DIR   ?= ./examples/handlers
+ADMIN_TOKEN    ?= local-dev-only-token
 
 # Tier1 proxy integration image
 PROXY_IMAGE    ?= mockstar-tier1:dev
@@ -39,10 +40,10 @@ install:  ## Install dependencies (frozen lockfile)
 	bun install --frozen-lockfile
 
 dev: install  ## Run mockstar locally with file-watch hot reload (Ctrl+C to stop)
-	bun run src/cli.ts $(MOCKS_DIR) --handlers $(HANDLERS_DIR) --port $(HOST_PORT)
+	MOCKSTAR_ADMIN_TOKEN=$(ADMIN_TOKEN) bun run src/cli.ts $(MOCKS_DIR) --handlers $(HANDLERS_DIR) --port $(HOST_PORT)
 
 run: install  ## Run mockstar locally without file-watch (CI-shaped)
-	bun run src/cli.ts $(MOCKS_DIR) --handlers $(HANDLERS_DIR) --port $(HOST_PORT) --no-watch
+	MOCKSTAR_ADMIN_TOKEN=$(ADMIN_TOKEN) bun run src/cli.ts $(MOCKS_DIR) --handlers $(HANDLERS_DIR) --port $(HOST_PORT) --no-watch
 
 test:  ## Run the full test suite
 	bun test

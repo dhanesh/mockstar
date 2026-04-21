@@ -87,6 +87,39 @@ Per-tenant admin tokens are stored in each tenant's `tenant.json` file inside th
 
 > ⚠️ **v1 limitation (TN1).** Runtime mutation of mocks requires filesystem access or a ConfigMap update. A runtime write-API is planned for v1.1. Teams that need live mutation today should treat mock configs as code and ship via a GitOps pipeline.
 
+## Verifying the image before deploying to production
+
+> **Satisfies: U4** — every DevOps quickstart shows cosign verify as the deploy-to-prod gate.
+> See [docs/OIDC-SETUP.md](./OIDC-SETUP.md) for how the signing identity is configured.
+
+Before running a new image in production, verify the cosign signature against the release
+workflow's OIDC identity:
+
+```bash
+cosign verify \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp \
+    "^https://github.com/[^/]+/mockstar/.github/workflows/release\.yml@" \
+  ghcr.io/<org>/mockstar@sha256:<digest>
+```
+
+A clean exit confirms the image was signed by the official release workflow — not an
+arbitrary key. The CycloneDX SBOM attestation can be retrieved with:
+
+```bash
+cosign verify-attestation \
+  --type cyclonedx \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp \
+    "^https://github.com/[^/]+/mockstar/.github/workflows/release\.yml@" \
+  ghcr.io/<org>/mockstar@sha256:<digest>
+```
+
+For the Helm OCI artifact: same pattern, pointing at
+`ghcr.io/<org>/charts/mockstar@sha256:<digest>`.
+
+---
+
 ## Offline CI / Windows — compiled binary
 
 Best fit for environments without Bun installed.
@@ -97,6 +130,21 @@ bun build src/cli.ts --compile --outfile dist/mockstar
 ```
 
 **Boot SLO:** `< 500 ms` — compiled binary carries runtime init overhead (TN4).
+
+### macOS — first-run Gatekeeper bypass
+
+Binaries downloaded from GitHub Releases are unsigned (no Apple Developer ID certificate).
+macOS Gatekeeper quarantines them on first download. Remove the quarantine attribute before running:
+
+```bash
+xattr -d com.apple.quarantine ./mockstar-bun-darwin-arm64
+chmod +x ./mockstar-bun-darwin-arm64
+./mockstar-bun-darwin-arm64 --version
+```
+
+Alternatively: right-click the binary in Finder → **Open** → **Open** in the dialog. This records a one-time Gatekeeper exception without touching the terminal.
+
+The quarantine flag is only set by the browser/curl on download. Binaries compiled locally from source do not have it and run without any extra steps.
 
 ## Orchestrator restart policy (MANDATORY in production)
 

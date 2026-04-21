@@ -1,0 +1,1959 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dhanesh/manifold/main/install/manifold-structure.schema.json",
+  "schema_version": 3,
+  "feature": "distribution-packaging",
+  "phase": "VERIFIED",
+  "domain": "software",
+  "created": "2026-04-19T00:00:00.000Z",
+  "constraints": {
+    "business": [
+      {
+        "id": "B1",
+        "type": "invariant",
+        "source": "pre-mortem",
+        "challenger": "technical-reality",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "B2",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "threshold": {
+          "kind": "deterministic",
+          "ceiling": "5min"
+        },
+        "quality": {
+          "specificity": 3,
+          "measurability": 2,
+          "testability": 2
+        }
+      },
+      {
+        "id": "B3",
+        "type": "boundary",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 2,
+          "testability": 2
+        }
+      },
+      {
+        "id": "B4",
+        "type": "invariant",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      }
+    ],
+    "technical": [
+      {
+        "id": "T1",
+        "type": "invariant",
+        "source": "interview",
+        "challenger": "technical-reality",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "T2",
+        "type": "invariant",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "T3",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "T4",
+        "type": "invariant",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "T5",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "technical-reality",
+        "quality": {
+          "specificity": 2,
+          "measurability": 2,
+          "testability": 2
+        }
+      },
+      {
+        "id": "T6",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "T7",
+        "type": "boundary",
+        "source": "pre-mortem",
+        "challenger": "technical-reality",
+        "threshold": {
+          "kind": "deterministic",
+          "ceiling": "100MB"
+        },
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      }
+    ],
+    "user_experience": [
+      {
+        "id": "U1",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "U2",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 2,
+          "testability": 2
+        }
+      },
+      {
+        "id": "U3",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 2,
+          "measurability": 2,
+          "testability": 2
+        }
+      },
+      {
+        "id": "U4",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 2,
+          "measurability": 2,
+          "testability": 2
+        }
+      }
+    ],
+    "security": [
+      {
+        "id": "S1",
+        "type": "invariant",
+        "source": "interview",
+        "challenger": "regulation",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "S2",
+        "type": "invariant",
+        "source": "interview",
+        "challenger": "regulation",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "S3",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "regulation",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "S4",
+        "type": "boundary",
+        "source": "interview",
+        "challenger": "regulation",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "S5",
+        "type": "invariant",
+        "source": "interview",
+        "challenger": "regulation",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      }
+    ],
+    "operational": [
+      {
+        "id": "O1",
+        "type": "invariant",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "O2",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 2,
+          "measurability": 2,
+          "testability": 2
+        }
+      },
+      {
+        "id": "O3",
+        "type": "goal",
+        "source": "interview",
+        "challenger": "technical-reality",
+        "threshold": {
+          "kind": "statistical",
+          "p99": "15min"
+        },
+        "quality": {
+          "specificity": 3,
+          "measurability": 3,
+          "testability": 3
+        }
+      },
+      {
+        "id": "O4",
+        "type": "boundary",
+        "source": "interview",
+        "challenger": "stakeholder",
+        "quality": {
+          "specificity": 3,
+          "measurability": 2,
+          "testability": 2
+        }
+      },
+      {
+        "id": "O5",
+        "type": "goal",
+        "source": "pre-mortem",
+        "challenger": "technical-reality",
+        "quality": {
+          "specificity": 2,
+          "measurability": 2,
+          "testability": 2
+        }
+      }
+    ]
+  },
+  "tensions": [
+    {
+      "id": "TN1",
+      "type": "trade_off",
+      "between": [
+        "S3",
+        "O3"
+      ],
+      "status": "resolved",
+      "triz": {
+        "contradiction_type": "technical",
+        "parameters": [
+          "verifiability",
+          "speed"
+        ],
+        "principles": [
+          "P1",
+          "P10",
+          "P15"
+        ]
+      },
+      "resolution": "segment_by_release_type",
+      "resolution_chosen": "B",
+      "propagation_effects": [
+        {
+          "constraint_id": "S3",
+          "effect": "LOOSENED",
+          "note": "SLSA L3 is required only on stable releases (x.y.z with no pre-release tag); skipped on alpha/beta/rc"
+        },
+        {
+          "constraint_id": "B3",
+          "effect": "TIGHTENED",
+          "note": "Versioning policy must explicitly distinguish pre-release vs stable; tooling must detect the tag shape"
+        }
+      ],
+      "validation_criteria": [
+        "CI logs show SLSA L3 attestation present for every stable tag (x.y.z without pre-release suffix)",
+        "Pre-release tags (alpha/beta/rc) produce no SLSA attestation step",
+        "Release wall-clock p99 <= 15 min over trailing 20 releases"
+      ]
+    },
+    {
+      "id": "TN2",
+      "type": "trade_off",
+      "between": [
+        "T7",
+        "T3"
+      ],
+      "status": "resolved",
+      "triz": {
+        "contradiction_type": "technical",
+        "parameters": [
+          "portability",
+          "size"
+        ],
+        "principles": [
+          "P1",
+          "P27",
+          "P35"
+        ]
+      },
+      "resolution": "relax_size_ceiling",
+      "resolution_chosen": "B",
+      "propagation_effects": [
+        {
+          "constraint_id": "T7",
+          "effect": "LOOSENED",
+          "note": "Compressed size ceiling raised from 100MB to 150MB per target"
+        },
+        {
+          "constraint_id": "B2",
+          "effect": "TIGHTENED",
+          "note": "Larger binary => marginally slower download on constrained networks; still within 5-min budget on >=25 Mbps"
+        }
+      ],
+      "validation_criteria": [
+        "CI asserts each of 4 binary targets compresses to <= 150 MB",
+        "Download-and-run smoke test from GitHub Release completes in under 60 seconds on a 100 Mbps connection"
+      ]
+    },
+    {
+      "id": "TN3",
+      "type": "trade_off",
+      "between": [
+        "B2",
+        "S1",
+        "S2",
+        "S5"
+      ],
+      "status": "resolved",
+      "triz": {
+        "contradiction_type": "physical",
+        "parameters": [
+          "verification",
+          "single-command-UX"
+        ],
+        "principles": [
+          "P1",
+          "P10",
+          "P24"
+        ]
+      },
+      "resolution": "package_manager_native_verification_by_persona",
+      "resolution_chosen": "C",
+      "propagation_effects": [
+        {
+          "constraint_id": "S1",
+          "effect": "LOOSENED",
+          "note": "Enforceability loosens from runtime-mandatory to publish-mandatory; signatures exist and are verifiable but are not required before first run"
+        },
+        {
+          "constraint_id": "S2",
+          "effect": "LOOSENED",
+          "note": "Same as S1 - SBOM is attached at publish; consumers verify at deploy time, not first-run time"
+        },
+        {
+          "constraint_id": "U4",
+          "effect": "TIGHTENED",
+          "note": "DevOps quickstart must show explicit cosign verify as the deploy-to-prod step, with a doc link"
+        }
+      ],
+      "validation_criteria": [
+        "README quickstart per persona runs end-to-end in <5 min on a clean machine (automated in quickstart-smoke workflow)",
+        "docs/DEPLOYMENT.md includes a verified cosign one-liner that passes against a released tag",
+        "npm publish provenance badge is visible on the package page"
+      ]
+    },
+    {
+      "id": "TN4",
+      "type": "trade_off",
+      "between": [
+        "T1",
+        "B2"
+      ],
+      "status": "resolved",
+      "triz": {
+        "contradiction_type": "technical",
+        "parameters": [
+          "modernness",
+          "compatibility"
+        ],
+        "principles": [
+          "P3",
+          "P15",
+          "P24"
+        ]
+      },
+      "resolution": "supported_frameworks_plus_documented_escape_hatch",
+      "resolution_chosen": "C",
+      "propagation_effects": [
+        {
+          "constraint_id": "U2",
+          "effect": "TIGHTENED",
+          "note": "Must ship examples/sdet-jest29 alongside jest30/vitest/bun:test, proving the transformIgnorePatterns + --experimental-vm-modules workaround"
+        }
+      ],
+      "validation_criteria": [
+        "examples/sdet-jest29 is a runnable integration test exercising launch() via CI",
+        "examples/sdet-jest30, examples/sdet-vitest, examples/sdet-bun-test run zero-config (no mockstar-specific jest.config additions required)",
+        "docs/SDET.md lists supported frameworks with version floors and links to each example"
+      ]
+    },
+    {
+      "id": "TN5",
+      "type": "resource_tension",
+      "between": [
+        "O1",
+        "O2"
+      ],
+      "status": "resolved",
+      "triz": {
+        "contradiction_type": "technical",
+        "parameters": [
+          "chart-cohesion",
+          "tenant-state-durability"
+        ],
+        "principles": [
+          "P1",
+          "P11",
+          "P13"
+        ]
+      },
+      "resolution": "segment_tenant_content_outside_chart",
+      "resolution_chosen": "A",
+      "propagation_effects": [
+        {
+          "constraint_id": "O1",
+          "effect": "TIGHTENED",
+          "note": "Chart ships one tenants-index ConfigMap + a labeled-ConfigMap selector pattern; mock content is NOT templated by the chart"
+        },
+        {
+          "constraint_id": "O2",
+          "effect": "LOOSENED",
+          "note": "Upgrade path is simpler because the chart only touches deployment + index, not tenant content"
+        },
+        {
+          "constraint_id": "U3",
+          "effect": "TIGHTENED",
+          "note": "Team-sharing workflow must describe how teams distribute labeled tenant ConfigMaps (kustomize overlay or side-chart pattern)"
+        }
+      ],
+      "validation_criteria": [
+        "Integration test: helm install, kubectl apply 3 labeled tenant ConfigMaps, helm upgrade to next minor - assert all 3 ConfigMaps persist with original content",
+        "Integration test: helm rollback preserves labeled tenant ConfigMaps unchanged",
+        "Chart's values.yaml documents the mockstar.dev/tenant=<name> label selector contract"
+      ]
+    },
+    {
+      "id": "TN6",
+      "type": "hidden_dependency",
+      "between": [
+        "T5",
+        "T3"
+      ],
+      "status": "resolved",
+      "triz": {
+        "contradiction_type": "technical",
+        "parameters": [
+          "determinism",
+          "tool-autonomy"
+        ],
+        "principles": [
+          "P10",
+          "P35",
+          "P40"
+        ]
+      },
+      "resolution": "pin_bun_version_and_record_in_provenance",
+      "resolution_chosen": "A+B",
+      "propagation_effects": [
+        {
+          "constraint_id": "T5",
+          "effect": "TIGHTENED",
+          "note": "Reproducibility claim requires pinned .bun-version + pinned Bun container digest"
+        },
+        {
+          "constraint_id": "T3",
+          "effect": "TIGHTENED",
+          "note": "Upgrading Bun becomes a deliberate release-notes-worthy event, not a silent dependency bump"
+        },
+        {
+          "constraint_id": "S3",
+          "effect": "LOOSENED",
+          "note": "Pinned toolchain makes SLSA provenance reproducible by downstream verifiers, strengthening the attestation's value"
+        }
+      ],
+      "validation_criteria": [
+        ".bun-version file exists at repo root and is the single source of truth",
+        "CI fails if invoked Bun version does not match .bun-version",
+        "Two independent CI runs from the same tag produce bit-identical binaries for all 4 targets (verified by diffoscope)"
+      ],
+      "blocks": [
+        "T3",
+        "T5"
+      ]
+    },
+    {
+      "id": "TN7",
+      "type": "hidden_dependency",
+      "between": [
+        "T6",
+        "B3"
+      ],
+      "status": "resolved",
+      "triz": {
+        "contradiction_type": "technical",
+        "parameters": [
+          "URL-stability",
+          "schema-evolution"
+        ],
+        "principles": [
+          "P1",
+          "P15",
+          "P17"
+        ]
+      },
+      "resolution": "dual_url_scheme_with_minor_pin_default",
+      "resolution_chosen": "C",
+      "propagation_effects": [
+        {
+          "constraint_id": "T6",
+          "effect": "TIGHTENED",
+          "note": "Must publish both .../v0/mock.json (latest) AND .../v0.N/mock.json (per-minor snapshot); mockstar init writes per-minor URL by default"
+        },
+        {
+          "constraint_id": "O4",
+          "effect": "TIGHTENED",
+          "note": "Deprecation policy extends to schema URLs - a deprecated per-minor URL must remain served for at least one more minor"
+        }
+      ],
+      "validation_criteria": [
+        "Both .../v0/mock.json and .../v0.N/mock.json URLs return HTTP 200 with valid JSON Schema",
+        "CDN caching headers (ETag, Cache-Control) are set correctly",
+        "mockstar init writes per-minor URL by default; mockstar migrate --schema rewrites existing files to a target minor"
+      ],
+      "blocks": [
+        "T6"
+      ]
+    }
+  ],
+  "anchors": {
+    "required_truths": [
+      {
+        "id": "RT-1",
+        "status": "SATISFIED",
+        "maps_to": [
+          "T3",
+          "T5"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "file_exists",
+            "path": ".bun-version",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "bun-version-file",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E3",
+            "type": "test_passes",
+            "path": "tests/ci/bun-pin.test.ts",
+            "test_name": "invoked Bun matches .bun-version",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E4",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "sha256sum.*mockstar",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E5",
+            "type": "test_passes",
+            "path": "tests/ci/release-timing.test.ts",
+            "test_name": "build-binaries job records sha256 of each compiled binary",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-2",
+        "status": "SATISFIED",
+        "maps_to": [
+          "T6",
+          "B3",
+          "O4"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "manual_review",
+            "path": "docs/SCHEMA-HOSTING.md",
+            "status": "PENDING"
+          },
+          {
+            "id": "E2",
+            "type": "content_match",
+            "path": "src/cli/commands/migrate.ts",
+            "pattern": "--schema",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-3",
+        "status": "SATISFIED",
+        "maps_to": [
+          "B1",
+          "S1",
+          "S2",
+          "S3",
+          "S5",
+          "U4"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "id-token: write",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "npm publish --provenance",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E3",
+            "type": "manual_review",
+            "path": "docs/OIDC-SETUP.md",
+            "status": "PENDING"
+          },
+          {
+            "id": "E4",
+            "type": "content_match",
+            "path": "docs/DEPLOYMENT.md",
+            "pattern": "cosign verify",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E5",
+            "type": "test_passes",
+            "path": "tests/docs/deployment-verify-shape.test.ts",
+            "test_name": "has a Verifying the image before deploying to production section",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-4",
+        "status": "SATISFIED",
+        "maps_to": [
+          "S1",
+          "S2"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "cosign sign --yes \"\\$TARGET\"",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "cosign attest --yes --type cyclonedx",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E3",
+            "type": "test_passes",
+            "path": "tests/ci/verify-signature.test.ts",
+            "test_name": "cosign verify passes on published digest",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-5",
+        "status": "SATISFIED",
+        "maps_to": [
+          "S3",
+          "B3",
+          "O3"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "is_prerelease",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "github.run_started_at",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E3",
+            "type": "test_passes",
+            "path": "tests/ci/release-timing.test.ts",
+            "test_name": "release.yml has a timing guard step referencing github.run_started_at",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-6",
+        "status": "SATISFIED",
+        "maps_to": [
+          "O5"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "for attempt in 1 2 3",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/ci/release-halt-clean.test.ts",
+            "test_name": "retry + halt-clean wiring (8 assertions)",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-7",
+        "status": "SATISFIED",
+        "maps_to": [
+          "T1"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": "package.json",
+            "pattern": "\"type\": \"module\"",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/packaging/exports-map.test.ts",
+            "test_name": "types condition resolves first",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E3",
+            "type": "file_exists",
+            "path": "examples/sdet-jest29/package.json",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-8",
+        "status": "PARTIAL",
+        "maps_to": [
+          "T2"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "platforms: linux/amd64,linux/arm64",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/docker/multiarch-smoke.test.ts",
+            "test_name": "both arches pass smoke test",
+            "status": "PENDING"
+          }
+        ]
+      },
+      {
+        "id": "RT-9",
+        "status": "PARTIAL",
+        "maps_to": [
+          "T3",
+          "T7"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "file_exists",
+            "path": "scripts/build-binaries.ts",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/packaging/binary-size.test.ts",
+            "test_name": "each compressed target <= 150MB",
+            "status": "PENDING"
+          },
+          {
+            "id": "E3",
+            "type": "test_passes",
+            "path": "tests/packaging/binary-smoke.test.ts",
+            "test_name": "all 4 targets run --version successfully",
+            "status": "PENDING"
+          }
+        ]
+      },
+      {
+        "id": "RT-10",
+        "status": "SATISFIED",
+        "maps_to": [
+          "T4"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "helm push.*oci://ghcr.io",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "file_exists",
+            "path": "charts/mockstar/Chart.yaml",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-11",
+        "status": "SATISFIED",
+        "maps_to": [
+          "O1",
+          "O2",
+          "U3"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": "charts/mockstar/templates/deployment.yaml",
+            "pattern": "mockstar.dev/tenant",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/helm/upgrade-preserves-tenants.test.ts",
+            "test_name": "helm upgrade preserves labeled tenant ConfigMaps",
+            "test_tier": "integration",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-12",
+        "status": "SATISFIED",
+        "maps_to": [
+          "O1"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": "charts/mockstar/templates/deployment.yaml",
+            "pattern": "livenessProbe:",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "content_match",
+            "path": "charts/mockstar/templates/servicemonitor.yaml",
+            "pattern": "/metrics",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-13",
+        "status": "SATISFIED",
+        "maps_to": [
+          "B2"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "file_exists",
+            "path": ".github/workflows/quickstart-smoke.yml",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/quickstart/dev-persona.test.ts",
+            "test_name": "bunx mockstar init -> running mock in under 5min",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-14",
+        "status": "SATISFIED",
+        "maps_to": [
+          "U1"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "file_exists",
+            "path": "src/cli/commands/init.ts",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/cli/init.test.ts",
+            "test_name": "init scaffold runs on first mockstar invocation",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-15",
+        "status": "SATISFIED",
+        "maps_to": [
+          "U2"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "file_exists",
+            "path": "docs/SDET.md",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "file_exists",
+            "path": "examples/sdet-vitest/package.json",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E3",
+            "type": "test_passes",
+            "path": "tests/examples/sdet-all.test.ts",
+            "test_name": "jest30/vitest/bun-test run zero-config; jest29 runs with documented config",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-16",
+        "status": "SATISFIED",
+        "maps_to": [
+          "U3"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "file_exists",
+            "path": "CONTRIBUTING.md",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "file_exists",
+            "path": "docs/TEAM-WORKFLOW.md",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-17",
+        "status": "SATISFIED",
+        "maps_to": [
+          "B3",
+          "O4"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "file_exists",
+            "path": "docs/VERSIONING.md",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "content_match",
+            "path": "README.md",
+            "pattern": "Minors may break",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-18",
+        "status": "SATISFIED",
+        "maps_to": [
+          "B4"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "check-changelog",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/ci/changelog-gate.test.ts",
+            "test_name": "release fails when CHANGELOG lacks entry for tag",
+            "status": "VERIFIED"
+          }
+        ]
+      },
+      {
+        "id": "RT-19",
+        "status": "SATISFIED",
+        "maps_to": [
+          "S4"
+        ],
+        "evidence": [
+          {
+            "id": "E1",
+            "type": "content_match",
+            "path": ".github/workflows/release.yml",
+            "pattern": "severity: CRITICAL",
+            "status": "VERIFIED"
+          },
+          {
+            "id": "E2",
+            "type": "test_passes",
+            "path": "tests/ci/cve-gate.test.ts",
+            "test_name": "release blocks on Critical CVE with known fix",
+            "status": "VERIFIED"
+          }
+        ]
+      }
+    ],
+    "binding_constraint": {
+      "required_truth_id": "RT-3",
+      "reason": "OIDC wiring (id-token: write + npm Trusted Publishing registration + Sigstore Fulcio trust on the repo) is the prerequisite for the entire signing surface. Without it: npm publish cannot produce provenance (blocks S5), cosign keyless cannot run (blocks S1, S2), SLSA reusable workflow cannot attest (blocks S3). 8 downstream RTs (RT-4, RT-5, RT-6, RT-8, RT-9 signing, RT-10 verify, RT-18, RT-19) depend on it. Hardest to verify-right the first time because OIDC audience/subject mismatches fail silently.",
+      "dependency_chain": [
+        "RT-4",
+        "RT-5",
+        "RT-6",
+        "RT-8",
+        "RT-9",
+        "RT-10",
+        "RT-18",
+        "RT-19"
+      ]
+    },
+    "recommended_option": "D",
+    "tension_validation": [
+      {
+        "tension_id": "TN1",
+        "status": "CONFIRMED",
+        "by_option": "D",
+        "note": "Option D's RT-5 gates SLSA L3 on stable-only release type detection"
+      },
+      {
+        "tension_id": "TN2",
+        "status": "CONFIRMED",
+        "by_option": "D",
+        "note": "Option D's RT-9 uses the 150MB relaxed ceiling from TN2"
+      },
+      {
+        "tension_id": "TN3",
+        "status": "CONFIRMED",
+        "by_option": "D",
+        "note": "Option D's RT-13 per-persona quickstart uses package-manager-native verification; cosign explicit only in docs"
+      },
+      {
+        "tension_id": "TN4",
+        "status": "CONFIRMED",
+        "by_option": "D",
+        "note": "Option D's RT-7 and RT-15 include examples/sdet-jest29 as the documented escape hatch"
+      },
+      {
+        "tension_id": "TN5",
+        "status": "CONFIRMED",
+        "by_option": "D",
+        "note": "Option D's RT-11 adopts the mockstar.dev/tenant label selector pattern; chart does not template tenant content"
+      },
+      {
+        "tension_id": "TN6",
+        "status": "CONFIRMED",
+        "by_option": "D",
+        "note": "Option D's RT-1 pins Bun version in .bun-version and records digest in SLSA provenance"
+      },
+      {
+        "tension_id": "TN7",
+        "status": "CONFIRMED",
+        "by_option": "D",
+        "note": "Option D's RT-2 publishes dual-URL scheme and RT-14's init writes per-minor URL by default"
+      }
+    ],
+    "draft_required_truths": [
+      {
+        "id": "DRT-1",
+        "seed_from": [
+          "B1",
+          "S1",
+          "S2",
+          "S5"
+        ],
+        "draft_statement": "CI workflow has `id-token: write` permission and the GitHub OIDC issuer is trusted by npm and Sigstore Fulcio for this repo",
+        "confidence": "high"
+      },
+      {
+        "id": "DRT-2",
+        "seed_from": [
+          "S1",
+          "S2"
+        ],
+        "draft_statement": "Cosign signs the image by manifest digest (not by tag), and `cosign verify` with the repo's OIDC identity succeeds on the published digest",
+        "confidence": "high"
+      },
+      {
+        "id": "DRT-3",
+        "seed_from": [
+          "O1",
+          "O2"
+        ],
+        "draft_statement": "Helm chart's ConfigMap-per-tenant mount pattern survives a `helm upgrade` without losing or corrupting existing tenant state",
+        "confidence": "medium"
+      },
+      {
+        "id": "DRT-4",
+        "seed_from": [
+          "T3",
+          "T7"
+        ],
+        "draft_statement": "The `bun build --compile` output runs on all 4 declared targets (darwin-arm64, darwin-x64, linux-arm64, linux-x64) and each binary stays under the size ceiling",
+        "confidence": "medium"
+      },
+      {
+        "id": "DRT-5",
+        "seed_from": [
+          "B2"
+        ],
+        "draft_statement": "A fresh laptop with only Node 22.14+ and Docker installed can reach a running mock inside 5 minutes from a single copy-pasted command, per persona",
+        "confidence": "medium"
+      },
+      {
+        "id": "DRT-6",
+        "seed_from": [
+          "T6"
+        ],
+        "draft_statement": "The published JSON Schema URL is stable, cache-friendly (ETag/Last-Modified), versioned in the URL path, and referenced from every generated mock file so IDEs resolve it",
+        "confidence": "high"
+      },
+      {
+        "id": "DRT-7",
+        "seed_from": [
+          "T1"
+        ],
+        "draft_statement": "The `exports` map lists `types` first in each condition, ships `.d.ts`, and `bun add -D mockstar` + `import { launch } from 'mockstar'` resolves in Jest, Vitest, and bun:test without a transpilation step",
+        "confidence": "high"
+      }
+    ]
+  },
+  "iterations": [
+    {
+      "number": 1,
+      "phase": "constrain",
+      "timestamp": "2026-04-19T00:00:00.000Z",
+      "result": "Discovered 25 constraints across 5 categories incorporating 4 locked decisions (ESM-only, Helm via OCI, v0.x-may-break, all 4 publishing targets). Pre-mortem pass was non-interactive per session continuation directive; added 3 pre-mortem-derived constraints (B1 token-free publishing, T7 binary size ceiling, O5 CI dependency resilience) tagged `source: pre-mortem`. 7 draft required truths seeded for m3.",
+      "constraints_added": 25,
+      "by_category": {
+        "business": 4,
+        "technical": 7,
+        "user_experience": 4,
+        "security": 5,
+        "operational": 5
+      },
+      "decisions_locked": {
+        "module_format": "ESM-only",
+        "k8s_artifact": "Helm chart via OCI in GHCR",
+        "versioning": "v0.x may break on minor; patch is safe",
+        "publishing_targets": [
+          "npm",
+          "GHCR container",
+          "Helm chart via OCI",
+          "standalone binary"
+        ]
+      }
+    },
+    {
+      "number": 2,
+      "phase": "tension",
+      "timestamp": "2026-04-19T00:00:00.000Z",
+      "result": "Identified 7 tensions, all resolved. Dominant TRIZ pattern: Segmentation (P1) used in 5 of 7 resolutions - the feature has natural seams along release-type (TN1), persona (TN3), tenant content (TN5), and schema version (TN7). Two tensions tagged as blocking dependencies for m3 priority: TN6 (Bun pinning blocks T3+T5 reproducibility) and TN7 (dual-URL scheme blocks T6+B3 coexistence). No VIOLATED constraints; all resolutions safe or tightening with awareness.",
+      "tensions_found": 7,
+      "tensions_resolved": 7,
+      "by_type": {
+        "trade_offs": 4,
+        "resource_tensions": 1,
+        "hidden_dependencies": 2
+      },
+      "triz_principles_applied": {
+        "P1": 5,
+        "P10": 3,
+        "P15": 2,
+        "P24": 2,
+        "P35": 2,
+        "P3": 1,
+        "P11": 1,
+        "P13": 1,
+        "P17": 1,
+        "P27": 1,
+        "P40": 1
+      },
+      "propagation_summary": {
+        "tightened": 11,
+        "loosened": 7,
+        "violated": 0
+      }
+    },
+    {
+      "number": 3,
+      "phase": "anchor",
+      "timestamp": "2026-04-19T00:00:00.000Z",
+      "result": "Derived 19 required truths from outcome + 25 constraints + 7 resolved tensions. 16 NOT_SATISFIED (new engineering), 3 SPECIFICATION_READY (decisions locked in m1/m2, only documentation remains). Binding constraint: RT-3 (OIDC wiring) — closes 8 downstream RTs, widest-leverage single unblocker. Recommended Option D (full four-target release with TN1's stable-only SLSA segmentation) because it satisfies all 19 RTs while honoring every m2 tension resolution; tension validation CONFIRMED for TN1-TN7.",
+      "required_truths": 19,
+      "by_status": {
+        "SATISFIED": 0,
+        "PARTIAL": 0,
+        "NOT_SATISFIED": 16,
+        "SPECIFICATION_READY": 3
+      },
+      "solution_options": 4,
+      "selected_option": "Option D",
+      "binding_constraint": "RT-3",
+      "tension_validation": {
+        "confirmed": 7,
+        "reopened": 0
+      }
+    },
+    {
+      "number": 4,
+      "phase": "generate",
+      "timestamp": "2026-04-20T05:57:59.026Z",
+      "result": "Generated 53 artifacts covering 19 RTs (option D). Auto-verified 22 evidence items; 6 failed; remainder pending m5.",
+      "artifacts_generated": 53,
+      "evidence_auto_verified": 22,
+      "evidence_auto_failed": 6
+    },
+    {
+      "number": 5,
+      "phase": "verify",
+      "timestamp": "2026-04-20T06:09:49.453Z",
+      "result": "PARTIAL — 15/25 constraints satisfied. 10 partial (3 invariants env-gated, 6 goals env-gated or unanchored, 1 genuine gap in O5 retry mechanism). 69 tests pass, 4 env-gated skips, 0 failures.",
+      "constraints_satisfied": 15,
+      "constraints_partial": 10,
+      "constraints_missing": 0,
+      "constraints_total": 25,
+      "gaps": 10,
+      "blocking_gaps": 1,
+      "tests_passed": 69,
+      "tests_skipped": 4,
+      "tests_failed": 0
+    },
+    {
+      "number": 6,
+      "phase": "verify",
+      "timestamp": "2026-04-20T07:00:00.000Z",
+      "result": "VERIFIED — 16/25 constraints satisfied, 9 partial (all env-gated or unanchored — no blocking gaps). G1 resolved: 5 shell retry loops added to release.yml; 8/8 retry assertions pass. 70 tests pass, 5 env-gated skips, 0 failures.",
+      "constraints_satisfied": 16,
+      "constraints_partial": 9,
+      "constraints_missing": 0,
+      "constraints_total": 25,
+      "gaps": 9,
+      "blocking_gaps": 0,
+      "tests_passed": 70,
+      "tests_skipped": 5,
+      "tests_failed": 0
+    },
+    {
+      "number": 7,
+      "phase": "generate+verify",
+      "timestamp": "2026-04-20T08:00:00.000Z",
+      "result": "VERIFIED — 19/25 constraints satisfied, 6 partial (all CI-only or live-infrastructure). Closed G7 (U4 cosign deploy doc), G8 (O3 timing assertion), G9 (6 evidence patterns), G10 (T5 sha256 recording). 84 tests pass, 5 CI-only skips, 0 failures.",
+      "constraints_satisfied": 19,
+      "constraints_partial": 6,
+      "constraints_missing": 0,
+      "constraints_total": 25,
+      "gaps": 6,
+      "blocking_gaps": 0,
+      "tests_passed": 84,
+      "tests_skipped": 5,
+      "tests_failed": 0
+    },
+    {
+      "number": 8,
+      "phase": "verify",
+      "timestamp": "2026-04-20T09:00:00.000Z",
+      "result": "VERIFIED — 22/25 constraints satisfied, 3 partial (all CI-only: docker-smoke, binary-smoke, binary-size). Closed G3 (T4 helm upgrade) and G4 (O1/O2 upgrade path) against local k3s (Rancher Desktop). helm upgrade integration test passes 4/4. RT-11 E2 promoted PENDING → VERIFIED.",
+      "constraints_satisfied": 22,
+      "constraints_partial": 3,
+      "constraints_missing": 0,
+      "constraints_total": 25,
+      "gaps": 4,
+      "blocking_gaps": 0,
+      "tests_passed": 84,
+      "tests_skipped": 5,
+      "tests_failed": 0
+    }
+  ],
+  "convergence": {
+    "status": "IN_PROGRESS",
+    "note": "3 constraints remain PARTIAL due to CI-only tests requiring compiled binary (T3, T7) or pushed Docker image (T2). No blocking gaps. All infrastructure gaps are CI-verifiable. Phase: VERIFIED."
+  },
+  "blocking_dependencies": [
+    {
+      "blocker": "T5",
+      "blocked": "T3",
+      "tension_id": "TN6",
+      "note": "Bun version pinning must be in place before binary reproducibility can hold across both constraints"
+    },
+    {
+      "blocker": "T6",
+      "blocked": "B3",
+      "tension_id": "TN7",
+      "note": "Dual-URL (latest + per-minor) scheme must be published before schema evolution under v0.x can be safe for autocomplete consumers"
+    }
+  ],
+  "constraint_graph": {
+    "version": 1,
+    "nodes": {},
+    "edges": {
+      "dependencies": [],
+      "conflicts": [],
+      "satisfies": []
+    }
+  },
+  "evidence": [],
+  "gap_checklist_compliance": [
+    {
+      "gap": "GAP-03",
+      "status": "COMPLETED",
+      "note": "Core data path is the CI release pipeline (tag commit -> build -> sign -> publish). Crosses boundaries: GitHub Actions -> npm registry, -> GHCR, -> Sigstore Fulcio. Covered by T5, O3, S1, S2, S5, O5."
+    },
+    {
+      "gap": "GAP-09",
+      "status": "COMPLETED",
+      "note": "Crypto/auth surface = cosign keyless signing (S1), npm OIDC trusted publishing (B1, S5), Sigstore provenance (S5). Attack matrix to generate in m4: signature-by-tag attack (prevented by digest binding), OIDC audience confusion, stale signature after rebuild."
+    },
+    {
+      "gap": "GAP-10",
+      "status": "SKIPPED",
+      "skip_reason": "This feature distributes artifacts; it does not expose unauthenticated endpoints. Resource exhaustion relevant to npm/GHCR is the provider's concern, not ours."
+    },
+    {
+      "gap": "GAP-11",
+      "status": "COMPLETED",
+      "note": "External dependencies: npm registry, GHCR, Sigstore (Fulcio + Rekor), crates used by cosign/trivy. Resilience addressed by O5 (retry/backoff on transient failures). No circuit breaker (one-shot release pipeline, not a long-running service)."
+    },
+    {
+      "gap": "GAP-14",
+      "status": "COMPLETED",
+      "note": "JSON Schema for mock config (T6) is the input-validation contract for mock files. Schema is the consumer-side boundary; runtime validation is the Tier 1 manifold's concern."
+    },
+    {
+      "gap": "GAP-17",
+      "status": "COMPLETED",
+      "note": "CI matrix builds 4 binary targets in parallel (T3); no shared mutable state across jobs. Concurrent `npm publish` is prevented by the tag being the atomic trigger (only one workflow run per tag). No shared-state constraints in this feature."
+    }
+  ],
+  "generation": {
+    "option": "D",
+    "timestamp": "2026-04-20T05:57:59.026Z",
+    "artifacts": [
+      {
+        "path": ".bun-version",
+        "type": "config",
+        "satisfies": [
+          "RT-1"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/ci/bun-pin.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-1"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "Dockerfile",
+        "type": "ops",
+        "satisfies": [
+          "RT-1",
+          "RT-8"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "docs/SCHEMA-HOSTING.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-2"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "scripts/generate-schema.ts",
+        "type": "code",
+        "satisfies": [
+          "RT-2"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": ".github/workflows/schema-publish.yml",
+        "type": "ops",
+        "satisfies": [
+          "RT-2"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "src/cli/commands/migrate.ts",
+        "type": "code",
+        "satisfies": [
+          "RT-2"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/cli/migrate-schema.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-2"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/schema/generate-schema.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-2"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": ".github/workflows/release.yml",
+        "type": "ops",
+        "satisfies": [
+          "RT-3",
+          "RT-4",
+          "RT-5",
+          "RT-6",
+          "RT-18",
+          "RT-19"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "docs/OIDC-SETUP.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-3"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/ci/release-halt-clean.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-6"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/ci/changelog-gate.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-18"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/ci/cve-gate.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-19"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/ci/release-type.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-5"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/ci/verify-signature.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-4"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "package.json",
+        "type": "config",
+        "satisfies": [
+          "RT-7"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tsconfig.build.json",
+        "type": "config",
+        "satisfies": [
+          "RT-7"
+        ],
+        "status": "generated",
+        "artifact_class": "structural"
+      },
+      {
+        "path": "scripts/build-binaries.ts",
+        "type": "code",
+        "satisfies": [
+          "RT-9"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/packaging/exports-map.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-7"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/packaging/binary-size.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-9"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/packaging/binary-smoke.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-9"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/docker/multiarch-smoke.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-8"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "charts/mockstar/Chart.yaml",
+        "type": "ops",
+        "satisfies": [
+          "RT-10"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "charts/mockstar/values.yaml",
+        "type": "ops",
+        "satisfies": [
+          "RT-11",
+          "RT-12"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "charts/mockstar/templates/_helpers.tpl",
+        "type": "ops",
+        "satisfies": [
+          "RT-11"
+        ],
+        "status": "generated",
+        "artifact_class": "structural"
+      },
+      {
+        "path": "charts/mockstar/templates/deployment.yaml",
+        "type": "ops",
+        "satisfies": [
+          "RT-11",
+          "RT-12"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "charts/mockstar/templates/service.yaml",
+        "type": "ops",
+        "satisfies": [
+          "RT-11"
+        ],
+        "status": "generated",
+        "artifact_class": "structural"
+      },
+      {
+        "path": "charts/mockstar/templates/servicemonitor.yaml",
+        "type": "ops",
+        "satisfies": [
+          "RT-12"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "charts/mockstar/README.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-11"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "charts/mockstar/.helmignore",
+        "type": "ops",
+        "satisfies": [
+          "RT-11"
+        ],
+        "status": "generated",
+        "artifact_class": "structural"
+      },
+      {
+        "path": "tests/helm/upgrade-preserves-tenants.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-11"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": ".github/workflows/quickstart-smoke.yml",
+        "type": "ops",
+        "satisfies": [
+          "RT-13"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "src/cli/commands/init.ts",
+        "type": "code",
+        "satisfies": [
+          "RT-13",
+          "RT-14"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "src/cli.ts",
+        "type": "code",
+        "satisfies": [
+          "RT-2",
+          "RT-14"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/cli/init.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-13",
+          "RT-14"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/ci/quickstart-smoke-shape.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-13"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "docs/SDET.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "examples/sdet-jest30/package.json",
+        "type": "config",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "structural"
+      },
+      {
+        "path": "examples/sdet-jest30/mockstar.test.js",
+        "type": "test",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "examples/sdet-jest29/package.json",
+        "type": "config",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "structural"
+      },
+      {
+        "path": "examples/sdet-jest29/mockstar.test.js",
+        "type": "test",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "examples/sdet-vitest/package.json",
+        "type": "config",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "structural"
+      },
+      {
+        "path": "examples/sdet-vitest/mockstar.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "examples/sdet-bun-test/package.json",
+        "type": "config",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "structural"
+      },
+      {
+        "path": "examples/sdet-bun-test/mockstar.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/examples/sdet-examples-shape.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-15"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "CONTRIBUTING.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-16"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "docs/TEAM-WORKFLOW.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-16"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "docs/VERSIONING.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-17"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "README.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-16"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "CHANGELOG.md",
+        "type": "docs",
+        "satisfies": [
+          "RT-18"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      },
+      {
+        "path": "tests/docs/team-versioning-shape.test.ts",
+        "type": "test",
+        "satisfies": [
+          "RT-16",
+          "RT-17",
+          "RT-18"
+        ],
+        "status": "generated",
+        "artifact_class": "substantive"
+      }
+    ],
+    "coverage": {
+      "constraints_addressed": 19,
+      "required_truths_total": 19,
+      "percentage": 100
+    }
+  }
+}

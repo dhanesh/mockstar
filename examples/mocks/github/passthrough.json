@@ -1,0 +1,14 @@
+{
+  "mocks": [
+    {
+      "id": "github-passthrough",
+      "match": { "method": "*", "path": "/*", "priority": 0 },
+      "response": {
+        "kind": "passthrough",
+        "upstream": "https://api.github.com",
+        "timeoutMs": 10000,
+        "forwardHeaders": true
+      }
+    }
+  ]
+}

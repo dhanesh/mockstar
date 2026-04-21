@@ -62,11 +62,31 @@ Each top-level directory under `mocks/` is one tenant. Tenant identifiers are `/
 }
 ```
 
-Supported tokens inside a `{{ ... }}` expression (compiled at load time — RT-6.2):
+Supported tokens inside `{{ … }}` expressions (compiled at load time — RT-6.2). All tokens work in both `response.body` and `response.headers`. Whole-string placeholders in a JSON body are type-preserving — see [TIER2.md](./TIER2.md).
 
-- `tenant`, `requestId`
-- `request.method`, `request.path`, `request.query.<k>`, `request.headers.<k>`, `request.body.<path>`, `request.params.<name>`
-- `faker.uuid`, `faker.email`, `faker.name`, `faker.integer(min, max)`, `faker.pick(["a", "b"])`, `faker.boolean`, `faker.dateIso`
+| Token | Result |
+|---|---|
+| `{{request.method}}` | HTTP verb of the inbound request |
+| `{{request.path}}` | Full path of the inbound request |
+| `{{request.params.<name>}}` | Path parameter captured by `:name` in `match.path` |
+| `{{request.query.<name>}}` | URL query-string value |
+| `{{request.headers.<name>}}` | Request header (case-insensitive) |
+| `{{request.body.<dot.path>}}` | Dot-path into the parsed JSON request body |
+| `{{tenant}}` | Tenant identifier for the request |
+| `{{requestId}}` | Per-request UUID assigned by mockstar |
+| `{{faker.uuid}}` | Random UUID v4 |
+| `{{faker.email}}` | Random email address |
+| `{{faker.name}}` | Random full name |
+| `{{faker.integer(min, max)}}` | Random integer in `[min, max]` |
+| `{{faker.pick(["a","b"])}}` | Random element from the array |
+| `{{faker.boolean}}` | `true` or `false` |
+| `{{faker.dateIso}}` | Random recent date as ISO 8601 string |
+| `{{id("prefix_", 14)}}` | Opaque ID: prefix + 14 base62 chars |
+| `{{id("prefix_", 14, "abc…")}}` | Same with a custom alphabet |
+| `{{id.named("key", "prefix_", 14)}}` | Mint once per request per name; repeated calls with the same key return the same value |
+| `{{now.unix}}` | Current time as Unix seconds (number) |
+| `{{now.millis}}` | Current time as Unix milliseconds (number) |
+| `{{now.iso}}` | Current time as ISO 8601 string |
 
 **`dynamic`** — delegate to a named JS handler:
 

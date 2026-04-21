@@ -8,20 +8,31 @@ Everything Tier 1 already did still works; Tier 2 is purely additive.
 
 Inside any static `response.body` field, you can use these template tokens:
 
+All tokens work in both `response.body` string values and `response.headers` values.
+
 | Token | Result |
 |-------|--------|
-| `{{request.body.<dot.path>}}` | Extract any value from the parsed JSON request body |
-| `{{request.query.<name>}}` | Extract a URL query-string value |
-| `{{request.params.<name>}}` | Extract a path-param captured by the `match.path` (e.g. `/orders/:id`) |
-| `{{request.headers.<name>}}` | Extract a request header (case-insensitive lookup) |
+| `{{request.method}}` | HTTP verb of the inbound request (`GET`, `POST`, …) |
+| `{{request.path}}` | Full path of the inbound request |
+| `{{request.params.<name>}}` | Path parameter captured by `:name` in `match.path` (e.g. `/orders/:id`) |
+| `{{request.query.<name>}}` | URL query-string value |
+| `{{request.headers.<name>}}` | Request header value (case-insensitive lookup) |
+| `{{request.body.<dot.path>}}` | Dot-path into the parsed JSON request body |
+| `{{tenant}}` | The tenant identifier the request was routed to |
+| `{{requestId}}` | Per-request UUID assigned by mockstar |
 | `{{id("prefix_", 14)}}` | Mint an opaque ID with a prefix and base62 alphabet (14 random chars) |
 | `{{id("prefix_", 14, "0123456789abcdef")}}` | Mint an ID with a custom alphabet (hex shown here) |
-| `{{id.named("order_id", "", 17, "0-9A-Z")}}` | Mint once per request per name — repeated `id.named("order_id", ...)` calls return the same value |
-| `{{now.unix}}` | Current time as unix seconds (number) |
-| `{{now.millis}}` | Current time as unix milliseconds (number) |
+| `{{id.named("order_id", "", 17, "0-9A-Z")}}` | Mint once per request per name — repeated `id.named("order_id", …)` calls return the same value |
+| `{{now.unix}}` | Current time as Unix seconds (number) |
+| `{{now.millis}}` | Current time as Unix milliseconds (number) |
 | `{{now.iso}}` | Current time as ISO 8601 string |
-| `{{tenant}}` | The tenant identifier the request was routed to |
-| `{{faker.uuid}}`, `{{faker.integer(lo, hi)}}`, ... | The Tier 1 faker helpers continue to work |
+| `{{faker.uuid}}` | Random UUID v4 |
+| `{{faker.email}}` | Random email address |
+| `{{faker.name}}` | Random full name |
+| `{{faker.integer(min, max)}}` | Random integer in `[min, max]` |
+| `{{faker.pick(["a","b"])}}` | Random element from the array |
+| `{{faker.boolean}}` | `true` or `false` |
+| `{{faker.dateIso}}` | Random recent date as ISO 8601 string |
 
 ## Type preservation
 

@@ -1,0 +1,289 @@
+{
+  "mocks": [
+    {
+      "id": "get-repo",
+      "match": { "method": "GET", "path": "/repos/:owner/:repo", "priority": 10 },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "x-github-media-type": "github.v3; format=json"
+        },
+        "body": {
+          "id": "{{faker.integer(1, 999999999)}}",
+          "node_id": "MDEwOlJlcG9zaXRvcnkx",
+          "name": "{{request.params.repo}}",
+          "full_name": "{{request.params.owner}}/{{request.params.repo}}",
+          "private": false,
+          "owner": {
+            "login": "{{request.params.owner}}",
+            "id": "{{faker.integer(1, 9999999)}}",
+            "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/{{request.params.owner}}",
+            "html_url": "https://github.com/{{request.params.owner}}",
+            "type": "User",
+            "site_admin": false
+          },
+          "html_url": "https://github.com/{{request.params.owner}}/{{request.params.repo}}",
+          "description": "A repository named {{request.params.repo}}",
+          "fork": false,
+          "url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}",
+          "forks_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/forks",
+          "keys_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/keys{/key_id}",
+          "collaborators_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/collaborators{/collaborator}",
+          "teams_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/teams",
+          "hooks_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/hooks",
+          "issue_events_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/events{/number}",
+          "events_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/events",
+          "assignees_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/assignees{/user}",
+          "branches_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/branches{/branch}",
+          "tags_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/tags",
+          "blobs_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/git/blobs{/sha}",
+          "git_tags_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/git/tags{/sha}",
+          "git_refs_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/git/refs{/sha}",
+          "trees_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/git/trees{/sha}",
+          "statuses_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/statuses/{sha}",
+          "languages_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/languages",
+          "stargazers_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/stargazers",
+          "contributors_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/contributors",
+          "subscribers_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/subscribers",
+          "subscription_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/subscription",
+          "commits_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/commits{/sha}",
+          "git_commits_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/git/commits{/sha}",
+          "comments_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/comments{/number}",
+          "issue_comment_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/comments{/number}",
+          "contents_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/contents/{+path}",
+          "compare_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/compare/{base}...{head}",
+          "merges_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/merges",
+          "archive_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/{archive_format}{/ref}",
+          "downloads_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/downloads",
+          "issues_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues{/number}",
+          "pulls_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/pulls{/number}",
+          "milestones_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/milestones{/number}",
+          "notifications_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/notifications{?since,all,participating}",
+          "labels_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/labels{/name}",
+          "releases_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/releases{/id}",
+          "deployments_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/deployments",
+          "clone_url": "https://github.com/{{request.params.owner}}/{{request.params.repo}}.git",
+          "svn_url": "https://github.com/{{request.params.owner}}/{{request.params.repo}}",
+          "ssh_url": "git@github.com:{{request.params.owner}}/{{request.params.repo}}.git",
+          "git_url": "git://github.com/{{request.params.owner}}/{{request.params.repo}}.git",
+          "mirror_url": null,
+          "homepage": null,
+          "size": "{{faker.integer(100, 50000)}}",
+          "stargazers_count": "{{faker.integer(0, 10000)}}",
+          "watchers_count": "{{faker.integer(0, 10000)}}",
+          "language": "{{faker.pick([\"TypeScript\", \"Go\", \"Python\", \"Rust\", \"JavaScript\", \"Zig\", \"Java\"])}}",
+          "has_issues": true,
+          "has_projects": true,
+          "has_downloads": true,
+          "has_wiki": true,
+          "has_pages": false,
+          "has_discussions": false,
+          "forks_count": "{{faker.integer(0, 1000)}}",
+          "archived": false,
+          "disabled": false,
+          "open_issues_count": "{{faker.integer(0, 200)}}",
+          "license": {
+            "key": "mit",
+            "name": "MIT License",
+            "spdx_id": "MIT",
+            "url": "https://api.github.com/licenses/mit",
+            "node_id": "MDc6TGljZW5zZTEz"
+          },
+          "topics": [],
+          "visibility": "public",
+          "forks": "{{faker.integer(0, 1000)}}",
+          "open_issues": "{{faker.integer(0, 200)}}",
+          "watchers": "{{faker.integer(0, 10000)}}",
+          "default_branch": "main",
+          "allow_forking": true,
+          "is_template": false,
+          "web_commit_signoff_required": false,
+          "custom_properties": {},
+          "organization": null,
+          "network_count": "{{faker.integer(0, 1000)}}",
+          "subscribers_count": "{{faker.integer(0, 500)}}",
+          "pull_request_creation_policy": "any",
+          "has_pull_requests": true,
+          "temp_clone_token": null,
+          "created_at": "2020-01-01T00:00:00Z",
+          "updated_at": "{{faker.dateIso}}",
+          "pushed_at": "{{faker.dateIso}}"
+        }
+      }
+    },
+    {
+      "id": "list-issues",
+      "match": { "method": "GET", "path": "/repos/:owner/:repo/issues", "priority": 10 },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "x-github-media-type": "github.v3; format=json",
+          "link": "<https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues?page=2>; rel=\"next\""
+        },
+        "body": [
+          {
+            "url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/2",
+            "repository_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}",
+            "html_url": "https://github.com/{{request.params.owner}}/{{request.params.repo}}/issues/2",
+            "id": "{{faker.integer(100000000, 999999999)}}",
+            "node_id": "I_kwDOFVKCyc7abc123",
+            "number": 2,
+            "title": "Unexpected behaviour when calling init()",
+            "state": "open",
+            "locked": false,
+            "user": {
+              "login": "contributor-a",
+              "id": "{{faker.integer(1000, 9999999)}}",
+              "avatar_url": "https://avatars.githubusercontent.com/u/2?v=4",
+              "type": "User",
+              "site_admin": false
+            },
+            "labels": [
+              {
+                "id": "{{faker.integer(1000000000, 9999999999)}}",
+                "node_id": "MDU6TGFiZWwx",
+                "url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/labels/bug",
+                "name": "bug",
+                "color": "d73a4a",
+                "default": true,
+                "description": "Something isn't working"
+              }
+            ],
+            "assignee": null,
+            "assignees": [],
+            "milestone": null,
+            "comments": "{{faker.integer(0, 20)}}",
+            "created_at": "2025-11-01T10:00:00Z",
+            "updated_at": "{{faker.dateIso}}",
+            "closed_at": null,
+            "author_association": "NONE",
+            "body": "Steps to reproduce...",
+            "reactions": {"url":"https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/2/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},
+            "timeline_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/2/timeline",
+            "performed_via_github_app": null,
+            "state_reason": null,
+            "type": null,
+            "active_lock_reason": null,
+            "closed_by": null,
+            "comments_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/2/comments",
+            "events_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/2/events",
+            "labels_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/2/labels{/name}",
+            "issue_dependencies_summary": {"total_count":0,"resolved_count":0},
+            "sub_issues_summary": {"total":0,"completed":0,"percent_completed":0},
+            "pinned_comment": null
+          },
+          {
+            "url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/1",
+            "repository_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}",
+            "html_url": "https://github.com/{{request.params.owner}}/{{request.params.repo}}/issues/1",
+            "id": "{{faker.integer(100000000, 999999999)}}",
+            "node_id": "I_kwDOFVKCyc7xyz456",
+            "number": 1,
+            "title": "Add support for custom configuration",
+            "state": "open",
+            "locked": false,
+            "user": {
+              "login": "contributor-b",
+              "id": "{{faker.integer(1000, 9999999)}}",
+              "avatar_url": "https://avatars.githubusercontent.com/u/3?v=4",
+              "type": "User",
+              "site_admin": false
+            },
+            "labels": [
+              {
+                "id": "{{faker.integer(1000000000, 9999999999)}}",
+                "node_id": "MDU6TGFiZWwy",
+                "url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/labels/enhancement",
+                "name": "enhancement",
+                "color": "a2eeef",
+                "default": true,
+                "description": "New feature or request"
+              }
+            ],
+            "assignee": null,
+            "assignees": [],
+            "milestone": null,
+            "comments": "{{faker.integer(0, 10)}}",
+            "created_at": "2025-10-15T08:00:00Z",
+            "updated_at": "{{faker.dateIso}}",
+            "closed_at": null,
+            "author_association": "CONTRIBUTOR",
+            "body": "It would be great if...",
+            "reactions": {"url":"https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/1/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},
+            "timeline_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/1/timeline",
+            "performed_via_github_app": null,
+            "state_reason": null,
+            "type": null,
+            "active_lock_reason": null,
+            "closed_by": null,
+            "comments_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/1/comments",
+            "events_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/1/events",
+            "labels_url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/issues/1/labels{/name}",
+            "issue_dependencies_summary": {"total_count":0,"resolved_count":0},
+            "sub_issues_summary": {"total":0,"completed":0,"percent_completed":0},
+            "pinned_comment": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "list-commits",
+      "match": { "method": "GET", "path": "/repos/:owner/:repo/commits", "priority": 10 },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "x-github-media-type": "github.v3; format=json"
+        },
+        "body": [
+          {
+            "sha": "{{faker.uuid}}",
+            "node_id": "C_kwDOFVKCydoAKA==",
+            "url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/commits/abc123",
+            "html_url": "https://github.com/{{request.params.owner}}/{{request.params.repo}}/commit/abc123",
+            "commit": {
+              "message": "fix: resolve edge case in request handling",
+              "author": {
+                "name": "{{faker.name}}",
+                "email": "{{faker.email}}",
+                "date": "{{faker.dateIso}}"
+              },
+              "committer": {
+                "name": "GitHub",
+                "email": "noreply@github.com",
+                "date": "{{faker.dateIso}}"
+              },
+              "comment_count": 0
+            },
+            "author": {
+              "login": "contributor-a",
+              "id": "{{faker.integer(1000, 9999999)}}",
+              "avatar_url": "https://avatars.githubusercontent.com/u/2?v=4",
+              "type": "User"
+            },
+            "committer": {
+              "login": "web-flow",
+              "id": 19864447,
+              "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+              "type": "User"
+            },
+            "parents": [
+              {
+                "sha": "{{faker.uuid}}",
+                "url": "https://api.github.com/repos/{{request.params.owner}}/{{request.params.repo}}/commits/parent",
+                "html_url": "https://github.com/{{request.params.owner}}/{{request.params.repo}}/commit/parent"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

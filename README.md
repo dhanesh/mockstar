@@ -1,6 +1,22 @@
 # Mockstar
 
+[![quickstart-smoke](https://github.com/your-org/mockstar/actions/workflows/quickstart-smoke.yml/badge.svg)](https://github.com/your-org/mockstar/actions/workflows/quickstart-smoke.yml)
+[![release](https://github.com/your-org/mockstar/actions/workflows/release.yml/badge.svg)](https://github.com/your-org/mockstar/actions/workflows/release.yml)
+
+> **Status:** pre-1.0. Minors may break mocks-file shape — see [docs/VERSIONING.md](./docs/VERSIONING.md). Pin `$schema` to `https://schemas.mockstar.dev/v0.<N>/mock.json` for stability.
+
 > A Bun-based mock server with static + dynamic mocking, JSON config, named JS handlers, pass-through routing, multi-tenancy, and test-data utilities.
+
+## For SDETs
+
+Mockstar ships a library embed (`import { launch } from 'mockstar'`) supported
+across Jest 30, Jest 29, Vitest, and `bun test`. See [docs/SDET.md](./docs/SDET.md)
++ the [`examples/sdet-*`](./examples) directories.
+
+## Contributing
+
+Read [CONTRIBUTING.md](./CONTRIBUTING.md). Maintainers: [docs/TEAM-WORKFLOW.md](./docs/TEAM-WORKFLOW.md).
+
 
 Mockstar targets three personas equally:
 
@@ -32,6 +48,60 @@ handlers/               # named JS function handlers
 ```
 
 See [docs/CONFIG.md](./docs/CONFIG.md) for the full schema and [docs/HANDLERS.md](./docs/HANDLERS.md) for dynamic handlers.
+
+## Response templating
+
+Any string value inside `response.body` or `response.headers` can contain `{{ … }}` placeholders. Whole-string placeholders in a JSON body preserve their source type — a number stays a number, an object stays an object.
+
+### Request reflection
+
+| Token | Value |
+|---|---|
+| `{{request.method}}` | HTTP verb (`GET`, `POST`, …) |
+| `{{request.path}}` | Full request path |
+| `{{request.params.<name>}}` | Path parameter captured by `:name` in `match.path` |
+| `{{request.query.<name>}}` | URL query-string value |
+| `{{request.headers.<name>}}` | Request header value (case-insensitive) |
+| `{{request.body.<dot.path>}}` | Dot-path into the parsed JSON request body |
+
+### Context
+
+| Token | Value |
+|---|---|
+| `{{tenant}}` | Tenant identifier the request was routed to |
+| `{{requestId}}` | Per-request UUID assigned by mockstar |
+
+### Random data (faker)
+
+| Token | Value |
+|---|---|
+| `{{faker.uuid}}` | Random UUID v4 |
+| `{{faker.email}}` | Random email address |
+| `{{faker.name}}` | Random full name |
+| `{{faker.integer(min, max)}}` | Random integer in `[min, max]` |
+| `{{faker.pick(["a","b","c"])}}` | Random element from the array |
+| `{{faker.boolean}}` | `true` or `false` |
+| `{{faker.dateIso}}` | Random recent date as ISO 8601 string |
+
+### Provider-shape IDs
+
+| Token | Value |
+|---|---|
+| `{{id("prefix_", 14)}}` | `prefix_` + 14 random base62 chars — e.g. `order_4OwxzMjhPIt4YQ` |
+| `{{id("prefix_", 14, "0123456789abcdef")}}` | Same with a custom alphabet (hex shown) |
+| `{{id.named("key", "prefix_", 14)}}` | Mint once per request per name — repeated calls with the same `key` return the identical value, useful when the same ID appears in multiple fields |
+
+### Timestamps
+
+| Token | Value |
+|---|---|
+| `{{now.unix}}` | Current time as Unix seconds (number) |
+| `{{now.millis}}` | Current time as Unix milliseconds (number) |
+| `{{now.iso}}` | Current time as ISO 8601 string |
+
+In `--deterministic` mode (`MOCKSTAR_DETERMINISTIC=1`) all faker and `now.*` tokens return fixed seed-derived values so CI replays are byte-identical.
+
+Full reference including type-preservation rules and worked examples: [docs/TIER2.md](./docs/TIER2.md).
 
 ## What's in v1, what's deferred
 

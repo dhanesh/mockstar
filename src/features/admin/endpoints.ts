@@ -36,6 +36,28 @@ export function adminRouter(deps: AdminDeps): Hono {
     },
   );
 
+  // Per-tenant mock list — tenant-scope only.
+  app.get(
+    '/__admin/tenants/:tenant/mocks',
+    adminAuthMiddleware({ snapshot: (): ReturnType<SnapshotHolder['get']> => deps.holder.get(), scope: 'tenant' }),
+    (ctx: Context) => {
+      const tenant = ctx.req.param('tenant');
+      const snap = deps.holder.get();
+      const tenantSnap = snap?.tenants.get(tenant);
+      if (!tenantSnap) return ctx.json({ error: 'tenant_not_found', tenant }, 404);
+      const mocks = tenantSnap.entries.map((e) => ({
+        id: e.id,
+        method: e.match.method,
+        path: e.match.path,
+        priority: e.match.priority ?? 0,
+        kind: e.response.kind,
+        ...(e.response.kind === 'passthrough' ? { upstream: e.response.upstream } : {}),
+        ...(e.response.kind === 'dynamic' ? { handler: e.response.handler } : {}),
+      }));
+      return ctx.json({ tenant, count: mocks.length, mocks });
+    },
+  );
+
   // Per-tenant journal — tenant-scope only (RT-7.1).
   app.get(
     '/__admin/tenants/:tenant/journal',
