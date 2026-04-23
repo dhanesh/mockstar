@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "allowImportingTsExtensions": false,
+    "moduleResolution": "node16",
+    "module": "node16"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests", "bench", "src/**/*.test.ts"]
+}

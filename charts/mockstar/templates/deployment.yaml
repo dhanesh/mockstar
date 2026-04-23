@@ -1,0 +1,113 @@
+{{/*
+Satisfies: RT-11 (labeled ConfigMap tenant selector — TN5 resolution)
+           RT-12 (liveness / readiness probes)
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mockstar.fullname" . }}
+  labels:
+    {{- include "mockstar.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mockstar.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mockstar.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # RT-11: rolling this annotation forces a restart when tenant-set content
+        # changes under the label selector (k8s does not rehash projected volumes).
+        # Update it via kubectl rollout restart or a controller if live.
+        mockstar.dev/tenant-hash: {{ now | date "2006-01-02T15:04:05Z" | quote }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: mockstar
+          # RT-4: prefer digest over tag when set.
+          image: {{ include "mockstar.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["{{ .Values.tenants.mountPathPrefix }}"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: MOCKSTAR_HOST
+              value: "0.0.0.0"
+            - name: MOCKSTAR_PORT
+              value: {{ .Values.service.port | quote }}
+            {{- if .Values.admin.existingSecret }}
+            - name: MOCKSTAR_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.admin.existingSecret }}
+                  key: {{ .Values.admin.existingSecretKey }}
+            {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          {{- end }}
+          {{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tenants
+              mountPath: {{ .Values.tenants.mountPathPrefix }}
+              readOnly: true
+      volumes:
+        # RT-11: projected volume composed of every ConfigMap in the release
+        # namespace matching the tenants.labelSelector. This is the load-bearing
+        # piece of TN5 — tenant content is applied out-of-chart and discovered
+        # via label, so `helm upgrade` and `helm rollback` never touch it.
+        - name: tenants
+          projected:
+            sources:
+              {{- range $i, $sel := .Values.tenants.labelSelector.matchExpressions }}
+              # Rendered at install time — operators substitute with kustomize
+              # or a controller that populates a list of ConfigMap names.
+              {{- end }}
+            # Default: expect a ConfigMap named `mockstar-tenants` to exist;
+            # operators use kustomize overlays to replace with their labeled set.
+            # (Helm cannot natively enumerate ConfigMaps by label at render time.)
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

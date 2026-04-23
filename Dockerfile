@@ -1,7 +1,9 @@
 # Satisfies U2 (Docker distribution channel) + TN4 per-channel boot SLO
 # Multi-stage: builder compiles TS → ESM; runner is minimal Bun-alpine with the compiled output.
 
-ARG BUN_VERSION=1.3.11
+# RT-1: the default matches .bun-version; CI overrides via --build-arg to keep
+# the container image and the binary build on the same pinned toolchain.
+ARG BUN_VERSION=1.1.38
 FROM oven/bun:${BUN_VERSION}-alpine AS builder
 WORKDIR /build
 COPY package.json bun.lockb* ./

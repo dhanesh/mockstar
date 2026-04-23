@@ -1,0 +1,88 @@
+# Mockstar Helm chart values
+#
+# Satisfies: RT-11 (labeled ConfigMap), RT-12 (probes + /metrics).
+#
+# Tenant content is OUT-OF-CHART (TN5 resolution). The chart mounts every
+# ConfigMap carrying `mockstar.dev/tenant=<name>` into the pod under
+# /config/mocks/<name>/. Teams apply their labeled ConfigMaps separately —
+# do NOT template them in values.yaml.
+
+image:
+  repository: ghcr.io/your-org/mockstar
+  # digest overrides tag when set. CI sets this at publish time (RT-4 — sign
+  # the image by digest, pull by digest).
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 3000
+  # Prometheus metrics are served on the same port under /metrics (RT-12).
+  metricsPath: /metrics
+
+# RT-11: tenant ConfigMap selection.
+# The deployment uses a projected-volume over all ConfigMaps that match this
+# labelSelector. Default selector: mockstar.dev/tenant (any value).
+tenants:
+  labelSelector:
+    matchExpressions:
+      - key: mockstar.dev/tenant
+        operator: Exists
+  # Mount path prefix (final path: <mountPathPrefix>/<tenant-name>/)
+  mountPathPrefix: /config/mocks
+
+# RT-12: probes.
+# liveness: /health — crashes fast-fail if the mock server process is wedged.
+# readiness: /health — blocks traffic until config is loaded.
+probes:
+  liveness:
+    enabled: true
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    path: /health
+    initialDelaySeconds: 2
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+# RT-12: ServiceMonitor (for Prometheus operator installations).
+# Disabled by default — enable when you have kube-prometheus-stack installed.
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# Admin token enables /metrics (S3 in the core mockstar manifold).
+# Generate with: kubectl create secret generic mockstar-admin --from-literal=token=$(openssl rand -hex 24)
+admin:
+  existingSecret: ""
+  existingSecretKey: "token"
+
+env: []
+#  - name: MOCKSTAR_LOG_LEVEL
+#    value: info
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -1,0 +1,12 @@
+{
+  "name": "mockstar-sdet-bun-test-example",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "mockstar": "*"
+  }
+}

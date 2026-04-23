@@ -70,6 +70,28 @@ _Constraint-first designed in `.manifold/tier1-https-proxy.md`. Binding constrai
 
 ---
 
+## [0.1.0-rc.1] — 2026-04-20
+
+> Satisfies RT-18 (CHANGELOG-gated release) — first tagged artifact the release workflow is expected to build end-to-end.
+
+### Added (distribution-packaging manifold)
+- **Pinned Bun runtime** via `.bun-version` (RT-1). All workflows read it.
+- **Dual-URL JSON Schema hosting** at `schemas.mockstar.dev/v0/` (rolling) and `/v0.N/` (immutable) via `schema-publish.yml` (RT-2). `docs/SCHEMA-HOSTING.md` documents the contract.
+- **`mockstar init [dir]`** — scaffolds `mocks/default/example.json` + `mockstar.config.json` with `$schema` pinned to the current minor (RT-13, RT-14).
+- **`mockstar migrate --schema --from vX.Y --to vX.Z`** — rewrites `$schema` URLs when a minor bump ships (RT-2).
+- **npm Trusted Publishing via OIDC** with auto-provenance (RT-3, RT-7). No `NPM_TOKEN` in CI.
+- **Cosign keyless signing by digest** (never by tag) for container + Helm chart (RT-4).
+- **CycloneDX SBOM attestation** via `cosign attest --type cyclonedx` (RT-4).
+- **SLSA Level 3 build provenance** on stable releases only (TN1 resolution — pre-releases skip SLSA; RT-5).
+- **`halt-clean` job** — deletes unsigned container tags if any publish step fails, so S1 ("every published artifact is signed") is never silently violated (RT-6).
+- **Four-target binary matrix** via `bun build --compile` covering darwin-arm64/x64 and linux-arm64/x64, 150 MB ceiling enforced (RT-9, TN2).
+- **Multi-arch container** (`linux/amd64,linux/arm64`) with `provenance: mode=max` and SBOM (RT-8).
+- **Helm chart as OCI artifact** at `ghcr.io/.../charts/mockstar`, digest-preferred image resolution, labeled-ConfigMap tenant pattern that survives `helm upgrade`/`rollback` (RT-10, RT-11, RT-12, TN5).
+- **Per-persona 5-minute quickstart-smoke CI** (Dev / SDET / DevOps) enforcing the SLO at the job level (RT-13).
+- **Trivy CVE gate** on release — CRITICAL severity, `ignore-unfixed: true`, fails on fixable CVEs (RT-19).
+- **SDET support matrix** covering Jest 30, Jest 29, Vitest 2, and `bun test` with runnable examples (RT-15).
+- **Team + versioning docs** — `CONTRIBUTING.md`, `docs/TEAM-WORKFLOW.md`, `docs/VERSIONING.md`, OIDC setup checklist (RT-16, RT-17).
+
 ## [0.1.0-alpha.1] — 2026-04-13
 
 - Initial constraint-first scaffold generated from `/manifold:m4-generate`.

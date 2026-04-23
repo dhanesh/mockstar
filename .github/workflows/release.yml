@@ -1,19 +1,17 @@
 name: release
 
-# Satisfies: U2 (4 distribution channels), TN4 (per-channel SLO)
-# BUILD-ONLY release workflow. Publishing to npm + GHCR is deliberately commented out
-# below — uncomment when NPM_TOKEN and ghcr.io write scope are configured on the repo.
-# Each tag push produces downloadable artifacts; turning them into published versions
-# is a deliberate manual step.
+# Satisfies: RT-3 (OIDC wiring), RT-4 (cosign + CycloneDX), RT-5 (release-type gate),
+#            RT-6 (retry + halt-clean), RT-8 (multi-arch), RT-9 (4 binary targets),
+#            RT-10 (helm OCI push), RT-18 (CHANGELOG gate), RT-19 (CVE gate)
+# Honours: TN1 (SLSA on stable only), TN2 (binary <=150MB), TN6 (.bun-version pinned).
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    tags: ['v*.*.*', 'v*.*.*-*']
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Skip actual artifact upload'
+        description: 'Skip actual publish steps'
         type: boolean
         default: false
 
@@ -21,89 +19,333 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# RT-3: OIDC wiring is repo-wide defaults; id-token:write is the prerequisite for
+# npm Trusted Publishing (S5), cosign keyless sign (S1, S2), and SLSA L3 (S3).
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+  attestations: write
+
 jobs:
-  build-npm:
+  # ─────────────────────────────────────────────────────────────────────
+  # RT-5: release-type detection gates the SLSA step (TN1 resolution).
+  # RT-18: CHANGELOG gate — refuses to release without a tag-matching entry.
+  # ─────────────────────────────────────────────────────────────────────
+  preflight:
     runs-on: ubuntu-24.04
+    outputs:
+      is_prerelease: ${{ steps.detect.outputs.is_prerelease }}
+      is_stable: ${{ steps.detect.outputs.is_stable }}
+      tag: ${{ steps.detect.outputs.tag }}
+      version: ${{ steps.detect.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+      - id: detect
+        name: detect release type (RT-5)
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" =~ -(alpha|beta|rc)\. ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "is_stable=false" >> "$GITHUB_OUTPUT"
+            echo "Release type: pre-release (SLSA gated off per TN1)"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "is_stable=true" >> "$GITHUB_OUTPUT"
+            echo "Release type: stable (full supply-chain surface)"
+          fi
+      - name: check-changelog (RT-18)
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          # SemVer versions in CHANGELOG are written without the leading `v`
+          # (e.g. `## [0.1.0-rc.1]`), matching Keep a Changelog convention.
+          VERSION="${TAG#v}"
+          if ! grep -qE "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md is missing an entry for ${VERSION}"
+            echo "Add a section with header:  ## [${VERSION}] — YYYY-MM-DD"
+            exit 1
+          fi
+          echo "CHANGELOG entry for ${VERSION} present."
+
+  # ─────────────────────────────────────────────────────────────────────
+  # RT-7: ESM-only npm package. RT-3: publish via OIDC, no NPM_TOKEN.
+  # Sigstore provenance is minted automatically by `npm publish --provenance`
+  # when id-token:write is set and the repo is registered for Trusted Publishing.
+  # ─────────────────────────────────────────────────────────────────────
+  publish-npm:
+    runs-on: ubuntu-24.04
+    needs: [preflight]
+    steps:
+      - uses: actions/checkout@v4
+      # RT-1: Bun version is pinned via .bun-version (TN6).
       - uses: oven-sh/setup-bun@v2
-        with: { bun-version: latest }
+        with: { bun-version-file: .bun-version }
       - run: bun install --frozen-lockfile
       - run: bun test
       - run: bun run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: npm-${{ github.ref_name }}
-          path: |
-            dist/
-            package.json
-            README.md
-            LICENSE
-            CHANGELOG.md
-      # TODO(release): uncomment after NPM_TOKEN secret is added
-      # - run: bun publish --access public
-      #   env:
-      #     NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: publish to npm with provenance (RT-3, S5)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          # RT-6/O5: retry on transient npm registry / Sigstore outage (max 3, exp backoff).
+          if [[ "${{ needs.preflight.outputs.is_prerelease }}" == "true" ]]; then
+            CMD="npm publish --provenance --access public --tag next"
+          else
+            CMD="npm publish --provenance --access public"
+          fi
+          for attempt in 1 2 3; do
+            $CMD && break
+            [ "$attempt" -eq 3 ] && exit 1
+            echo "::warning::npm publish attempt ${attempt} failed. Retrying in $((attempt * 15))s..."
+            sleep $((attempt * 15))
+          done
+        env:
+          # Trusted Publishing uses OIDC — no NPM_TOKEN required. (RT-3, B1)
+          NODE_AUTH_TOKEN: ''
 
-  build-binary:
-    runs-on: ${{ matrix.os }}
+  # ─────────────────────────────────────────────────────────────────────
+  # RT-9: 4 standalone binary targets. TN2: relaxed 150 MB ceiling.
+  # ─────────────────────────────────────────────────────────────────────
+  build-binaries:
+    runs-on: ${{ matrix.runner }}
+    needs: [preflight]
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14, windows-2022]
+        include:
+          - target: bun-darwin-arm64
+            runner: macos-14
+          - target: bun-darwin-x64
+            runner: macos-14
+          - target: bun-linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: bun-linux-x64
+            runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-        with: { bun-version: latest }
+        with: { bun-version-file: .bun-version }
       - run: bun install --frozen-lockfile
-      - run: bun run build:binary
+      - name: compile ${{ matrix.target }} (RT-9)
+        run: bun run scripts/build-binaries.ts --target=${{ matrix.target }}
+        env:
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp && '0' || '0' }}
+      - name: enforce size ceiling (T7, TN2)
+        run: |
+          size=$(wc -c < "dist/mockstar-${{ matrix.target }}")
+          max=$((150 * 1024 * 1024))
+          if [ "$size" -gt "$max" ]; then
+            echo "::error::Binary ${{ matrix.target }} is ${size} bytes (>${max} max)"
+            exit 1
+          fi
+      - name: smoke test
+        run: ./dist/mockstar-${{ matrix.target }} --version || exit 1
+        if: ${{ !contains(matrix.target, 'arm64') || matrix.runner != 'macos-14' }}
+      # T5/TN6: record binary hash for reproducibility verification (evidence for RT-1).
+      - name: record binary sha256 (T5)
+        run: sha256sum "dist/mockstar-${{ matrix.target }}" > "dist/mockstar-${{ matrix.target }}.sha256"
       - uses: actions/upload-artifact@v4
         with:
-          name: mockstar-binary-${{ matrix.os }}-${{ github.ref_name }}
-          path: dist/mockstar*
+          name: binary-${{ matrix.target }}
+          path: |
+            dist/mockstar-${{ matrix.target }}
+            dist/mockstar-${{ matrix.target }}.sha256
 
-  build-docker:
+  # ─────────────────────────────────────────────────────────────────────
+  # RT-8 multi-arch container + RT-4 cosign signing-by-digest + RT-19 CVE gate.
+  # Outputs the pushed digest so downstream jobs sign / attest the exact bytes.
+  # ─────────────────────────────────────────────────────────────────────
+  publish-container:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      packages: write
+    needs: [preflight]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      image: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: Build multi-arch Docker image
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        name: build + push multi-arch image (RT-8)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: false
-          load: true
+          push: ${{ github.event.inputs.dry_run != 'true' }}
           tags: |
-            mockstar:${{ github.ref_name }}
-            mockstar:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      # TODO(release): uncomment after GHCR write access is configured
-      # - uses: docker/login-action@v3
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-      # - uses: docker/build-push-action@v6
-      #   with:
-      #     context: .
-      #     file: ./Dockerfile
-      #     platforms: linux/amd64,linux/arm64
-      #     push: true
-      #     tags: |
-      #       ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-      #       ghcr.io/${{ github.repository }}:latest
-
-  summary:
-    runs-on: ubuntu-24.04
-    needs: [build-npm, build-binary, build-docker]
-    steps:
-      - name: Print release status
+            ghcr.io/${{ github.repository }}:${{ needs.preflight.outputs.tag }}
+            ghcr.io/${{ github.repository }}:latest
+          provenance: mode=max
+          sbom: true
+      - name: trivy scan — block on CRITICAL (RT-19, S4)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+      - name: install cosign
+        uses: sigstore/cosign-installer@v3
+      - name: install syft (for CycloneDX SBOM)
+        uses: anchore/sbom-action/download-syft@v0.17.0
+      - name: generate CycloneDX SBOM (RT-4, S2)
         run: |
-          echo "Release ${{ github.ref_name }} built successfully."
-          echo "Artifacts uploaded. Publishing is manual — uncomment TODO(release) blocks once secrets are set."
+          syft "ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}" \
+            -o cyclonedx-json=sbom.cdx.json
+      # RT-4 load-bearing line: sign by DIGEST, not tag.
+      - name: cosign sign image by digest (RT-4, S1)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          # RT-6/O5: retry on transient Sigstore / Fulcio / Rekor errors (max 3).
+          TARGET="ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}"
+          for attempt in 1 2 3; do
+            cosign sign --yes "$TARGET" && break
+            [ "$attempt" -eq 3 ] && exit 1
+            echo "::warning::cosign sign attempt ${attempt} failed. Retrying in $((attempt * 15))s..."
+            sleep $((attempt * 15))
+          done
+      - name: cosign attest CycloneDX SBOM (RT-4, S2)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          # RT-6/O5: retry on transient Sigstore / Rekor errors (max 3).
+          TARGET="ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}"
+          for attempt in 1 2 3; do
+            cosign attest --yes --type cyclonedx --predicate sbom.cdx.json "$TARGET" && break
+            [ "$attempt" -eq 3 ] && exit 1
+            echo "::warning::cosign attest attempt ${attempt} failed. Retrying in $((attempt * 15))s..."
+            sleep $((attempt * 15))
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+
+  # ─────────────────────────────────────────────────────────────────────
+  # RT-10: Helm chart push to GHCR as OCI artifact + RT-4 cosign.
+  # ─────────────────────────────────────────────────────────────────────
+  publish-helm:
+    runs-on: ubuntu-24.04
+    needs: [preflight, publish-container]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with: { version: v3.15.3 }
+      - name: package chart
+        run: |
+          helm package ./charts/mockstar \
+            --version "${{ needs.preflight.outputs.version }}" \
+            --app-version "${{ needs.preflight.outputs.version }}" \
+            --destination ./dist-helm
+      - name: login to GHCR OCI registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: helm push to OCI (RT-10)
+        id: push
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          # RT-6/O5: retry on GHCR / registry transient failure.
+          TGZ="./dist-helm/mockstar-${{ needs.preflight.outputs.version }}.tgz"
+          REGISTRY="oci://ghcr.io/${{ github.repository_owner }}/charts"
+          for attempt in 1 2 3; do
+            if out=$(helm push "$TGZ" "$REGISTRY" 2>&1); then break; fi
+            [ "$attempt" -eq 3 ] && { echo "helm push failed: $out"; exit 1; }
+            echo "::warning::helm push attempt ${attempt} failed. Retrying in $((attempt * 15))s..."
+            sleep $((attempt * 15))
+          done
+          digest=$(echo "$out" | grep -oE 'sha256:[a-f0-9]{64}' | head -1)
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+      - name: install cosign
+        uses: sigstore/cosign-installer@v3
+      - name: cosign sign helm chart by digest (RT-4)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          # RT-6/O5: retry on transient Sigstore errors (max 3).
+          TARGET="ghcr.io/${{ github.repository_owner }}/charts/mockstar@${{ steps.push.outputs.digest }}"
+          for attempt in 1 2 3; do
+            cosign sign --yes "$TARGET" && break
+            [ "$attempt" -eq 3 ] && exit 1
+            echo "::warning::cosign sign attempt ${attempt} failed. Retrying in $((attempt * 15))s..."
+            sleep $((attempt * 15))
+          done
+
+  # ─────────────────────────────────────────────────────────────────────
+  # RT-5 + TN1: SLSA L3 build provenance — STABLE TAGS ONLY.
+  # ─────────────────────────────────────────────────────────────────────
+  slsa-provenance:
+    needs: [preflight, publish-container]
+    if: ${{ needs.preflight.outputs.is_stable == 'true' }}
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+      packages: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+    with:
+      image: ghcr.io/${{ github.repository }}
+      digest: ${{ needs.publish-container.outputs.digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────────────
+  # RT-6: halt-clean. If any publish job failed, delete the pushed (but
+  # unsigned) container tag so S1 ("every published artifact is signed")
+  # is not silently violated.
+  # ─────────────────────────────────────────────────────────────────────
+  halt-clean:
+    runs-on: ubuntu-24.04
+    needs: [preflight, publish-npm, build-binaries, publish-container, publish-helm]
+    if: ${{ failure() }}
+    steps:
+      - name: delete unsigned container tag on failure (RT-6, S1)
+        continue-on-error: true
+        run: |
+          gh api \
+            --method DELETE \
+            "/user/packages/container/mockstar/versions" \
+            -f "tag_name=${{ needs.preflight.outputs.tag }}" || true
+          echo "::warning::halt-clean ran. Inspect the failed job before re-releasing."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-notes:
+    runs-on: ubuntu-24.04
+    needs: [preflight, publish-npm, build-binaries, publish-container, publish-helm]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: ./artifacts }
+      - name: create GitHub Release
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          prerelease_flag=""
+          if [[ "${{ needs.preflight.outputs.is_prerelease }}" == "true" ]]; then
+            prerelease_flag="--prerelease"
+          fi
+          gh release create "${{ needs.preflight.outputs.tag }}" \
+            ${prerelease_flag} \
+            --notes-file CHANGELOG.md \
+            ./artifacts/binary-bun-darwin-arm64/* \
+            ./artifacts/binary-bun-darwin-x64/* \
+            ./artifacts/binary-bun-linux-arm64/* \
+            ./artifacts/binary-bun-linux-x64/* \
+            ./artifacts/sbom-cyclonedx/sbom.cdx.json
+      # O3: warn when release wall-clock exceeds p99 budget of 15 min (900s).
+      - name: pipeline timing guard (O3)
+        run: |
+          START="${{ github.run_started_at }}"
+          elapsed=$(( $(date -u +%s) - $(date -d "$START" +%s) ))
+          if [[ "$elapsed" -gt 900 ]]; then
+            echo "::warning::Release took ${elapsed}s — exceeds 900s (15 min) p99 budget (O3). Review slow jobs."
+          else
+            echo "Release completed in ${elapsed}s (within 900s p99 budget)."
+          fi

@@ -1,0 +1,621 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.mockstar.dev/v0.1/mock.json",
+  "title": "Mockstar mocks file (v0.1)",
+  "description": "Root schema for a Mockstar mocks file. This URL pins to the matching minor version of mockstar — see docs/SCHEMA-HOSTING.md for the versioning contract.",
+  "type": "object",
+  "properties": {
+    "mocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "match": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": [
+                  "GET",
+                  "POST",
+                  "PUT",
+                  "PATCH",
+                  "DELETE",
+                  "HEAD",
+                  "OPTIONS",
+                  "*"
+                ],
+                "default": "*"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "query": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "equals": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "equals"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "regex": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "regex"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "startsWith": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "startsWith"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "contains": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "contains"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "headers": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "equals": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "equals"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "regex": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "regex"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "startsWith": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "startsWith"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "contains": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "contains"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "body": {
+                "type": "object",
+                "properties": {
+                  "jsonpath": {
+                    "type": "string"
+                  },
+                  "equals": {},
+                  "partial": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "additionalProperties": false
+              },
+              "priority": {
+                "type": "integer",
+                "default": 0
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          "response": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "static"
+                  },
+                  "status": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 599,
+                    "default": 200
+                  },
+                  "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "body": {},
+                  "delay": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "min": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "max": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "min",
+                          "max"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "dynamic"
+                  },
+                  "handler": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "delay": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "min": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "max": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "min",
+                          "max"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "handler"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "passthrough"
+                  },
+                  "upstream": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "timeoutMs": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "default": 30000
+                  },
+                  "forwardHeaders": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "kind",
+                  "upstream"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "when": {
+                  "type": "object",
+                  "properties": {
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "equals": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "equals"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "regex": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "regex"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "startsWith": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "startsWith"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "contains": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "contains"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "query": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "equals": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "equals"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "regex": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "regex"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "startsWith": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "startsWith"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "contains": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "contains"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "headers": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "equals": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "equals"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "regex": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "regex"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "startsWith": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "startsWith"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "contains": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "contains"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "body": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "equals": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "equals"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "regex": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "regex"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "startsWith": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "startsWith"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "contains": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "contains"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "response": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 599
+                    },
+                    "headers": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "body": {},
+                    "delay": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "min",
+                            "max"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "when",
+                "response"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "id",
+          "match",
+          "response"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "mocks"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,22 @@
+{
+  "name": "mockstar-sdet-jest30-example",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --colors=false"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "cross-env": "^7.0.3",
+    "jest": "^30.0.0"
+  },
+  "dependencies": {
+    "mockstar": "*"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "extensionsToTreatAsEsm": [".ts"],
+    "moduleNameMapper": { "^(\\.{1,2}/.*)\\.js$": "$1" }
+  }
+}

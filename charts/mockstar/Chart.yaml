@@ -1,0 +1,24 @@
+apiVersion: v2
+name: mockstar
+description: Mockstar — Bun-based constraint-first mock server
+type: application
+# Chart version is set by CI at package time to match the app version (RT-10).
+# Chart version (here) and appVersion (here) and the release tag must agree.
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.24.0"
+home: https://github.com/your-org/mockstar
+sources:
+  - https://github.com/your-org/mockstar
+keywords:
+  - mock
+  - testing
+  - api
+maintainers:
+  - name: mockstar maintainers
+    url: https://github.com/your-org/mockstar
+# RT-11: tenant content is OUT-OF-CHART by design (TN5). This chart ships the
+# deployment + a label-selector pattern for labeled tenant ConfigMaps. Teams
+# apply their own `mockstar.dev/tenant=<name>`-labeled ConfigMaps separately.
+annotations:
+  mockstar.dev/tenant-pattern: "label:mockstar.dev/tenant"

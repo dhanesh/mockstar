@@ -4,8 +4,6 @@
   "description": "Bun-based mock server with static + dynamic mocking, JSON config, named JS handlers, pass-through, multi-tenancy, and test-data utilities.",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "mockstar": "./dist/cli.js"
@@ -25,8 +23,9 @@
   ],
   "scripts": {
     "dev": "bun run src/cli.ts ./examples/mocks",
-    "build": "bun build src/index.ts src/cli.ts --outdir dist --target bun --format esm",
-    "build:binary": "bun build src/cli.ts --compile --outfile dist/mockstar",
+    "build": "bun build src/index.ts src/cli.ts --outdir dist --target bun --format esm && bun run build:types",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:binary": "bun run scripts/build-binaries.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "bench": "bun run bench/harness.ts",

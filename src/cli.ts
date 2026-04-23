@@ -8,9 +8,13 @@ import { runImporter } from './features/openapi/index.ts';
 import { preflight } from './core/preflight.ts';
 import { dispatchProxyCommand } from './features/proxy/cli.ts';
 import { runEnhance } from './features/enhance/index.ts';
+import { runMigrateSchema } from './cli/commands/migrate.ts';
+import { minorTagFromVersion, runInit } from './cli/commands/init.ts';
+
+const MOCKSTAR_VERSION = '0.1.0-alpha.1';
 
 interface ParsedArgs {
-  command: 'serve' | 'import' | 'enhance' | 'proxy' | 'help' | 'version';
+  command: 'serve' | 'import' | 'enhance' | 'migrate' | 'init' | 'proxy' | 'help' | 'version';
   proxyArgs?: readonly string[];
   configRoot?: string;
   handlersDir?: string;
@@ -24,6 +28,12 @@ interface ParsedArgs {
   allowPrivate?: boolean;
   enhanceDir?: string;
   dryRun?: boolean;
+  migrateSchema?: boolean;
+  migrateFrom?: string;
+  migrateTo?: string;
+  migrateDir?: string;
+  initDir?: string;
+  force?: boolean;
 }
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
@@ -50,6 +60,25 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       command: 'enhance',
       enhanceDir,
       specPath: getFlag(rest, '--spec'),
+      dryRun: rest.includes('--dry-run'),
+    };
+  }
+  if (head === 'init') {
+    const initDir = rest.find((r) => !r.startsWith('-'));
+    return {
+      command: 'init',
+      initDir: initDir ?? '.',
+      force: rest.includes('--force'),
+    };
+  }
+  if (head === 'migrate') {
+    const migrateDir = rest.find((r) => !r.startsWith('-'));
+    return {
+      command: 'migrate',
+      migrateSchema: rest.includes('--schema'),
+      migrateFrom: getFlag(rest, '--from'),
+      migrateTo: getFlag(rest, '--to'),
+      migrateDir,
       dryRun: rest.includes('--dry-run'),
     };
   }
@@ -84,7 +113,7 @@ async function main(): Promise<number> {
 
   if (args.command === 'help' || args.command === 'version') {
     if (args.command === 'version') {
-      process.stdout.write(`mockstar 0.1.0-alpha.1\n`);
+      process.stdout.write(`mockstar ${MOCKSTAR_VERSION}\n`);
       return 0;
     }
     process.stdout.write(usage());
@@ -109,6 +138,52 @@ async function main(): Promise<number> {
       allowPrivateUpstreams: args.allowPrivate,
     });
     process.stdout.write(`Imported ${result.entryCount} mocks → ${result.outFile}\n`);
+    return 0;
+  }
+
+  if (args.command === 'init') {
+    const result = await runInit({
+      dir: resolve(args.initDir ?? '.'),
+      minorTag: minorTagFromVersion(MOCKSTAR_VERSION),
+      force: args.force ?? false,
+    });
+    for (const path of result.created) process.stdout.write(`created ${path}\n`);
+    for (const path of result.skipped) {
+      process.stdout.write(`skipped ${path} (already exists; pass --force to overwrite)\n`);
+    }
+    process.stdout.write('\nNext: bunx mockstar ./mocks\n');
+    return 0;
+  }
+
+  if (args.command === 'migrate') {
+    if (!args.migrateSchema) {
+      process.stderr.write('mockstar migrate currently only supports --schema.\n');
+      process.stderr.write(usage());
+      return 2;
+    }
+    if (!args.migrateFrom || !args.migrateTo || !args.migrateDir) {
+      process.stderr.write(
+        'mockstar migrate --schema requires --from <minor>, --to <minor>, and a target directory.\n',
+      );
+      return 2;
+    }
+    const result = await runMigrateSchema({
+      dir: resolve(args.migrateDir),
+      from: args.migrateFrom,
+      to: args.migrateTo,
+      dryRun: args.dryRun ?? false,
+    });
+    const suffix = args.dryRun ? ' (dry-run)' : '';
+    process.stdout.write(
+      `migrate --schema: rewrote ${result.filesChanged}/${result.filesScanned} files${suffix}\n`,
+    );
+    if (result.mismatched.length > 0) {
+      process.stderr.write(
+        `warning: ${result.mismatched.length} files had an unexpected $schema URL (not --from):\n`,
+      );
+      for (const path of result.mismatched) process.stderr.write(`  ${path}\n`);
+      return 3;
+    }
     return 0;
   }
 
@@ -173,9 +248,12 @@ function usage(): string {
     'mockstar <command> [options]',
     '',
     'Commands:',
+    '  init [dir]                  Scaffold a starter mocks/ + mockstar.config.json',
     '  serve [config-root]         Start the mock server (default command)',
     '  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON',
     '  enhance <mocks-dir>         Rewrite imported mocks with Tier 2 placeholders',
+    '  migrate --schema <mocks-dir> --from <minor> --to <minor>',
+    '                              Rewrite $schema URLs when bumping a minor',
     '  proxy <install|start|...>   Run the HTTPS transparent upstream proxy (tier1)',
     '  help                        Show this help',
     '  version                     Print version',

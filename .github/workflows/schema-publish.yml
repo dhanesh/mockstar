@@ -1,0 +1,98 @@
+# Satisfies: RT-2 (dual-URL JSON Schema hosting — CI publish path)
+#
+# Runs on every tagged release to publish schema/mock.json under the matching
+# /v0.<N>/ path (immutable, guarded) AND the rolling /v0/ path (mutable).
+
+name: schema-publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: schema-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - run: bun install --frozen-lockfile
+
+      - name: Generate schema
+        run: bun run scripts/generate-schema.ts
+
+      - name: Read version tags
+        id: ver
+        run: |
+          MAJOR_TAG=$(sed -n '1p' schema/VERSION)
+          MINOR_TAG=$(sed -n '2p' schema/VERSION)
+          echo "major=${MAJOR_TAG}" >> "$GITHUB_OUTPUT"
+          echo "minor=${MINOR_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out existing gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      - name: Enforce minor immutability
+        run: |
+          MINOR="${{ steps.ver.outputs.minor }}"
+          EXISTING="gh-pages/${MINOR}/mock.json"
+          if [[ -f "${EXISTING}" ]]; then
+            if ! diff -q "${EXISTING}" schema/mock.json > /dev/null; then
+              echo "::error::Minor ${MINOR} already published with different content."
+              echo "::error::Schemas must be immutable once released under a minor."
+              echo "::error::Bump the minor version if this change is breaking."
+              diff "${EXISTING}" schema/mock.json || true
+              exit 1
+            fi
+            echo "Minor ${MINOR} already published; content matches. No-op."
+          fi
+
+      - name: Stage publish tree
+        run: |
+          MAJOR="${{ steps.ver.outputs.major }}"
+          MINOR="${{ steps.ver.outputs.minor }}"
+          mkdir -p publish/${MAJOR} publish/${MINOR}
+          # Rolling MAJOR path — always overwritten
+          cp schema/mock.json publish/${MAJOR}/mock.json
+          # Pinned MINOR path — immutable (guard above ran)
+          cp schema/mock.json publish/${MINOR}/mock.json
+          # Preserve all prior minors from gh-pages
+          if [[ -d gh-pages ]]; then
+            for d in gh-pages/v*/; do
+              base=$(basename "$d")
+              if [[ ! -d "publish/${base}" ]]; then
+                cp -r "$d" "publish/${base}"
+              fi
+            done
+          fi
+          # CNAME for schemas.mockstar.dev
+          echo "schemas.mockstar.dev" > publish/CNAME
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: publish
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

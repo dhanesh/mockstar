@@ -1,0 +1,94 @@
+# Satisfies: RT-13 (per-persona 5-minute smoke path — Dev / SDET / DevOps)
+#
+# Runs on every PR + a weekly cron. Each job exercises ONE persona's first
+# five minutes end-to-end. A job exceeding `timeout-minutes: 5` fails — this
+# IS the SLO check, not just a CI guardrail.
+
+name: quickstart-smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 9 * * 1' # Mondays 09:00 UTC — catches dependency rot
+
+permissions:
+  contents: read
+
+jobs:
+  dev-persona:
+    name: Dev — bunx init + serve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Dev 5-minute path
+        run: |
+          set -euo pipefail
+          WORK=$(mktemp -d)
+          cd "$WORK"
+          bun link "${GITHUB_WORKSPACE}"
+          bunx mockstar init .
+          test -f ./mocks/default/example.json
+          test -f ./mockstar.config.json
+          bunx mockstar ./mocks --port 4017 &
+          SERVER_PID=$!
+          trap "kill ${SERVER_PID} 2>/dev/null || true" EXIT
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4017/hello > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:4017/hello | tee /dev/stderr | grep -q "Hello from mockstar"
+          curl -sf http://127.0.0.1:4017/users/42 | tee /dev/stderr | grep -q '"id": "42"'
+
+  sdet-persona:
+    name: SDET — npm i + jest test via launch()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Pack + install into scratch project
+        run: |
+          set -euo pipefail
+          PKG=$(npm pack --silent)
+          mv "$PKG" "${GITHUB_WORKSPACE}/mockstar.tgz"
+          SCRATCH="${GITHUB_WORKSPACE}/_sdet"
+          mkdir -p "$SCRATCH"
+          cp -r examples/sdet-jest30/. "$SCRATCH/"
+          cd "$SCRATCH"
+          npm install --no-audit --no-fund
+          npm install --no-audit --no-fund "${GITHUB_WORKSPACE}/mockstar.tgz"
+          npx jest --colors=false
+
+  devops-persona:
+    name: DevOps — docker run + /health
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build container locally
+        run: docker build -t mockstar:smoke .
+      - name: Run + probe /health
+        run: |
+          set -euo pipefail
+          CID=$(docker run -d -p 4018:3000 mockstar:smoke)
+          trap "docker rm -f ${CID} > /dev/null || true" EXIT
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4018/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -sfi http://127.0.0.1:4018/health | head -1 | grep -q "200"
