@@ -1,5 +1,6 @@
 // Satisfies: T7 (Zod-validated config), RT-5.1 (snapshot builder)
 // Contributes to: RT-1.3 (handler-reference cross-check)
+// Satisfies: RT-4 (snapshot builder compiles scenario rules into compiledScenarios map)
 
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
@@ -7,6 +8,8 @@ import type { HandlerRegistry } from '../handlers/index.ts';
 import { verifyHandlerReferences } from '../handlers/index.ts';
 import { compileEntryResponses, type CompiledResponse } from '../templating/compiler.ts';
 import { buildMatchIndex } from '../matching/index.ts';
+import { compileScenarioRules } from '../scenarios/evaluator.ts';
+import type { CompiledScenario } from '../scenarios/evaluator.ts';
 import { type ConfigSnapshot, type TenantSnapshot } from './snapshot.ts';
 import { MockEntry, ServerConfig, TenantConfig, TenantLimits, type Entry, type Server } from './schema.ts';
 
@@ -48,6 +51,7 @@ export async function loadTenant(
 
   const files = await listJsonFiles(tenantDir);
   for (const file of files) {
+    const beforeCount = entries.length;
     const parsed = await readJson(file);
     // Each file may be a bare array of entries, a { mocks: [...] } object, or a TenantConfig.
     if (Array.isArray(parsed)) {
@@ -66,7 +70,7 @@ export async function loadTenant(
       throw new Error(`${file}: expected array or { mocks: [...] } shape`);
     }
 
-    for (const e of entries) {
+    for (const e of entries.slice(beforeCount)) {
       if (e.response.kind === 'dynamic') {
         referencedHandlers.push({ name: e.response.handler, configPath: `${file}#${e.id}` });
       }
@@ -85,11 +89,20 @@ export async function loadTenant(
   const matchIndex = buildMatchIndex(entries);
   const compiledResponses = compileEntryResponses(entries);
 
+  // Compile scenario rules for each entry that declares them (RT-4).
+  const compiledScenarios = new Map<string, readonly CompiledScenario[]>();
+  for (const entry of entries) {
+    if (entry.scenarios && entry.scenarios.length > 0) {
+      compiledScenarios.set(entry.id, compileScenarioRules(entry.scenarios));
+    }
+  }
+
   return Object.freeze({
     name,
     entries,
     matchIndex,
     compiledResponses,
+    compiledScenarios,
     limits: tenantMeta.limits ?? TenantLimits.parse({}),
     adminToken: tenantMeta.adminToken,
     allowPrivateUpstreams: tenantMeta.allowPrivateUpstreams ?? false,

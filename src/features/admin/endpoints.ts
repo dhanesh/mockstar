@@ -45,15 +45,29 @@ export function adminRouter(deps: AdminDeps): Hono {
       const snap = deps.holder.get();
       const tenantSnap = snap?.tenants.get(tenant);
       if (!tenantSnap) return ctx.json({ error: 'tenant_not_found', tenant }, 404);
-      const mocks = tenantSnap.entries.map((e) => ({
-        id: e.id,
-        method: e.match.method,
-        path: e.match.path,
-        priority: e.match.priority ?? 0,
-        kind: e.response.kind,
-        ...(e.response.kind === 'passthrough' ? { upstream: e.response.upstream } : {}),
-        ...(e.response.kind === 'dynamic' ? { handler: e.response.handler } : {}),
-      }));
+      const mocks = tenantSnap.entries.map((e) => {
+        // Collect the attribute keys targeted by each scenario rule (U4 — values omitted to avoid leaking test data).
+        const scenarioAttributes: string[] = [];
+        if (e.scenarios) {
+          for (const rule of e.scenarios) {
+            for (const ns of ['params', 'query', 'headers', 'body'] as const) {
+              const dim = rule.when[ns];
+              if (dim) for (const key of Object.keys(dim)) scenarioAttributes.push(`${ns}.${key}`);
+            }
+          }
+        }
+        return {
+          id: e.id,
+          method: e.match.method,
+          path: e.match.path,
+          priority: e.match.priority ?? 0,
+          kind: e.response.kind,
+          ...(e.response.kind === 'passthrough' ? { upstream: e.response.upstream } : {}),
+          ...(e.response.kind === 'dynamic' ? { handler: e.response.handler } : {}),
+          scenarioCount: e.scenarios?.length ?? 0,
+          ...(scenarioAttributes.length > 0 && { scenarioAttributes }),
+        };
+      });
       return ctx.json({ tenant, count: mocks.length, mocks });
     },
   );

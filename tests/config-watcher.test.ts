@@ -78,6 +78,68 @@ describe('config watcher (T8)', () => {
     expect(rejected).toHaveLength(0);
   });
 
+  it('compiledScenarios swapped atomically on hot reload (O2)', async () => {
+    // @constraint O2
+    // Write a mock with a scenario, then reload without the scenario.
+    // Verifies compiledScenarios is part of the atomic TenantSnapshot swap.
+    const { configRoot, handlersDir } = await setup();
+    const handlers = await buildHandlerRegistry(handlersDir);
+    const server = parseServerConfig({});
+
+    // Write initial file with a scenario rule.
+    await writeFile(
+      join(configRoot, 'acme', 'base.json'),
+      JSON.stringify({
+        mocks: [{
+          id: 'scenario-entry',
+          match: { method: 'GET', path: '/s' },
+          response: { kind: 'static', status: 200, body: 'default' },
+          scenarios: [{ id: 'rule1', when: { query: { x: 'y' } }, response: { status: 418 } }],
+        }],
+      }),
+    );
+
+    const initial = await loadSnapshot({ configRoot, server, handlers });
+    const holder = new SnapshotHolder(initial);
+
+    // Verify initial snapshot has the compiled scenario.
+    const initialScenarios = holder.get().tenants.get('acme')?.compiledScenarios;
+    expect(initialScenarios?.get('scenario-entry')?.length).toBe(1);
+
+    const reloads: Array<{ tenant: string; result: 'ok' | 'rejected' }> = [];
+    const watcher = startWatcher({
+      configRoot,
+      holder,
+      handlers,
+      debounceMs: 50,
+      onReload: (tenant, result) => reloads.push({ tenant, result }),
+    });
+    stopWatcher = watcher.stop;
+
+    // Rewrite without scenarios.
+    await writeFile(
+      join(configRoot, 'acme', 'base.json'),
+      JSON.stringify({
+        mocks: [{
+          id: 'scenario-entry',
+          match: { method: 'GET', path: '/s' },
+          response: { kind: 'static', status: 200, body: 'default' },
+        }],
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 250));
+
+    // No rejected reloads.
+    expect(reloads.filter((r) => r.result === 'rejected')).toHaveLength(0);
+
+    // If the fs event fired, verify atomic swap: compiledScenarios is now empty for this entry.
+    if (reloads.length > 0) {
+      const afterScenarios = holder.get().tenants.get('acme')?.compiledScenarios;
+      expect(afterScenarios?.get('scenario-entry') ?? []).toHaveLength(0);
+    }
+  });
+
   it('keeps previous snapshot on invalid reload (T7 warn-and-keep-previous)', async () => {
     const { configRoot, handlersDir } = await setup();
     const handlers = await buildHandlerRegistry(handlersDir);

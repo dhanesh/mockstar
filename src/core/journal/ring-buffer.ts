@@ -1,5 +1,6 @@
 // Satisfies: O3 (per-tenant bounded request journal, O(1) writes, non-blocking reads)
 // Satisfies: RT-6.3 (journal writes deferred via microtask after response)
+// Satisfies: RT-7 (journal extended with scenario fields for O1 diagnostics)
 
 export interface JournalEntry {
   timestamp: number;
@@ -10,6 +11,10 @@ export interface JournalEntry {
   status: number;
   matchedMockId: string | null;
   durationUs: number;
+  /** ID of the scenario rule that matched, if any (O1). Absent when no scenario was evaluated. */
+  scenarioId?: string;
+  /** Attribute key that was absent from the request when a scenario predicate miss-fired (O1). */
+  scenarioMissReason?: string;
 }
 
 /**

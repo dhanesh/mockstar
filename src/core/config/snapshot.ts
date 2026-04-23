@@ -1,9 +1,11 @@
 // Satisfies: RT-5 (immutable config snapshots with atomic swap)
 // Satisfies: T11 (config hot-swap atomicity — in-flight requests see consistent snapshot)
+// Satisfies: RT-4 (compiled scenarios stored in TenantSnapshot — O2/O3 atomicity and GC)
 
 import type { HandlerRegistry } from '../handlers/index.ts';
 import type { MatchIndex } from '../matching/index.ts';
 import type { CompiledResponse } from '../templating/compiler.ts';
+import type { CompiledScenario } from '../scenarios/evaluator.ts';
 import type { Entry, Server, Tenant } from './schema.ts';
 
 export interface TenantSnapshot {
@@ -13,6 +15,8 @@ export interface TenantSnapshot {
   readonly matchIndex: MatchIndex;
   /** Response bodies compiled from templates at load time (RT-6.2). */
   readonly compiledResponses: ReadonlyMap<string, CompiledResponse>;
+  /** Pre-compiled scenario rules keyed by mock entry ID (RT-4). Regex objects scoped here (O3). */
+  readonly compiledScenarios: ReadonlyMap<string, readonly CompiledScenario[]>;
   readonly limits: Tenant['limits'];
   readonly adminToken?: string;
   readonly allowPrivateUpstreams: boolean;

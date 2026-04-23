@@ -15,6 +15,8 @@ import { renderPassThrough } from './features/pass-through.ts';
 import { adminRouter } from './features/admin/index.ts';
 import { createFaker, type FakerInstance } from './core/templating/faker.ts';
 import { createClock, type Clock } from './core/templating/tier2/now.ts';
+import { evaluateScenarios, type ScenarioAttrs } from './core/scenarios/evaluator.ts';
+import { mergeStaticResponse, scenarioResponseForNonStatic, renderScenario } from './core/scenarios/merger.ts';
 
 // Hono variable augmentation — all middleware reads typed `ctx.var.*`.
 declare module 'hono' {
@@ -115,6 +117,8 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
 
   let response: Response;
   let matchedMockId: string | null = null;
+  let scenarioId: string | undefined;
+  let scenarioMissReason: string | undefined;
 
   try {
     if (!tenantSnap) {
@@ -128,8 +132,11 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
           headers: { 'content-type': 'application/json' },
         });
       } else {
-        response = await routeToMock(ctx, matchPath, method, tenant, snapshot, tenantSnap, requestId, deps);
+        const result = await routeToMock(ctx, matchPath, method, tenant, snapshot, tenantSnap, requestId, deps);
+        response = result.response;
         matchedMockId = (response.headers.get('x-mockstar-matched') ?? null);
+        scenarioId = result.scenarioId;
+        scenarioMissReason = result.scenarioMissReason;
       }
     }
   } catch (err) {
@@ -159,6 +166,8 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
       status: response.status,
       matchedMockId,
       durationUs,
+      ...(scenarioId !== undefined && { scenarioId }),
+      ...(scenarioMissReason !== undefined && { scenarioMissReason }),
     };
     deps.journal.record(entry);
     deps.metrics.incCounter('mockstar_requests_total', {
@@ -183,6 +192,12 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   return response;
 }
 
+interface RouteResult {
+  response: Response;
+  scenarioId?: string;
+  scenarioMissReason?: string;
+}
+
 async function routeToMock(
   ctx: Context,
   matchPath: string,
@@ -192,7 +207,7 @@ async function routeToMock(
   tenantSnap: NonNullable<ReturnType<ConfigSnapshot['tenants']['get']>>,
   requestId: string,
   deps: DispatchDeps,
-): Promise<Response> {
+): Promise<RouteResult> {
   // Build the request view for matching discriminators.
   const url = new URL(ctx.req.url);
   const body = await safeParseBody(ctx);
@@ -206,19 +221,68 @@ async function routeToMock(
   if (!hit) {
     // Diagnostic 404 (RT-9, U1).
     const nearest = tenantSnap.matchIndex.nearestMatch(method, matchPath, req, 3);
-    return new Response(
-      JSON.stringify({
-        error: 'unmatched',
-        method,
-        path: matchPath,
+    return {
+      response: new Response(
+        JSON.stringify({
+          error: 'unmatched',
+          method,
+          path: matchPath,
+          tenant,
+          nearest_matches: nearest.map((n) => ({
+            mockId: n.entry.id,
+            failed_predicate: n.failure,
+          })),
+        }),
+        { status: 404, headers: { 'content-type': 'application/json' } },
+      ),
+    };
+  }
+
+  // Scenario evaluation — runs before kind dispatch (RT-1 insertion point, T7 kind-agnostic).
+  const compiledScenarios = tenantSnap.compiledScenarios.get(hit.entry.id) ?? [];
+  let scenarioId: string | undefined;
+  let scenarioMissReason: string | undefined;
+  if (compiledScenarios.length > 0) {
+    const attrs: ScenarioAttrs = {
+      params: hit.params,
+      query: req.query,
+      headers: req.headers,
+      body,
+    };
+    const { match: scenarioMatch, scenarioMissReason: missReason } = evaluateScenarios(compiledScenarios, attrs);
+    scenarioMissReason = missReason;
+    if (scenarioMatch) {
+      scenarioId = scenarioMatch.id;
+      const scenarioRenderOpts = {
+        faker: deps.faker,
+        clock: deps.clock,
+        deterministic: deps.opts.deterministic ?? false,
         tenant,
-        nearest_matches: nearest.map((n) => ({
-          mockId: n.entry.id,
-          failed_predicate: n.failure,
-        })),
-      }),
-      { status: 404, headers: { 'content-type': 'application/json' } },
-    );
+        requestId,
+        entryId: hit.entry.id,
+        ctx,
+        params: hit.params,
+        body,
+        maxResponseBytes: tenantSnap.limits.maxResponseBytes,
+      };
+      let scenarioResp: Response;
+      if (hit.entry.response.kind === 'static') {
+        const compiled = tenantSnap.compiledResponses.get(hit.entry.id);
+        if (!compiled) throw new Error(`Missing compiled response for entry '${hit.entry.id}'`);
+        const merged = mergeStaticResponse(
+          hit.entry as Parameters<typeof mergeStaticResponse>[0],
+          compiled,
+          scenarioMatch,
+        );
+        scenarioResp = await renderScenario(merged, scenarioRenderOpts);
+      } else {
+        scenarioResp = await renderScenario(scenarioResponseForNonStatic(scenarioMatch), scenarioRenderOpts);
+      }
+      const h = new Headers(scenarioResp.headers);
+      h.set('x-mockstar-matched', hit.entry.id);
+      h.set('x-mockstar-scenario', scenarioMatch.id);
+      return { response: new Response(scenarioResp.body, { status: scenarioResp.status, headers: h }), scenarioId };
+    }
   }
 
   let response: Response;
@@ -262,7 +326,10 @@ async function routeToMock(
 
   const headers = new Headers(response.headers);
   headers.set('x-mockstar-matched', hit.entry.id);
-  return new Response(response.body, { status: response.status, headers });
+  return {
+    response: new Response(response.body, { status: response.status, headers }),
+    scenarioMissReason,
+  };
 }
 
 function notFoundUnknownTenant(tenant: string, method: string, path: string): Response {

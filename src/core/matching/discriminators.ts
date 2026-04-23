@@ -68,7 +68,7 @@ export function evaluateDiscriminators(pred: Predicate, req: RequestView): Predi
   return null;
 }
 
-function stringMatchOk(spec: StringMatch, got: string | undefined): boolean {
+export function stringMatchOk(spec: StringMatch, got: string | undefined): boolean {
   if (typeof spec === 'string') return got === spec;
   if ('equals' in spec) return got === spec.equals;
   if (got === undefined) return false;
