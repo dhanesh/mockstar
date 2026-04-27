@@ -14,12 +14,41 @@
             { "id": "{{faker.uuid}}", "currency": "INR", "amount": 1337 }
           ]
         }
-      }
+      },
+      "scenarios": [
+        {
+          "id": "upstream-error",
+          "when": { "headers": { "x-simulate-error": "true" } },
+          "response": {
+            "status": 503,
+            "body": { "error": "upstream_unavailable", "retryAfterSeconds": 30 }
+          }
+        },
+        {
+          "id": "empty-results",
+          "when": { "query": { "limit": "0" } },
+          "response": {
+            "status": 200,
+            "body": { "count": 0, "orders": [] }
+          }
+        }
+      ]
     },
     {
       "id": "compute-order-total",
       "match": { "method": "POST", "path": "/orders/total" },
-      "response": { "kind": "dynamic", "handler": "computeOrderTotal" }
+      "response": { "kind": "dynamic", "handler": "computeOrderTotal" },
+      "scenarios": [
+        {
+          "id": "unsupported-currency",
+          "when": { "body": { "currency": "USD" } },
+          "response": {
+            "status": 422,
+            "headers": { "content-type": "application/json" },
+            "body": { "error": "unsupported_currency", "currency": "USD", "supported": ["INR"] }
+          }
+        }
+      ]
     }
   ]
 }

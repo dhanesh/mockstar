@@ -14,7 +14,33 @@
           "email": "{{faker.email}}",
           "tenant": "{{tenant}}"
         }
-      }
+      },
+      "scenarios": [
+        {
+          "id": "not-found",
+          "when": { "params": { "id": "not-found" } },
+          "response": {
+            "status": 404,
+            "body": { "error": "user_not_found", "id": "not-found" }
+          }
+        },
+        {
+          "id": "suspended",
+          "when": { "params": { "id": "suspended" } },
+          "response": {
+            "status": 403,
+            "body": { "error": "account_suspended", "id": "suspended" }
+          }
+        },
+        {
+          "id": "guest-forbidden",
+          "when": { "headers": { "x-role": "guest" } },
+          "response": {
+            "status": 403,
+            "body": { "error": "insufficient_permissions" }
+          }
+        }
+      ]
     },
     {
       "id": "create-user",
@@ -28,7 +54,25 @@
           "created": "{{faker.dateIso}}",
           "echoBody": "{{request.body.name}}"
         }
-      }
+      },
+      "scenarios": [
+        {
+          "id": "blocked-email-domain",
+          "when": { "body": { "email": { "contains": "@blocked.com" } } },
+          "response": {
+            "status": 422,
+            "body": { "error": "blocked_email_domain", "field": "email" }
+          }
+        },
+        {
+          "id": "admin-role-forbidden",
+          "when": { "body": { "role": "admin" } },
+          "response": {
+            "status": 403,
+            "body": { "error": "insufficient_permissions", "field": "role" }
+          }
+        }
+      ]
     }
   ]
 }
