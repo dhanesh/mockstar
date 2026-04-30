@@ -7,6 +7,12 @@
 
 > A Bun-based mock server with static + dynamic mocking, JSON config, named JS handlers, pass-through routing, multi-tenancy, and test-data utilities.
 
+## Demo
+
+![mockstar demo — make docker-run + curl](./docs/media/demo.svg)
+
+<sub>Recorded with [asciinema](https://asciinema.org/) — raw cast at [`docs/media/demo.cast`](./docs/media/demo.cast). Regenerate with `make record-demo` (requires `asciinema`, `jq`, `npx`, Docker).</sub>
+
 ## For SDETs
 
 Mockstar ships a library embed (`import { launch } from 'mockstar'`) supported

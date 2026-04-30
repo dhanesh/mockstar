@@ -115,6 +115,30 @@ docker-proxy-smoke: docker-proxy-build  ## Run the full tier1 live-OS smoke test
 	docker run --rm --cap-add=NET_BIND_SERVICE $(PROXY_IMAGE)
 
 # ============================================================================
+# Demo recording (asciinema -> animated SVG)
+# ============================================================================
+
+DEMO_CAST    := docs/media/demo.cast
+DEMO_CAST_V2 := docs/media/.demo.v2.cast
+DEMO_SVG     := docs/media/demo.svg
+
+record-demo:  ## Record scripts/demo.sh to docs/media/demo.cast (requires asciinema, npx, docker, jq)
+	@command -v asciinema >/dev/null || { echo "asciinema not installed: brew install asciinema"; exit 1; }
+	@command -v npx        >/dev/null || { echo "npx not installed (need Node.js)"; exit 1; }
+	@command -v jq         >/dev/null || { echo "jq not installed: brew install jq"; exit 1; }
+	@mkdir -p docs/media
+	asciinema rec --overwrite --idle-time-limit=2 --command 'bash scripts/demo.sh' $(DEMO_CAST)
+	$(MAKE) render-demo
+
+render-demo:  ## Render docs/media/demo.cast to animated SVG (requires asciinema, npx)
+	@command -v asciinema >/dev/null || { echo "asciinema not installed"; exit 1; }
+	@command -v npx        >/dev/null || { echo "npx not installed"; exit 1; }
+	asciinema convert -f asciicast-v2 $(DEMO_CAST) $(DEMO_CAST_V2)
+	npx -y svg-term-cli --in $(DEMO_CAST_V2) --out $(DEMO_SVG) --window --no-cursor --width 100 --height 30
+	@rm -f $(DEMO_CAST_V2)
+	@echo "wrote $(DEMO_SVG)"
+
+# ============================================================================
 # Cleanup
 # ============================================================================
 
@@ -130,4 +154,5 @@ clean-all: clean docker-stop  ## Full cleanup: above + node_modules + Docker ima
         docker-build docker-run docker-stop docker-logs docker-shell \
         proxy-install proxy-start proxy-status proxy-uninstall proxy-bench \
         docker-proxy-build docker-proxy-smoke \
-clean clean-all
+        record-demo render-demo \
+        clean clean-all
