@@ -7,3 +7,5 @@ coverage/
 .env.local
 bench/results/
 *.bun-build
+
+.context/
