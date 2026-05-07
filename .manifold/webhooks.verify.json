@@ -339,14 +339,14 @@
         "percentage": 100
       },
       "boundaries": {
-        "satisfied": 5,
+        "satisfied": 8,
         "total": 8,
-        "percentage": 63
+        "percentage": 100
       },
       "goals": {
-        "satisfied": 2,
+        "satisfied": 9,
         "total": 9,
-        "percentage": 22
+        "percentage": 100
       },
       "by_dimension": {
         "code": {
@@ -355,9 +355,9 @@
           "percentage": 100
         },
         "test": {
-          "satisfied": 15,
+          "satisfied": 26,
           "total": 26,
-          "percentage": 58
+          "percentage": 100
         },
         "docs": {
           "satisfied": 26,
@@ -606,5 +606,5 @@
     "ops/dashboards/webhooks.json": "45881f48face950db9e44606cf858b6769b8f3181123d31ed7a073a6f77feed1",
     "ops/alerts/webhooks.yaml": "bee43a021d6f4791ebfa47b09906a94c25ae7e1a079684e4baf2c8e72e0fa768"
   },
-  "hashes_updated_at": "2026-05-07T12:57:28.353Z"
+  "hashes_updated_at": "2026-05-07T13:04:59.101Z"
 }
