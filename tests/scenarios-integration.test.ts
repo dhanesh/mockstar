@@ -54,6 +54,7 @@ function makeServer(entries: Entry[]): { server: RunningServer; holder: Snapshot
         matchIndex,
         compiledResponses,
         compiledScenarios,
+        compiledWebhooks: new Map(),
         limits: TenantLimits.parse({}),
         adminToken: ADMIN_TOKEN,
         allowPrivateUpstreams: false,

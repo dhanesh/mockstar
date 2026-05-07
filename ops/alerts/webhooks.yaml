@@ -1,0 +1,74 @@
+# Prometheus alert rules for Mockstar webhooks.
+# Each alert corresponds to an INVARIANT or BOUNDARY constraint — see comments.
+
+groups:
+  - name: mockstar_webhooks
+    rules:
+
+      # O1, TN2 — sustained drops indicate the receiver is genuinely lagging.
+      # A single drop is informational; sustained drops are operational.
+      - alert: WebhookQueueDroppingDeliveries
+        expr: rate(mockstar_webhook_queue_dropped_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: mockstar
+        annotations:
+          summary: "Webhook queue dropping deliveries on tenant {{ $labels.tenant }}"
+          runbook: "ops/runbooks/webhook-queue-overflow.md"
+          description: "Drop rate >0.1/s for 5m. The drop-oldest cap is enforcing at-least-once-bounded contract; investigate receiver health."
+
+      # O3 — circuit open for sustained period means receiver is dead, not just flaky.
+      - alert: WebhookCircuitStuckOpen
+        expr: mockstar_webhook_circuit_state == 1
+        for: 5m
+        labels:
+          severity: warning
+          component: mockstar
+        annotations:
+          summary: "Webhook circuit OPEN for {{ $labels.webhook }} on tenant {{ $labels.tenant }}"
+          runbook: "ops/runbooks/webhook-circuit-trip.md"
+          description: "Circuit has been open for 5m. Half-open probes are failing — receiver likely permanently unreachable."
+
+      # B3, TN2 — delivery success rate below threshold indicates systemic issue.
+      - alert: WebhookDeliveryFailureRateHigh
+        expr: |
+          (
+            sum by (tenant, webhook) (rate(mockstar_webhook_delivery_total{outcome="failed"}[10m]))
+            /
+            sum by (tenant, webhook) (rate(mockstar_webhook_delivery_total[10m]))
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: critical
+          component: mockstar
+        annotations:
+          summary: "Webhook failure rate >20% for {{ $labels.webhook }} on tenant {{ $labels.tenant }}"
+          description: ">20% of deliveries are exhausting their retry budget. Check receiver, signing, or expectResponse mismatch."
+
+      # T8, RT-16 — high p99 latency indicates receivers near timeout.
+      - alert: WebhookDeliveryLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (le, tenant, webhook) (rate(mockstar_webhook_delivery_latency_us_bucket[5m]))
+          ) > 4000000
+        for: 10m
+        labels:
+          severity: warning
+          component: mockstar
+        annotations:
+          summary: "Webhook p99 latency >4s for {{ $labels.webhook }} on tenant {{ $labels.tenant }}"
+          description: "Approaching the default 5s timeout. Either raise timeoutMs or investigate receiver perf."
+
+      # O1 — queue near cap is a leading indicator before drops start.
+      - alert: WebhookQueueDepthApproachingCap
+        expr: mockstar_webhook_queue_depth > 800   # 80% of default 1024 cap
+        for: 5m
+        labels:
+          severity: warning
+          component: mockstar
+        annotations:
+          summary: "Webhook queue near cap on tenant {{ $labels.tenant }}"
+          runbook: "ops/runbooks/webhook-queue-overflow.md"
+          description: "Queue depth >800 sustained for 5m; drops imminent if receiver doesn't recover."

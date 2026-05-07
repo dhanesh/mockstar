@@ -16,6 +16,8 @@ export class Metrics implements MetricsSnapshot {
   readonly #latencyBuckets: readonly number[];
   readonly #latencyCounts: Map<string, number[]> = new Map();
   readonly #latencySum: Map<string, number> = new Map();
+  // RT-12: gauge support (webhook_queue_depth, webhook_circuit_state). Map<labelKey, value>.
+  readonly #gauges = new Map<string, number>();
 
   constructor(
     bucketsMicros: readonly number[] = [50, 100, 250, 500, 1000, 2500, 5000, 10_000, 50_000],
@@ -26,6 +28,15 @@ export class Metrics implements MetricsSnapshot {
   incCounter(metric: string, labels: Record<string, string>): void {
     const key = keyOf(metric, labels);
     this.#counters.set(key, (this.#counters.get(key) ?? 0) + 1);
+  }
+
+  /**
+   * Set a gauge value (RT-12). Idempotent — last write wins.
+   * Used for webhook_queue_depth (per-tenant) and webhook_circuit_state (per-tenant,webhook).
+   */
+  setGauge(metric: string, labels: Record<string, string>, value: number): void {
+    const key = keyOf(metric, labels);
+    this.#gauges.set(key, value);
   }
 
   observeLatencyUs(metric: string, labels: Record<string, string>, value: number): void {
@@ -56,6 +67,11 @@ export class Metrics implements MetricsSnapshot {
   format(): string {
     const lines: string[] = [];
     for (const [key, value] of this.#counters) {
+      const { metric, labels } = unkey(key);
+      lines.push(`${metric}${labelString(labels)} ${value}`);
+    }
+    // Gauges (RT-12). Emitted as plain `metric{labels} value` lines, like counters.
+    for (const [key, value] of this.#gauges) {
       const { metric, labels } = unkey(key);
       lines.push(`${metric}${labelString(labels)} ${value}`);
     }

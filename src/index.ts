@@ -17,6 +17,10 @@ export interface LaunchOptions {
   installCrashHandlers?: boolean;
   watch?: boolean;
   handlerTimeoutMs?: number;
+  /** B5/TN5: honour X-Mockstar-Webhook-Url request header. Default false. */
+  allowWebhookUrlHeader?: boolean;
+  /** INT-1: optional JSONL append-only log of webhook deliveries (post-restart forensic replay). */
+  webhookJournalFile?: string;
 }
 
 export interface Launched {
@@ -54,6 +58,8 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
     deterministic: opts.deterministic,
     installCrashHandlers: opts.installCrashHandlers,
     handlerTimeoutMs: opts.handlerTimeoutMs,
+    allowWebhookUrlHeader: opts.allowWebhookUrlHeader,
+    webhookJournalFile: opts.webhookJournalFile,
   });
 
   const watcher = opts.watch !== false && !opts.deterministic

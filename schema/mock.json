@@ -602,6 +602,176 @@
               "additionalProperties": false
             },
             "maxItems": 50
+          },
+          "webhooks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "url": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "GET",
+                    "POST",
+                    "PUT",
+                    "PATCH",
+                    "DELETE"
+                  ],
+                  "default": "POST"
+                },
+                "body": {},
+                "headers": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "default": {}
+                },
+                "retry": {
+                  "type": "object",
+                  "properties": {
+                    "attempts": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 20,
+                      "default": 6
+                    },
+                    "backoff": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "default": [
+                        1000,
+                        2000,
+                        4000,
+                        8000,
+                        16000
+                      ]
+                    },
+                    "jitterRatio": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "default": 0.2
+                    }
+                  },
+                  "additionalProperties": false,
+                  "default": {}
+                },
+                "signing": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "const": "sha256",
+                      "default": "sha256"
+                    },
+                    "secretRef": {
+                      "type": "string",
+                      "pattern": "^(\\{\\{\\s*env\\.[A-Z_][A-Z0-9_]*\\s*\\}\\}|file:.+)$"
+                    },
+                    "signatureHeader": {
+                      "type": "string",
+                      "minLength": 1,
+                      "default": "x-mockstar-signature"
+                    },
+                    "timestampHeader": {
+                      "type": "string",
+                      "minLength": 1,
+                      "default": "x-mockstar-timestamp"
+                    },
+                    "replayWindowMs": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 300000
+                    }
+                  },
+                  "required": [
+                    "secretRef"
+                  ],
+                  "additionalProperties": false
+                },
+                "circuit": {
+                  "type": "object",
+                  "properties": {
+                    "failureThreshold": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 5
+                    },
+                    "cooldownMs": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "default": 30000
+                    }
+                  },
+                  "additionalProperties": false,
+                  "default": {}
+                },
+                "expectResponse": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 599
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 100,
+                            "maximum": 599
+                          }
+                        }
+                      ]
+                    },
+                    "body": {}
+                  },
+                  "additionalProperties": false
+                },
+                "timeoutMs": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 60000,
+                  "default": 5000
+                },
+                "allowHttp": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "allowPrivateNetworks": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "acceptHeaderOverride": {
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "required": [
+                "id",
+                "url"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 10
           }
         },
         "required": [

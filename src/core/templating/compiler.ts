@@ -41,7 +41,9 @@ export type TemplateOp =
   | { kind: 'var'; name: 'tenant' | 'requestId' }
   | { kind: 'id'; prefix: string; length: number; alphabet: string }
   | { kind: 'id_named'; name: string; prefix: string; length: number; alphabet: string }
-  | { kind: 'now'; field: 'unix' | 'millis' | 'iso' };
+  | { kind: 'now'; field: 'unix' | 'millis' | 'iso' }
+  // RT-9: env namespace for webhook URL/secret-ref interpolation. Read at render time, never logged with resolved value (S3).
+  | { kind: 'env'; name: string };
 
 export interface CompiledTemplate {
   render(ctx: TemplateContext): string;
@@ -136,6 +138,15 @@ function parseToken(expr: string): TemplateOp {
   if (trimmed.startsWith('request.')) {
     return { kind: 'request', path: trimmed.slice('request.'.length).split('.') };
   }
+  if (trimmed.startsWith('env.')) {
+    // Validate name shape: A-Z, 0-9, underscore, leading non-digit. Reject anything else
+    // so `{{ env.foo.bar }}` doesn't silently land in 'literal'.
+    const name = trimmed.slice('env.'.length);
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(name)) {
+      return { kind: 'literal', value: `{{${expr}}}` };
+    }
+    return { kind: 'env', name };
+  }
   if (trimmed.startsWith('faker.')) {
     const rest = trimmed.slice('faker.'.length);
     const parenIdx = rest.indexOf('(');
@@ -178,6 +189,9 @@ function executeOp(op: TemplateOp, ctx: TemplateContext): string {
       return ctx.idHelpers.namedId(op.name, op.prefix, op.length, op.alphabet);
     case 'now':
       return op.field === 'iso' ? ctx.clock.iso() : String(op.field === 'unix' ? ctx.clock.unix() : ctx.clock.millis());
+    case 'env':
+      // Read at render time — env rotations between deliveries are picked up. Missing env -> empty string.
+      return process.env[op.name] ?? '';
   }
 }
 
@@ -204,6 +218,8 @@ function executeOpTyped(op: TemplateOp, ctx: TemplateContext): unknown {
       return ctx.idHelpers.namedId(op.name, op.prefix, op.length, op.alphabet);
     case 'now':
       return op.field === 'iso' ? ctx.clock.iso() : op.field === 'unix' ? ctx.clock.unix() : ctx.clock.millis();
+    case 'env':
+      return process.env[op.name] ?? '';
   }
 }
 

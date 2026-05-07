@@ -34,6 +34,10 @@ interface ParsedArgs {
   migrateDir?: string;
   initDir?: string;
   force?: boolean;
+  // RT-10, B5: server flag that gates the X-Mockstar-Webhook-Url channel (TN5). Default false.
+  allowWebhookUrlHeader?: boolean;
+  // RT-10, T2: optional path for an append-only webhook delivery log (post-restart replay).
+  webhookJournalFile?: string;
 }
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
@@ -92,6 +96,9 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
     host: getFlag(rest, '--host') ?? process.env.MOCKSTAR_HOST ?? '127.0.0.1',
     deterministic: rest.includes('--deterministic') || process.env.MOCKSTAR_DETERMINISTIC === '1',
     watch: !rest.includes('--no-watch'),
+    // B5/TN5: defaults OFF; admin must explicitly enable to honour X-Mockstar-Webhook-Url.
+    allowWebhookUrlHeader: rest.includes('--allow-webhook-url-header') || process.env.MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER === '1',
+    webhookJournalFile: getFlag(rest, '--webhook-journal-file'),
   };
 }
 
@@ -213,6 +220,8 @@ async function main(): Promise<number> {
     handlersDir: args.handlersDir,
     deterministic: args.deterministic ?? false,
     watch: args.watch ?? true,
+    allowWebhookUrlHeader: args.allowWebhookUrlHeader,
+    webhookJournalFile: args.webhookJournalFile,
     server: {
       host: args.host ?? '127.0.0.1',
       port: args.port ?? 3000,
@@ -264,9 +273,12 @@ function usage(): string {
     '  --host <host>               Bind host (default 127.0.0.1; env: MOCKSTAR_HOST)',
     '  --deterministic             Enable CI deterministic mode',
     '  --no-watch                  Disable file-watch hot reload',
+    '  --allow-webhook-url-header  Honour X-Mockstar-Webhook-Url request header (TN5; default off)',
+    '  --webhook-journal-file <p>  Append-only log of webhook deliveries for post-restart replay',
     '',
     'Env:',
-    '  MOCKSTAR_ADMIN_TOKEN        Root admin token (enables /metrics)',
+    '  MOCKSTAR_ADMIN_TOKEN                Root admin token (enables /metrics)',
+    '  MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER   Set to 1 to honour the header URL channel (B5)',
     '',
   ].join('\n') + '\n';
 }

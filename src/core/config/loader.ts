@@ -7,6 +7,7 @@ import { basename, resolve } from 'node:path';
 import type { HandlerRegistry } from '../handlers/index.ts';
 import { verifyHandlerReferences } from '../handlers/index.ts';
 import { compileEntryResponses, type CompiledResponse } from '../templating/compiler.ts';
+import { compileWebhookSpecs } from '../../features/webhooks/compile.ts';
 import { buildMatchIndex } from '../matching/index.ts';
 import { compileScenarioRules } from '../scenarios/evaluator.ts';
 import type { CompiledScenario } from '../scenarios/evaluator.ts';
@@ -97,12 +98,16 @@ export async function loadTenant(
     }
   }
 
+  // Compile webhook specs for each entry that declares them (RT-8, T7).
+  const compiledWebhooks = compileWebhookSpecs(entries);
+
   return Object.freeze({
     name,
     entries,
     matchIndex,
     compiledResponses,
     compiledScenarios,
+    compiledWebhooks,
     limits: tenantMeta.limits ?? TenantLimits.parse({}),
     adminToken: tenantMeta.adminToken,
     allowPrivateUpstreams: tenantMeta.allowPrivateUpstreams ?? false,

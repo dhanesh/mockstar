@@ -115,6 +115,60 @@ export const ScenarioRule = z.object({
   response: ScenarioResponse,
 }).strict();
 
+// -- Webhook spec (RT-8, T5, S1, S3, B5) --
+
+// Secret references must be `{{ env.NAME }}` or `file:/path` — inline strings rejected (S3).
+const SECRET_REF_RE = /^(\{\{\s*env\.[A-Z_][A-Z0-9_]*\s*\}\}|file:.+)$/;
+
+const WebhookSigning = z.object({
+  enabled: z.boolean().default(false),
+  algorithm: z.literal('sha256').default('sha256'),
+  // S3: secret-ref shape enforced here; inline strings produce a validation error at config-load.
+  secretRef: z.string().regex(SECRET_REF_RE, {
+    message: 'webhook signing.secretRef must be `{{ env.NAME }}` or `file:/path`; inline secrets rejected (S3)',
+  }),
+  signatureHeader: z.string().min(1).default('x-mockstar-signature'),
+  timestampHeader: z.string().min(1).default('x-mockstar-timestamp'),
+  replayWindowMs: z.number().int().positive().default(300_000),
+}).strict();
+
+const WebhookRetry = z.object({
+  attempts: z.number().int().min(1).max(20).default(6),
+  // T3 default: 6 attempts -> 5 backoff intervals between them. Total window ~31s with jitter.
+  // (m1's "63s window" assumed 6 intervals; corrected here during m4 implementation — see DECISIONS.md.)
+  backoff: z.array(z.number().int().nonnegative()).default([1000, 2000, 4000, 8000, 16000]),
+  jitterRatio: z.number().nonnegative().max(1).default(0.20),
+}).strict().refine(
+  (v) => v.backoff.length === v.attempts - 1,
+  (v) => ({ message: `webhook retry.backoff length must equal attempts-1 (${v.attempts - 1}); got ${v.backoff.length}` }),
+);
+
+const WebhookCircuit = z.object({
+  failureThreshold: z.number().int().positive().default(5),
+  cooldownMs: z.number().int().positive().default(30_000),
+}).strict();
+
+const WebhookExpect = z.object({
+  status: z.union([z.number().int().min(100).max(599), z.array(z.number().int().min(100).max(599))]).optional(),
+  body: z.unknown().optional(),
+}).strict();
+
+export const WebhookSpec = z.object({
+  id: z.string().min(1),
+  url: z.string().min(1),                                // template; rendered + validated per attempt (S2)
+  method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default('POST'),
+  body: z.unknown().optional(),                          // string template OR JSON tree with templated leaves
+  headers: z.record(z.string()).default({}),
+  retry: WebhookRetry.default({}),
+  signing: WebhookSigning.optional(),                    // S1: opt-in
+  circuit: WebhookCircuit.default({}),
+  expectResponse: WebhookExpect.optional(),
+  timeoutMs: z.number().int().positive().max(60_000).default(5_000),
+  allowHttp: z.boolean().default(false),                 // TN4
+  allowPrivateNetworks: z.boolean().default(false),      // TN4
+  acceptHeaderOverride: z.boolean().default(true),       // TN5: per-route opt-out (default true so server CLI flag is the gate)
+}).strict();
+
 // -- Full mock entry --
 
 export const MockEntry = z.object({
@@ -125,6 +179,11 @@ export const MockEntry = z.object({
   scenarios: z.array(ScenarioRule).max(
     50,
     'scenario ceiling is 50 rules per entry — split into multiple entries with different priority values to cover more cases',
+  ).optional(),
+  // Webhook side-effects fired post-response (T5, T4).
+  webhooks: z.array(WebhookSpec).max(
+    10,
+    'webhook ceiling is 10 specs per entry — split mocks if you need more outbound webhooks per request',
   ).optional(),
 }).strict().superRefine((entry, ctx) => {
   // TN1 resolution: dynamic/passthrough scenario responses must be self-contained because there is
@@ -190,3 +249,8 @@ export type TenancyModeT = z.infer<typeof TenancyMode>;
 export type ScenarioRuleT = z.infer<typeof ScenarioRule>;
 export type ScenarioPredicateT = z.infer<typeof ScenarioPredicate>;
 export type ScenarioResponseT = z.infer<typeof ScenarioResponse>;
+export type WebhookSpecT = z.infer<typeof WebhookSpec>;
+export type WebhookSigningT = z.infer<typeof WebhookSigning>;
+export type WebhookRetryT = z.infer<typeof WebhookRetry>;
+export type WebhookCircuitT = z.infer<typeof WebhookCircuit>;
+export type WebhookExpectT = z.infer<typeof WebhookExpect>;
