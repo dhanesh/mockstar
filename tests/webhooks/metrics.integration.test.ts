@@ -41,11 +41,10 @@ describe('O2 — Prometheus metrics for webhook delivery cycle', () => {
     expect(text).toMatch(/mockstar_webhook_delivery_total\{[^}]*outcome="success"[^}]*\}\s+1/);
     // Histogram for delivery latency — at least the bucket lines should exist after one observation.
     expect(text).toContain('mockstar_webhook_delivery_latency_us_bucket');
-    // Gauge for queue depth (RT-12) is emitted with a non-negative integer.
-    // NOTE: depth is sampled at enqueue, not refreshed on drain — gauge value lags reality
-    // until the next enqueue. Tightening this would need an onDrain hook in BoundedRetryQueue
-    // (tracked as a known limitation; not blocking).
-    expect(text).toMatch(/mockstar_webhook_queue_depth\{[^}]*tenant="default"[^}]*\}\s+\d+/);
+    // Gauge for queue depth (RT-12) is now refreshed on every state mutation (enqueue,
+    // task completion). After delivery completes, depth must be 0 — the gauge tracks
+    // reality, not the high-water mark.
+    expect(text).toMatch(/mockstar_webhook_queue_depth\{[^}]*tenant="default"[^}]*\}\s+0/);
   });
 
   test('failed delivery increments _delivery_total{outcome=failed} and surfaces circuit state gauge', async () => {

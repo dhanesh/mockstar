@@ -100,6 +100,10 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     if (!q) {
       q = new BoundedRetryQueue({
         onDropped: () => metrics.incCounter('mockstar_webhook_queue_dropped_total', { tenant }),
+        // Keep webhook_queue_depth gauge in sync with reality on every state mutation
+        // (enqueue +1, task completion -1) — fixes the previous lag where the gauge
+        // sampled only at enqueue and stuck at the high-water mark.
+        onSizeChange: (size) => metrics.setGauge('mockstar_webhook_queue_depth', { tenant }, size),
       });
       webhookQueues.set(tenant, q);
     }

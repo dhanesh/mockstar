@@ -147,4 +147,66 @@ describe('BoundedRetryQueue', () => {
     slow.resolve({ httpStatus: 200, durationUs: 1, resolvedUrl: 'x' });
     await Promise.all(captures.map((c) => c.onTerminal.promise));
   });
+
+  test('onSizeChange fires on enqueue (+1) AND on task completion (-1)', async () => {
+    // Validates the fix for the gauge-staleness limitation: depth should track
+    // size in real time, not stick at the high-water mark.
+    const sizes: number[] = [];
+    const q = new BoundedRetryQueue({
+      concurrency: 1,
+      cap: 4,
+      onSizeChange: (s) => sizes.push(s),
+    });
+    const cap = { onTerminal: Promise.withResolvers<unknown>() };
+    q.enqueue(makeDelivery('d1', async () => ({ httpStatus: 200, durationUs: 1, resolvedUrl: 'x' }), cap));
+    await cap.onTerminal.promise;
+    // Allow the .then handler to schedule (one extra tick).
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Sizes observed: at minimum, 1 (after enqueue+push) and 0 (after task completion).
+    expect(sizes).toContain(1);
+    expect(sizes).toContain(0);
+    // Last observed size should be 0 — queue is fully drained.
+    expect(sizes[sizes.length - 1]).toBe(0);
+  });
+
+  test('onSizeChange does NOT fire from drain itself (waiting→inflight is internal)', async () => {
+    const sizes: number[] = [];
+    const slow = Promise.withResolvers<{ httpStatus: number; durationUs: number; resolvedUrl: string }>();
+    const captures = ['a', 'b'].map(() => ({ onTerminal: Promise.withResolvers<unknown>() }));
+    const q = new BoundedRetryQueue({
+      concurrency: 1,
+      cap: 4,
+      onSizeChange: (s) => sizes.push(s),
+    });
+    q.enqueue(makeDelivery('a', () => slow.promise, captures[0]!));
+    q.enqueue(makeDelivery('b', () => slow.promise, captures[1]!));
+
+    // After 2 enqueues, exactly 2 size-up events are fired (1, 2) — no extra noise from drain.
+    expect(sizes).toEqual([1, 2]);
+
+    slow.resolve({ httpStatus: 200, durationUs: 1, resolvedUrl: 'x' });
+    await Promise.all(captures.map((c) => c.onTerminal.promise));
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Final state must be drained.
+    expect(sizes[sizes.length - 1]).toBe(0);
+  });
+
+  test('onSizeChange hook errors do not break delivery', async () => {
+    let calls = 0;
+    const q = new BoundedRetryQueue({
+      concurrency: 1,
+      cap: 4,
+      onSizeChange: () => {
+        calls += 1;
+        throw new Error('hook explode');
+      },
+    });
+    const cap = { onTerminal: Promise.withResolvers<unknown>() };
+    q.enqueue(makeDelivery('d1', async () => ({ httpStatus: 200, durationUs: 1, resolvedUrl: 'x' }), cap));
+    const summary = (await cap.onTerminal.promise) as { outcome: string };
+    expect(summary.outcome).toBe('success');
+    expect(calls).toBeGreaterThan(0);
+  });
 });

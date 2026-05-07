@@ -51,6 +51,13 @@ export interface BoundedRetryQueueOptions {
   cap: number;
   /** Counter increment hook — wired to Metrics.incCounter for observability (O2). */
   onDropped?: (dropped: QueuedDelivery) => void;
+  /**
+   * Fires AFTER every state mutation that could change `size()` — enqueue, drop,
+   * waiting→inflight transition, terminal completion. Receiver sees the post-mutation
+   * size. Used by the dispatcher to keep the `webhook_queue_depth` gauge in sync
+   * with reality (instead of sampling only at enqueue time).
+   */
+  onSizeChange?: (size: number) => void;
 }
 
 const DEFAULT_CONCURRENCY = 8;
@@ -78,11 +85,24 @@ export class BoundedRetryQueue {
   readonly #waiting: QueuedDelivery[] = [];
   readonly #cap: number;
   readonly #onDropped?: (dropped: QueuedDelivery) => void;
+  readonly #onSizeChange?: (size: number) => void;
 
   constructor(opts: Partial<BoundedRetryQueueOptions> = {}) {
     this.#pq = new PQueue({ concurrency: opts.concurrency ?? DEFAULT_CONCURRENCY });
     this.#cap = opts.cap ?? DEFAULT_CAP;
     this.#onDropped = opts.onDropped;
+    this.#onSizeChange = opts.onSizeChange;
+  }
+
+  /** Fire the size-change callback. Wrapped so we never throw from a hook. */
+  #fireSizeChange(): void {
+    if (!this.#onSizeChange) return;
+    try {
+      this.#onSizeChange(this.size());
+    } catch (err) {
+      // Hook failure must NOT break the delivery loop. Best-effort observability only.
+      console.warn(`[mockstar] onSizeChange hook threw: ${(err as Error).message ?? err}`);
+    }
   }
 
   /** Total deliveries occupying a slot (waiting + in-flight). */
@@ -109,23 +129,38 @@ export class BoundedRetryQueue {
     while (this.size() >= this.#cap) {
       const oldest = this.#waiting.shift();
       if (oldest) {
+        // Eviction: waiting--, then we'll re-loop or push, so a fire happens at
+        // the end either way. No need to fire mid-loop.
         this.#dropDelivery(oldest);
       } else {
         // All slots in-flight; cannot evict in-flight tasks — drop the incoming.
+        // Size is unchanged but the incoming delivery's terminal callback fired
+        // synchronously inside #dropDelivery. Skip onSizeChange — nothing changed.
         this.#dropDelivery(req);
         return;
       }
     }
     this.#waiting.push(req);
+    // Size definitely changed: +1 at minimum. (Eviction loop above kept us at-or-below cap.)
+    this.#fireSizeChange();
     this.#drain();
   }
 
+  /**
+   * Move waiting → in-flight up to the concurrency cap. Does NOT change total size
+   * (waiting decreases, in-flight increases by the same amount), so no onSizeChange
+   * is fired from drain itself — only from enqueue (size+1) and task completion (size-1).
+   */
   #drain(): void {
     while (this.#waiting.length > 0 && this.#pq.pending < this.#pq.concurrency) {
       const next = this.#waiting.shift();
       if (!next) break;
       // Fire-and-forget; #pq.add returns a Promise we don't need to await.
-      void this.#pq.add(() => this.#runWithRetry(next)).then(() => this.#drain());
+      void this.#pq.add(() => this.#runWithRetry(next)).then(() => {
+        // After the task settles, p-queue's `pending` has decremented — size went down.
+        this.#fireSizeChange();
+        this.#drain();
+      });
     }
   }
 

@@ -919,10 +919,27 @@
         "O2": "PARTIAL -> SATISFIED",
         "O4": "PARTIAL -> SATISFIED"
       },
-      "known_limitations": [
-        "webhook_queue_depth gauge is sampled at enqueue, not refreshed on drain — gauge value lags actual depth until the next enqueue. Tightening would need an onDrain hook in BoundedRetryQueue."
+      "known_limitations_resolved_in_iteration_9": [
+        "webhook_queue_depth gauge — was sampled at enqueue only, now tracked via BoundedRetryQueue.onSizeChange callback firing on every state mutation"
       ],
       "regression_check": "517 pass / 4 pre-existing examples/sdet-* failures unchanged",
+      "convergence_status": "CONVERGED"
+    },
+    {
+      "number": 9,
+      "phase": "iterate",
+      "timestamp": "2026-05-07T00:00:00Z",
+      "result": "Closed the iteration #8 known limitation. Added onSizeChange callback to BoundedRetryQueue (queue.ts) — fires after every size mutation (enqueue +1, task completion -1). Wired in server.ts queueForTenant to call metrics.setGauge directly. Removed the now-redundant setGauge call from dispatcher.ts. Tightened metrics.integration.test.ts to assert gauge ends at 0 after delivery completes (previously had to settle for `\\d+` because the gauge stuck at 1). Added 3 unit tests to queue.bounded.test.ts covering: enqueue+completion size transitions, drain-internal-not-fired, hook-throw-tolerance. Webhook test suite: 107 -> 110 pass; full project: 517 -> 520 pass; zero new regressions. webhook_queue_depth gauge now tracks reality.",
+      "files_modified": [
+        "src/features/webhooks/queue.ts",
+        "src/features/webhooks/dispatcher.ts",
+        "src/server.ts",
+        "tests/webhooks/queue.bounded.test.ts",
+        "tests/webhooks/metrics.integration.test.ts"
+      ],
+      "tests_added": 3,
+      "test_run": { "passed": 110, "failed": 0 },
+      "known_limitations_remaining": [],
       "convergence_status": "CONVERGED"
     }
   ],

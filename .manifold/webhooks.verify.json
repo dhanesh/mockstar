@@ -571,11 +571,11 @@
   "file_hashes": {
     "package.json": "e4f7386706cb594591445ebce5d1d48434a921ad4a68bb991d1886c63ae0f3d0",
     "src/features/webhooks/types.ts": "4b99e46b318a1c6d188b9e85d841424bcc07f61ff27a49e79eee7fabcbe8c2a2",
-    "src/features/webhooks/queue.ts": "46f3f70e54dd602a6bfe44ae92ae5d29b9e7154e75f02fdeac52c10e1465ea98",
+    "src/features/webhooks/queue.ts": "41a59f8525e03644857fd5bf5643e3c032988588b4827092bc6b5212ddc0ae08",
     "src/features/webhooks/circuit-breaker.ts": "a7bb77b879cadf132a6358314f6ddbae49363527abd6b26ac65ac81b70909652",
     "src/features/webhooks/event-registry.ts": "7bbbf7efef442fc4e7e160c810d71d7ea983b6f6200813b3f8cf14771e68c0bc",
     "src/features/webhooks/signing.ts": "cfb5d264cbbfbeb11e00616cd59a90769e22d597d6c3d192d5fa6b9dba10cb3c",
-    "src/features/webhooks/dispatcher.ts": "4f919dc7b475d58b1599a6aefdf07443c405a83ab78eafc087aa23e4eb6de172",
+    "src/features/webhooks/dispatcher.ts": "c54b6da2880e2f0e66c533ea5bfbf457285843d1997823a04d5c6416c56b1b6d",
     "src/features/webhooks/journal.ts": "b42e812e486947104d33ebcf6f116b5ef94667ac88c9346230c63701d713175c",
     "src/features/webhooks/compile.ts": "4b5293ee84415404505b192c2633a4b5a7793e537d4aab1c31e2fc4ce0034e61",
     "src/features/webhooks/index.ts": "fd716dfd6f48fa0414ca0e6b87782c235f972cc9cbc14dbc29f7e869871eb631",
@@ -586,9 +586,9 @@
     "src/core/observability/metrics.ts": "125b64d78c70127c9a22d72fdd5ec5bf231f002b273e36a2f3bb3d0148d45273",
     "src/cli.ts": "9f15e1bf66e5be8a1a0a779d5f903fe8ef81dd9e3971573f1f6a082a5bfb9e4d",
     "src/index.ts": "5f8810a220ab6da392128bee80de9b4e7d92d730006733ebcf331f1b13c20d0b",
-    "src/server.ts": "712b1131995d162ef97b207b95461cdf236d6a63e05b717ecf70d666596442f3",
+    "src/server.ts": "4d311a95ffde13935d180990c725d3cd906f12b20dadfe41ad7bea515d618a24",
     "src/features/admin/endpoints.ts": "306c6f6a2e7151c33f599ef367f513309a647fc8933114c3fc9e95760c76b481",
-    "tests/webhooks/queue.bounded.test.ts": "5d31ace8ce1e357eea27e38a27df480db1170d11a10de81d27bc92381003404a",
+    "tests/webhooks/queue.bounded.test.ts": "7d1b0d01db4e4f09505af839773be7f1edc1917686b06563fdcda6e9287facbb",
     "tests/webhooks/signing.test.ts": "ba30f3454c8244e011023ec80e0dad6c30d61bbdd917ca52f3e7914ffd18aa62",
     "tests/webhooks/circuit-breaker.test.ts": "1eb3e903ebfcdbfba6b4ead3caa9631b26a9772bbb8c52e58baf97df0259a5f1",
     "tests/webhooks/event-registry.test.ts": "415ea7f54ee9ac91fb78b34b585df4d2ac9efb8f14c023e2bc03779fade5be1a",
@@ -606,5 +606,5 @@
     "ops/dashboards/webhooks.json": "45881f48face950db9e44606cf858b6769b8f3181123d31ed7a073a6f77feed1",
     "ops/alerts/webhooks.yaml": "bee43a021d6f4791ebfa47b09906a94c25ae7e1a079684e4baf2c8e72e0fa768"
   },
-  "hashes_updated_at": "2026-05-07T13:04:59.101Z"
+  "hashes_updated_at": "2026-05-07T13:46:02.227Z"
 }

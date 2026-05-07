@@ -104,8 +104,9 @@ export function dispatchWebhooks(deps: DispatcherDeps, input: DispatcherTriggerI
     });
   }
 
-  // After enqueue, refresh the queue-depth gauge.
-  deps.metrics.setGauge('mockstar_webhook_queue_depth', { tenant: input.tenant }, queue.size());
+  // Note: webhook_queue_depth gauge is kept in sync via the queue's onSizeChange callback
+  // (wired in server.ts). The dispatcher used to call setGauge here directly, but the gauge
+  // would then stick at the post-enqueue value instead of decreasing as deliveries completed.
 
   return enqueued;
 }
