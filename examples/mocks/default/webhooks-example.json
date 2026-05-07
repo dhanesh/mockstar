@@ -1,0 +1,93 @@
+{
+  "mocks": [
+    {
+      "id": "create-order-with-webhook",
+      "match": { "method": "POST", "path": "/orders" },
+      "response": {
+        "kind": "static",
+        "status": 201,
+        "headers": { "content-type": "application/json" },
+        "body": {
+          "id": "{{id(\"ord_\", 12)}}",
+          "currency": "INR",
+          "amount": "{{request.body.amount}}",
+          "tenant": "{{tenant}}"
+        }
+      },
+      "webhooks": [
+        {
+          "id": "order-created",
+          "url": "http://127.0.0.1:9999/hooks/order-created",
+          "method": "POST",
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "event": "order.created",
+            "orderId": "{{request.body.orderId}}",
+            "tenant": "{{tenant}}",
+            "occurredAt": "{{now.iso}}"
+          },
+          "retry": { "attempts": 1, "backoff": [], "jitterRatio": 0 },
+          "timeoutMs": 500,
+          "allowHttp": true,
+          "allowPrivateNetworks": true
+        }
+      ]
+    },
+    {
+      "id": "update-payment-with-signed-webhook",
+      "match": { "method": "PATCH", "path": "/payments/:paymentId" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": { "id": "{{request.params.paymentId}}", "status": "captured" }
+      },
+      "webhooks": [
+        {
+          "id": "payment-captured",
+          "url": "http://127.0.0.1:9999/hooks/payment-captured",
+          "method": "POST",
+          "headers": { "content-type": "application/json" },
+          "body": {
+            "event": "payment.captured",
+            "paymentId": "{{request.params.paymentId}}",
+            "amount": "{{request.body.amount}}"
+          },
+          "signing": {
+            "enabled": true,
+            "algorithm": "sha256",
+            "secretRef": "{{ env.MOCKSTAR_DEMO_WEBHOOK_SECRET }}"
+          },
+          "retry": { "attempts": 1, "backoff": [], "jitterRatio": 0 },
+          "timeoutMs": 500,
+          "allowHttp": true,
+          "allowPrivateNetworks": true
+        }
+      ]
+    },
+    {
+      "id": "fan-out-with-receiver-assertion",
+      "match": { "method": "POST", "path": "/refunds" },
+      "response": {
+        "kind": "static",
+        "status": 202,
+        "headers": { "content-type": "application/json" },
+        "body": { "refundId": "{{id(\"rfd_\", 12)}}", "status": "pending" }
+      },
+      "webhooks": [
+        {
+          "id": "refund-created-strict",
+          "url": "http://127.0.0.1:9999/hooks/refund-created",
+          "method": "POST",
+          "headers": { "content-type": "application/json" },
+          "body": { "event": "refund.created", "refundId": "{{request.body.refundId}}" },
+          "expectResponse": { "status": [200, 202], "body": { "ack": true } },
+          "retry": { "attempts": 2, "backoff": [200], "jitterRatio": 0 },
+          "timeoutMs": 500,
+          "allowHttp": true,
+          "allowPrivateNetworks": true
+        }
+      ]
+    }
+  ]
+}

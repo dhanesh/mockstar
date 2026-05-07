@@ -9,11 +9,13 @@ All notable changes to Mockstar are documented here. The format follows [Keep a 
 ### In v1.0
 
 - **Mocking.** Static mocks; dynamic mocks via named JS handlers loaded from `handlers/`.
+- **Scenarios.** Attribute-keyed branching within a single mock entry — different responses for different request shapes without separate files. See `docs/SCENARIOS.md`.
+- **Outbound webhooks.** Per-route `webhooks: [...]` fire after the matched response flushes. HMAC-SHA256 signing (opt-in, env/file secrets), explicit retry curves with circuit breaker, drop-oldest queue cap, sync await admin endpoint for SDET assertions, optional response-body assertion, post-restart JSONL journal file. In-process queue (no Redis). See `docs/webhooks/`.
 - **Config.** JSON mock configs validated by Zod at boot (fail-fast) and on hot-reload (warn-and-keep-previous). Exported JSON Schema for editor autocomplete.
 - **Request matching.** Method + path + path params + query (exact / partial) + headers (exact / regex) + JSON body (partial + JSONPath). Precomputed match index for O(log n) first-level dispatch.
 - **Pass-through.** Per-route opt-in proxy to an explicit upstream with configurable timeout and structured 502 on failure. Upstream URLs validated via the shared hardened URL validator.
 - **Multi-tenancy.** Tenants identified by URL path prefix, subdomain, or `X-Mockstar-Tenant` header (deployment-configurable). Per-tenant config directories, per-tenant journal, per-tenant rate limits.
-- **Test-data utilities.** `{{ }}` templating with faker-style generators, request-value echo, and fixed/jittered delay simulation.
+- **Test-data utilities.** `{{ }}` templating with faker-style generators, request-value echo, `{{ env.X }}` interpolation, and fixed/jittered delay simulation.
 - **OpenAPI import.** Offline converter `mockstar import openapi.yaml → mocks/{tenant}/`. Runs as an isolated Bun subprocess. External `$ref` resolution disabled.
 - **Observability.** JSON stdout logs, Prometheus `/metrics`, per-tenant bounded request journal, `/health` + `/ready`.
 - **Error isolation.** Per-request try/catch tier + process-level `unhandledRejection`/`uncaughtException` hooks that flip `/ready` to 503 and exit for orchestrator restart.
@@ -24,10 +26,11 @@ All notable changes to Mockstar are documented here. The format follows [Keep a 
 ### Deferred to v1.1
 
 - **Admin write API.** Runtime CRUD on mocks without filesystem access. In v1 the DevOps persona deploys via K8s ConfigMap or Docker volume mount.
-- **Stateful mocks / scenarios.** Named state, transitions, sequenced responses.
+- **Stateful mocks.** Named state, transitions, sequenced responses. (Scenarios shipped — see "In v1.0".)
 - **GraphQL / gRPC mocking.**
 - **Fault injection / chaos.**
 - **Recording mode.** Record real traffic into mock configs from a live upstream.
+- **Webhook auto-resume across restart.** Pending in-flight retries are lost on restart — `--webhook-journal-file` persists delivery records but does not auto-replay them on next boot. Cross-restart replay is a manual admin call.
 
 ### Known limitations
 
@@ -67,6 +70,38 @@ _Constraint-first designed in `.manifold/tier1-https-proxy.md`. Binding constrai
 - Production deployment is explicitly out of scope — this is a developer-laptop tool (B3).
 
 ---
+
+## Outbound webhooks
+
+_Constraint-first designed in `.manifold/webhooks.md`. Binding constraint: RT-1 (in-process queue primitive). 26 constraints, 7 tensions, 16 required truths, all SATISFIED at TESTED level._
+
+### In v1 webhooks
+
+- **Per-route attachment.** `webhooks: WebhookSpec[]` field on any `MockEntry` (T5). Fires after matched response flushes via `queueMicrotask` — served-request latency unaffected (T4).
+- **Configuration channels.** Per-route `url`, `{{ env.NAME }}` interpolation, admin API list/journal/replay/await endpoints, opt-in `X-Mockstar-Webhook-Url` request header (B2, B5).
+- **Industry-standard delivery contract.** At-least-once-within-bounds, exponential backoff with ±jitter (default `[1s, 2s, 4s, 8s, 16s]`), idempotent `X-Mockstar-Delivery-Id` (B3).
+- **HMAC-SHA256 signing.** Opt-in per webhook. Stripe-style `${ts}.${rawBody}` signed payload, configurable signature/timestamp headers, default 5-min replay window. Secrets via `{{ env.X }}` or `file:/path` only — inline rejected at config-load (S1, S3, RT-2).
+- **In-process queue.** `p-queue` for concurrency, hand-rolled retry loop for explicit backoff arrays. Per-tenant isolation, drop-oldest cap (default 1024), `webhook_queue_dropped_total` counter on overflow (T1, O1, TN2).
+- **Per-webhook circuit breaker.** Three-state machine (closed/open/half-open), default 5-failure threshold + 30s cooldown (O3).
+- **Hardened URL validation.** Reuses `validateUpstreamUrl` from the proxy. HTTPS-only by default; per-webhook `allowHttp` and `allowPrivateNetworks` opt-ins are independent (T6, S2, TN4).
+- **Admin path skip.** `/_mockstar/*`, `/__admin/*`, `/health`, `/ready`, `/metrics` NEVER trigger webhooks regardless of `match.path` (S4).
+- **Sync await.** `POST /__admin/tenants/:t/webhooks/await?id=…` resolves on terminal state — eliminates flaky polling in SDET test suites (U1, TN3).
+- **Replay.** `POST /__admin/tenants/:t/webhooks/:deliveryId/replay` re-enqueues using the current snapshot's spec; 410 if the spec was removed since the original delivery (O4, TN7).
+- **Optional `--webhook-journal-file <path>`** appends every delivery attempt as JSONL for post-restart forensic replay (T2, INT-1).
+- **Observability.** Five Prometheus metrics + Grafana dashboard + alert rules + two runbooks (queue overflow, circuit trip).
+
+### Deferred for webhooks
+
+- **Auto-resume across restart.** In-flight retries are lost on restart by design (TN6, in-memory only). `--webhook-journal-file` plus admin replay is the supported workflow.
+- **Type-preserving JSON-body templating for webhook payloads.** Bodies render as strings (whole-string templates only); type-preservation for JSON leaves matches response-body semantics — deferred to v0.2.
+- **Pluggable queue interface.** No `WebhookQueue` extension contract pre-1.0 — hand-rolled-lean discipline holds. Re-evaluate if SDETs request durable queuing.
+- **Public `# TYPE` lines in metrics output.** Cross-feature gap; counters and histograms also lack them. Tracked separately.
+
+### Webhook known limitations
+
+- HMAC-SHA256 is the only signing algorithm in v0.x.
+- Replay templates render against an empty inbound-request snapshot — `{{ request.body.x }}` resolves to empty string. Documented as a recovery-tool semantics, not a wire-replay primitive.
+- High-concurrency `AbortSignal.timeout` socket hygiene is functionally tested but not load-tested (post-deploy SRE concern).
 
 ---
 

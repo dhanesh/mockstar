@@ -1,31 +1,16 @@
 {
   "verification": {
     "feature": "webhooks",
-    "timestamp": "2026-05-06T09:49:27Z",
+    "timestamp": "2026-05-07T00:00:00Z",
+    "iteration": 10,
+    "flags": [
+      "--run-tests",
+      "--verify-evidence"
+    ],
     "result": "SATISFIED",
     "convergence": "CONVERGED",
     "phase_after_verify": "VERIFIED",
     "phase_promotion_blocked_reason": null,
-    "blocking_gaps_closed": [
-      {
-        "id": "G1",
-        "constraint": "T4",
-        "closed_by": "tests/webhooks/latency-isolation.test.ts",
-        "closed_at": "2026-05-07"
-      },
-      {
-        "id": "G2",
-        "constraint": "T9",
-        "closed_by": "tests/webhooks/snapshot-binding.test.ts",
-        "closed_at": "2026-05-07"
-      },
-      {
-        "id": "G3",
-        "constraint": "U3",
-        "closed_by": "tests/webhooks/secret-redaction.test.ts",
-        "closed_at": "2026-05-07"
-      }
-    ],
     "linking_check": {
       "constraints_linked": "26/26",
       "tensions_linked": "7/7",
@@ -39,15 +24,125 @@
     },
     "test_execution": {
       "ran_at": "2026-05-07T00:00:00Z",
-      "test_files": 10,
-      "tests_passed": 73,
+      "test_files": 20,
+      "tests_passed": 110,
       "tests_failed": 0,
       "regression_check_full_suite": {
-        "passed": 483,
+        "passed": 520,
         "failed": 4,
         "errors": 4,
         "all_failures_pre_existing": true,
-        "note": "All 4 failures and 4 errors are pre-existing 'Cannot find package mockstar' from examples/sdet-* directories that link to dist/ (which isn't built in test env). Unrelated to webhooks."
+        "note": "4 failures + 4 errors are pre-existing examples/sdet-* package-resolution issues unrelated to webhooks."
+      }
+    },
+    "evidence_verification": {
+      "method": "Walked each RT.evidence[] array. file_exists -> bash test -f. content_match -> grep -l. test_passes -> bun test ran (--run-tests). manual_review -> retained PENDING with documented out-of-scope rationale.",
+      "summary": {
+        "total_evidence_items": 30,
+        "verified": 28,
+        "pending_intentional": 2,
+        "pending_blocking": 0,
+        "failed": 0
+      },
+      "by_rt": {
+        "RT-1": {
+          "items": 4,
+          "verified": 4,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-2": {
+          "items": 2,
+          "verified": 2,
+          "pending": 0,
+          "level": "IMPLEMENTED"
+        },
+        "RT-3": {
+          "items": 3,
+          "verified": 3,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-4": {
+          "items": 2,
+          "verified": 2,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-5": {
+          "items": 3,
+          "verified": 3,
+          "pending": 0,
+          "level": "IMPLEMENTED"
+        },
+        "RT-6": {
+          "items": 2,
+          "verified": 2,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-7": {
+          "items": 1,
+          "verified": 1,
+          "pending": 0,
+          "level": "DOCUMENTED"
+        },
+        "RT-8": {
+          "items": 3,
+          "verified": 3,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-9": {
+          "items": 2,
+          "verified": 2,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-10": {
+          "items": 2,
+          "verified": 2,
+          "pending": 0,
+          "level": "IMPLEMENTED"
+        },
+        "RT-11": {
+          "items": 2,
+          "verified": 2,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-12": {
+          "items": 3,
+          "verified": 2,
+          "pending": 1,
+          "level": "TESTED",
+          "pending_note": "E12.2 # TYPE.*gauge — cross-feature codebase gap, not webhook-specific"
+        },
+        "RT-13": {
+          "items": 4,
+          "verified": 4,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-14": {
+          "items": 2,
+          "verified": 2,
+          "pending": 0,
+          "level": "TESTED"
+        },
+        "RT-15": {
+          "items": 1,
+          "verified": 1,
+          "pending": 0,
+          "level": "IMPLEMENTED"
+        },
+        "RT-16": {
+          "items": 2,
+          "verified": 1,
+          "pending": 1,
+          "level": "TESTED",
+          "pending_note": "E16.2 manual_review — high-concurrency load is post-deploy SRE territory"
+        }
       }
     },
     "binding_constraint_check": {
@@ -55,7 +150,7 @@
       "rt_status": "SATISFIED",
       "queue_module_exists": true,
       "queue_tests_pass": true,
-      "verdict": "BINDING CONSTRAINT CLOSED — RT-1 BoundedRetryQueue ships with 100% line coverage (queue.ts) and 6 passing unit tests that exercise depth cap, drop-oldest, retry ladder, circuit-gate short-circuit, and size accounting."
+      "verdict": "BINDING CONSTRAINT CLOSED — RT-1 BoundedRetryQueue ships with 100% line coverage on queue.ts and 9 passing unit tests covering depth cap, drop-oldest, retry ladder, circuit-gate short-circuit, size accounting, onSizeChange transitions (added in iteration #9), and hook-throw tolerance."
     },
     "matrix": [
       {
@@ -65,8 +160,7 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "queue.ts uses p-queue only; tests run without any external broker; DECISIONS.md and SECURITY.md document the no-Redis posture"
+        "status": "SATISFIED"
       },
       {
         "constraint": "B2",
@@ -75,8 +169,7 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "dispatcher.ts handles 4 channels (per-route, env-template, header, env-var); schema.test + admin-skip.test cover behavior; README documents precedence"
+        "status": "SATISFIED"
       },
       {
         "constraint": "B3",
@@ -85,30 +178,25 @@
         "test": true,
         "docs": true,
         "ops": true,
-        "status": "SATISFIED",
-        "evidence": "signing.ts + queue retry + idempotency-id header; signing.test (8 cases); README + SECURITY.md; alerts on failure-rate"
+        "status": "SATISFIED"
       },
       {
         "constraint": "B4",
         "type": "goal",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": false,
-        "status": "PARTIAL",
-        "gap": "No dedicated test exercising library embed path (launch + webhook config) without env vars; relies on architectural review",
-        "action": "Add tests/webhooks/sdet-embed.test.ts that calls launch({mocksDir, allowWebhookUrlHeader: false}) and confirms a webhook config compiles cleanly without any MOCKSTAR_* env"
+        "status": "SATISFIED"
       },
       {
         "constraint": "B5",
         "type": "boundary",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": false,
-        "status": "PARTIAL",
-        "gap": "Server CLI flag and per-route opt-out have unit-level evidence (parseArgs + dispatcher gate) but no HTTP-level integration test confirming the full header-URL flow under both flag states",
-        "action": "Add tests/webhooks/header-channel.integration.test.ts: launch with allowWebhookUrlHeader on/off, send X-Mockstar-Webhook-Url, assert configured-url-vs-header-url is honoured per flag"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T1",
@@ -117,19 +205,16 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "queue.ts wraps p-queue (in-process only); package.json adds only p-queue (no Redis client)"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T2",
         "type": "boundary",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": true,
-        "status": "PARTIAL",
-        "gap": "In-memory-only is implemented but no test asserts that restart loses pending retries (the documented restart contract). --webhook-journal-file flag is parsed but not wired into the dispatcher",
-        "action": "Two follow-ups: (1) tests/webhooks/restart-loses-queue.test.ts asserting queue is empty after fresh launch; (2) m6: wire --webhook-journal-file path into journal.ts append-on-record"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T3",
@@ -138,8 +223,7 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "queue.ts retry loop with explicit ladder; queue.bounded.test 'retries with explicit backoff ladder' assertion (T3); schema.test asserts default and refine"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T4",
@@ -148,20 +232,16 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "queueMicrotask wiring in server.ts:158; tests/webhooks/latency-isolation.test.ts (2 cases: 20-iter median delta < 5ms, journal-not-yet-written-at-flush-time)",
-        "_gap_closed": "G1 closed 2026-05-07"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T5",
         "type": "goal",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": false,
-        "status": "PARTIAL",
-        "gap": "Per-route trigger surface (mocks + passthrough) has schema-level evidence; no full HTTP-flow integration test confirming static, dynamic, AND passthrough kinds all fire webhooks",
-        "action": "Add tests/webhooks/trigger-surface.integration.test.ts covering all three response.kind values with attached webhooks"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T6",
@@ -170,30 +250,25 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "url-validator.ts:35 reused; url-validation.test (10 cases) covers HTTPS-only default + per-flag relaxation independence"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T7",
         "type": "goal",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": false,
-        "status": "PARTIAL",
-        "gap": "compile.ts pre-compiles webhook templates; env-namespace addition tested indirectly via signing.test (resolveSecret). No dedicated test renders a webhook URL/body template with {{ request.body.x }} or {{ env.X }}",
-        "action": "Add tests/webhooks/templating.test.ts: render compiled URL + body templates against a TemplateContext, assert request reflection and env interpolation"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T8",
         "type": "boundary",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": true,
-        "status": "PARTIAL",
-        "gap": "Per-attempt timeout via AbortSignal.timeout is in dispatcher.ts:performAttempt (RT-16 NOT_SATISFIED). No test confirms timeout fires + classifies as transient failure under concurrent load",
-        "action": "Add tests/webhooks/timeout.test.ts: receiver hangs 10s, webhook timeoutMs:100, assert attempt fails fast and retries fire on the configured backoff ladder"
+        "status": "SATISFIED"
       },
       {
         "constraint": "T9",
@@ -202,9 +277,7 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "snapshot.ts:32-49 ref-stability comment; tests/webhooks/snapshot-binding.test.ts (4 cases: ref survives swap, frozen captured ref, multi-snapshot per-closure isolation, TN6 doc)",
-        "_gap_closed": "G2 closed 2026-05-07"
+        "status": "SATISFIED"
       },
       {
         "constraint": "U1",
@@ -213,19 +286,16 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "event-registry.ts + admin endpoint /webhooks/await; event-registry.test covers publish/await/late-subscriber/timeout/all-4-outcomes (6 cases)"
+        "status": "SATISFIED"
       },
       {
         "constraint": "U2",
         "type": "goal",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": false,
-        "status": "PARTIAL",
-        "gap": "expectResponse field accepted by schema and consumed in dispatcher.performAttempt + matchesExpectedBody. No test exercises status-mismatch -> retry and body-mismatch -> retry flow",
-        "action": "Add tests/webhooks/expect-response.test.ts: receiver returns 200 but mismatched body, assert delivery retries until exhausted then journals 'failed'"
+        "status": "SATISFIED"
       },
       {
         "constraint": "U3",
@@ -234,20 +304,16 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "admin/endpoints.ts redacts signing to {enabled, algorithm}; tests/webhooks/secret-redaction.test.ts (4 cases: no secret value/template/substring leak, shape-only signing, sanity-check non-sensitive fields, unauthenticated 401/403)",
-        "_gap_closed": "G3 closed 2026-05-07"
+        "status": "SATISFIED"
       },
       {
         "constraint": "U4",
         "type": "goal",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": true,
-        "status": "PARTIAL",
-        "gap": "WebhookJournalRegistry exists and is wired into dispatcher.recordAttempt. No dedicated unit test for record/snapshot/findLatestByDeliveryId; coverage is indirect via admin-skip.test",
-        "action": "Add tests/webhooks/journal.test.ts: write 1024 entries, assert ring buffer eviction; lookup by deliveryId returns latest attempt"
+        "status": "SATISFIED"
       },
       {
         "constraint": "S1",
@@ -256,8 +322,7 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "signing.ts (sign + verify); signing.test (8 cases) covers determinism + secret-difference + timestamp-difference + roundtrip + tamper-detect + length/format edge cases"
+        "status": "SATISFIED"
       },
       {
         "constraint": "S2",
@@ -266,8 +331,7 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "dispatcher.performAttempt re-runs validateUpstreamUrl every attempt; url-validation.test (10 cases) covers all combinations of scheme + private-network flags"
+        "status": "SATISFIED"
       },
       {
         "constraint": "S3",
@@ -276,8 +340,7 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "schema.ts SECRET_REF_RE Zod refine; resolveSecret() runtime check; signing.test (4 cases) + schema.test 'rejects inline string'"
+        "status": "SATISFIED"
       },
       {
         "constraint": "S4",
@@ -286,8 +349,7 @@
         "test": true,
         "docs": true,
         "ops": false,
-        "status": "SATISFIED",
-        "evidence": "dispatcher.ts ADMIN_PATH_PREFIXES skip-list; admin-skip.test parametrised across 7 admin paths plus negative cases"
+        "status": "SATISFIED"
       },
       {
         "constraint": "O1",
@@ -296,19 +358,16 @@
         "test": true,
         "docs": true,
         "ops": true,
-        "status": "SATISFIED",
-        "evidence": "queue.ts depth cap with drop-oldest; queue.bounded.test 'on cap overflow drops OLDEST'; alert WebhookQueueDepthApproachingCap + WebhookQueueDroppingDeliveries; runbook webhook-queue-overflow.md"
+        "status": "SATISFIED"
       },
       {
         "constraint": "O2",
         "type": "goal",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": true,
-        "status": "PARTIAL",
-        "gap": "Metrics module gained setGauge; dispatcher emits all five metric families. No dedicated test confirms /metrics endpoint output contains the expected metric names + labels for a delivery cycle. Also, no `# TYPE` lines are emitted (codebase-wide gap, not webhook-specific)",
-        "action": "Add tests/webhooks/metrics.integration.test.ts: launch + trigger one delivery cycle, scrape /metrics, assert presence of webhook_delivery_total / webhook_queue_depth / webhook_circuit_state. Separately, add `# TYPE` line emission to format() (cross-feature improvement)"
+        "status": "SATISFIED"
       },
       {
         "constraint": "O3",
@@ -317,19 +376,16 @@
         "test": true,
         "docs": true,
         "ops": true,
-        "status": "SATISFIED",
-        "evidence": "circuit-breaker.ts state machine; circuit-breaker.test (7 cases) covers all transitions; alert WebhookCircuitStuckOpen; runbook webhook-circuit-trip.md"
+        "status": "SATISFIED"
       },
       {
         "constraint": "O4",
         "type": "goal",
         "code": true,
-        "test": false,
+        "test": true,
         "docs": true,
         "ops": false,
-        "status": "PARTIAL",
-        "gap": "Admin endpoints landed (list, journal, await, replay). Replay endpoint returns 202 with replayQueued:false — actual re-enqueue not yet wired (m6 task per generation.discovered_changes). Other endpoints lack HTTP-level tests",
-        "action": "m6: add replay() method to BoundedRetryQueue and call it from the replay endpoint; m5 follow-up: tests/webhooks/admin-endpoints.integration.test.ts covering all four admin paths"
+        "status": "SATISFIED"
       }
     ],
     "coverage": {
@@ -371,180 +427,181 @@
         }
       }
     },
-    "gaps_closed": [
-      {
-        "id": "G1",
-        "constraint": "T4",
-        "closed_by": "tests/webhooks/latency-isolation.test.ts",
-        "closed_at": "2026-05-07"
-      },
-      {
-        "id": "G2",
-        "constraint": "T9",
-        "closed_by": "tests/webhooks/snapshot-binding.test.ts",
-        "closed_at": "2026-05-07"
-      },
-      {
-        "id": "G3",
-        "constraint": "U3",
-        "closed_by": "tests/webhooks/secret-redaction.test.ts",
-        "closed_at": "2026-05-07"
-      }
-    ],
-    "gaps": [
-      {
-        "id": "G4",
-        "constraint": "T8",
-        "severity": "non-blocking",
-        "issue": "BOUNDARY has implementation (AbortSignal.timeout) but no test (RT-16 NOT_SATISFIED)",
-        "action": "Add tests/webhooks/timeout.test.ts with a hanging receiver"
-      },
-      {
-        "id": "G5",
-        "constraint": "B5",
-        "severity": "non-blocking",
-        "issue": "BOUNDARY tested at unit level (parseArgs + dispatcher gate); no end-to-end HTTP test for the header URL flow",
-        "action": "Add tests/webhooks/header-channel.integration.test.ts"
-      },
-      {
-        "id": "G6",
-        "constraint": "T2",
-        "severity": "non-blocking",
-        "issue": "BOUNDARY documented; --webhook-journal-file flag parsed but not wired through to journal.ts",
-        "action": "(m6) wire --webhook-journal-file into WebhookJournalRegistry; add tests/webhooks/restart-loses-queue.test.ts"
-      },
-      {
-        "id": "G7",
-        "constraint": "O4",
-        "severity": "non-blocking",
-        "issue": "GOAL — replay endpoint stubs out actual re-enqueue (returns replayQueued:false)",
-        "action": "(m6) add BoundedRetryQueue.replay(deliveryId, originalConfig) method; integrate at admin endpoint"
-      },
-      {
-        "id": "G8",
-        "constraint": "RT-8",
-        "severity": "non-blocking",
-        "issue": "schema/mock.json (JSON schema mirror) not regenerated for the webhooks field",
-        "action": "(m6) run zod-to-json-schema and commit updated schema/mock.json"
-      },
-      {
-        "id": "G9",
-        "constraint": "U4",
-        "severity": "non-blocking",
-        "issue": "GOAL — no dedicated journal unit test (covered indirectly by admin-skip tests)",
-        "action": "Add tests/webhooks/journal.test.ts"
-      },
-      {
-        "id": "G10",
-        "constraint": "O2",
-        "severity": "non-blocking",
-        "issue": "GOAL — no end-to-end /metrics scrape test for webhook metrics; codebase-wide: # TYPE lines absent",
-        "action": "Add tests/webhooks/metrics.integration.test.ts; separately add # TYPE emission in metrics.ts.format() (cross-feature)"
-      },
-      {
-        "id": "G11",
-        "constraint": "B4",
-        "severity": "non-blocking",
-        "issue": "GOAL — no explicit test of zero-config SDET embed with webhook config",
-        "action": "Add tests/webhooks/sdet-embed.test.ts"
-      },
-      {
-        "id": "G12",
-        "constraint": "T5",
-        "severity": "non-blocking",
-        "issue": "GOAL — no integration test covering webhook trigger across all three response.kind values",
-        "action": "Add tests/webhooks/trigger-surface.integration.test.ts"
-      },
-      {
-        "id": "G13",
-        "constraint": "T7",
-        "severity": "non-blocking",
-        "issue": "GOAL — env namespace tested via signing; no dedicated webhook-templating test for {{ request.body.x }} reflection",
-        "action": "Add tests/webhooks/templating.test.ts"
-      },
-      {
-        "id": "G14",
-        "constraint": "U2",
-        "severity": "non-blocking",
-        "issue": "GOAL — expectResponse runtime behavior untested",
-        "action": "Add tests/webhooks/expect-response.test.ts"
-      }
-    ],
-    "blocking_gap_count": 0,
-    "non_blocking_gap_count": 11,
     "satisfaction_levels": {
-      "method": "Computed by propagating evidence from required_truths via maps_to mappings",
+      "method": "RT.evidence -> RT.maps_to -> Constraint. For each constraint, take highest level reachable via any mapped RT. PENDING evidence in propagation graph caps the level at TESTED (cannot reach VERIFIED unless propagation graph has zero PENDING items).",
       "by_constraint": {
         "B1": "TESTED",
         "B2": "TESTED",
         "B3": "TESTED",
-        "B4": "IMPLEMENTED",
-        "B5": "IMPLEMENTED",
+        "B4": "TESTED",
+        "B5": "TESTED",
         "T1": "TESTED",
-        "T2": "DOCUMENTED",
+        "T2": "TESTED",
         "T3": "TESTED",
         "T4": "TESTED",
-        "T5": "IMPLEMENTED",
+        "T5": "TESTED",
         "T6": "TESTED",
-        "T7": "IMPLEMENTED",
-        "T8": "IMPLEMENTED",
+        "T7": "TESTED",
+        "T8": "TESTED",
         "T9": "TESTED",
         "U1": "TESTED",
-        "U2": "IMPLEMENTED",
+        "U2": "TESTED",
         "U3": "TESTED",
-        "U4": "IMPLEMENTED",
+        "U4": "TESTED",
         "S1": "TESTED",
         "S2": "TESTED",
         "S3": "TESTED",
         "S4": "TESTED",
         "O1": "TESTED",
-        "O2": "IMPLEMENTED",
+        "O2": "TESTED",
         "O3": "TESTED",
-        "O4": "IMPLEMENTED"
+        "O4": "TESTED"
       },
       "summary": {
-        "DOCUMENTED": 1,
-        "IMPLEMENTED": 10,
-        "TESTED": 15,
-        "VERIFIED": 0
-      },
-      "note": "VERIFIED level requires test_passes evidence to be all VERIFIED status AND no PENDING evidence. Several tests exist but several test_passes evidence items are still PENDING (per webhooks.json E6.2, E8.2, E9.2, E11.2, E13.2, E16.1, E16.2, E12.2). Promotion to VERIFIED level requires those evidence items to flip to VERIFIED status, which means writing the missing tests AND running them. See gaps G1-G14."
+        "DOCUMENTED": 0,
+        "IMPLEMENTED": 0,
+        "TESTED": 26,
+        "VERIFIED": 0,
+        "note": "26/26 constraints at TESTED level. None reach VERIFIED because the propagation graph contains 2 PENDING evidence items: E12.2 (cross-feature `# TYPE` Prometheus lines) and E16.2 (manual high-concurrency review). Both are intentional out-of-scope items, not blockers."
+      }
+    },
+    "blocking_gap_count": 0,
+    "non_blocking_gap_count": 0,
+    "gaps": [],
+    "gaps_closed_history": {
+      "iteration_5_blocking": [
+        {
+          "id": "G1",
+          "constraint": "T4",
+          "closed_in_iteration": 6,
+          "closed_by": "tests/webhooks/latency-isolation.test.ts"
+        },
+        {
+          "id": "G2",
+          "constraint": "T9",
+          "closed_in_iteration": 6,
+          "closed_by": "tests/webhooks/snapshot-binding.test.ts"
+        },
+        {
+          "id": "G3",
+          "constraint": "U3",
+          "closed_in_iteration": 6,
+          "closed_by": "tests/webhooks/secret-redaction.test.ts"
+        }
+      ],
+      "iteration_5_non_blocking": [
+        {
+          "id": "G4",
+          "constraint": "T8",
+          "closed_in_iteration": 8,
+          "closed_by": "tests/webhooks/timeout.test.ts"
+        },
+        {
+          "id": "G5",
+          "constraint": "B5",
+          "closed_in_iteration": 8,
+          "closed_by": "tests/webhooks/header-channel.integration.test.ts"
+        },
+        {
+          "id": "G6",
+          "constraint": "T2",
+          "closed_in_iteration": 7,
+          "closed_by": "INT-1 wiring + journal-file.test.ts"
+        },
+        {
+          "id": "G7",
+          "constraint": "O4",
+          "closed_in_iteration": 7,
+          "closed_by": "INT-2 wiring + replay.test.ts"
+        },
+        {
+          "id": "G8",
+          "constraint": "RT-8",
+          "closed_in_iteration": 7,
+          "closed_by": "INT-3: scripts/generate-schema.ts ran"
+        },
+        {
+          "id": "G9",
+          "constraint": "U4",
+          "closed_in_iteration": 8,
+          "closed_by": "tests/webhooks/journal.test.ts"
+        },
+        {
+          "id": "G10",
+          "constraint": "O2",
+          "closed_in_iteration": 8,
+          "closed_by": "tests/webhooks/metrics.integration.test.ts (gauge tightened in iteration 9)"
+        },
+        {
+          "id": "G11",
+          "constraint": "B4",
+          "closed_in_iteration": 8,
+          "closed_by": "tests/webhooks/sdet-embed.test.ts"
+        },
+        {
+          "id": "G12",
+          "constraint": "T5",
+          "closed_in_iteration": 8,
+          "closed_by": "tests/webhooks/trigger-surface.integration.test.ts"
+        },
+        {
+          "id": "G13",
+          "constraint": "T7",
+          "closed_in_iteration": 8,
+          "closed_by": "tests/webhooks/templating.test.ts"
+        },
+        {
+          "id": "G14",
+          "constraint": "U2",
+          "closed_in_iteration": 8,
+          "closed_by": "tests/webhooks/expect-response.test.ts"
+        }
+      ],
+      "iteration_8_known_limitation": [
+        {
+          "id": "L1",
+          "constraint": "O2",
+          "issue": "webhook_queue_depth gauge stale",
+          "closed_in_iteration": 9,
+          "closed_by": "BoundedRetryQueue.onSizeChange callback"
+        }
+      ]
     },
     "tension_validation_status": {
       "TN1": {
         "status": "CONFIRMED",
-        "by_artifact": "schema.ts (per-webhook retry override), queue.ts (custom backoff array)"
+        "by_artifact": "schema.ts WebhookRetry override + queue.ts custom backoff"
       },
       "TN2": {
         "status": "CONFIRMED",
-        "by_artifact": "queue.ts onTerminal('dropped') + admin-skip.test verifies drop-resolves-not-rejects"
+        "by_artifact": "queue.ts onTerminal('dropped') + queue.bounded.test 'drops resolve via onTerminal'"
       },
       "TN3": {
         "status": "CONFIRMED",
-        "by_artifact": "event-registry.ts is a separate request lifecycle from server.ts dispatch"
+        "by_artifact": "event-registry.ts on a separate request lifecycle from server.ts dispatch"
       },
       "TN4": {
         "status": "CONFIRMED",
-        "by_artifact": "schema.ts has independent allowHttp + allowPrivateNetworks; url-validation.test asserts independence"
+        "by_artifact": "schema.ts independent allowHttp + allowPrivateNetworks + url-validation.test asserts independence"
       },
       "TN5": {
         "status": "CONFIRMED",
-        "by_artifact": "cli.ts adds --allow-webhook-url-header; schema.ts has acceptHeaderOverride; dispatcher.ts gates on both"
+        "by_artifact": "cli.ts --allow-webhook-url-header flag + schema.ts acceptHeaderOverride + dispatcher.ts gates + header-channel.integration.test"
       },
       "TN6": {
         "status": "CONFIRMED",
-        "by_artifact": "snapshot.ts ref-stable; queue.ts in-memory; DECISIONS.md documents process-lifetime bound"
+        "by_artifact": "snapshot.ts ref-stable + queue.ts in-memory + snapshot-binding.test + DECISIONS.md"
       },
       "TN7": {
         "status": "CONFIRMED",
-        "by_artifact": "admin endpoints.ts replay returns 404 delivery_not_in_journal when entry evicted"
+        "by_artifact": "admin endpoints.ts replay 410 path + journal.test 'evicted returns null'"
       }
     },
     "genealogy_check": {
       "invariants_with_assumption_challenger": [],
       "constraints_with_assumption_source_unconfirmed": [],
       "regulation_constraints_traded_off_in_tensions": [],
-      "verdict": "PASSED — no assumption-tagged INVARIANTs; all regulation-tagged constraints (S2, S3, U3) preserved through tension resolution"
+      "verdict": "PASSED — no assumption-tagged INVARIANTs; all regulation-tagged constraints (S2, S3, U3) preserved through tension resolution."
     },
     "binding_constraint_propagation": {
       "rt": "RT-1",
@@ -558,14 +615,34 @@
         "RT-4": "SATISFIED",
         "RT-14": "SATISFIED",
         "RT-6": "SATISFIED",
-        "RT-11": "PARTIAL"
+        "RT-11": "SATISFIED"
       },
-      "verdict": "BINDING CHAIN MOSTLY CLOSED — RT-1's closure successfully unblocked RT-4 (circuit-breaker.ts), RT-14 (event-registry.ts), and RT-6 (snapshot.ts review). RT-11 is PARTIAL only because the dedicated webhook-journal unit test is missing (G9), not because the implementation is incomplete."
+      "verdict": "BINDING CHAIN FULLY CLOSED — every downstream RT is now SATISFIED with VERIFIED evidence."
     },
+    "intentional_out_of_scope_pendings": [
+      {
+        "evidence_id": "E12.2",
+        "rt": "RT-12",
+        "constraint_indirectly_affected": "O2",
+        "issue": "Prometheus `# TYPE <name> gauge` lines not emitted by metrics.ts format()",
+        "scope": "cross-feature",
+        "rationale": "Existing format() does NOT emit `# TYPE` lines for any metric (counters and histograms also lack them). Adding them is a codebase-wide improvement that should not be smuggled into a webhook PR. Metric values themselves are correct and scrapeable; this is metadata polish.",
+        "follow_up": "Open a separate ticket: `metrics: emit # TYPE lines for counters, gauges, histograms`."
+      },
+      {
+        "evidence_id": "E16.2",
+        "rt": "RT-16",
+        "constraint_indirectly_affected": "T8",
+        "issue": "manual_review for Bun fetch + AbortSignal.timeout under HIGH concurrent load (no leaked sockets, hung handles)",
+        "scope": "post-deploy SRE",
+        "rationale": "Functional behaviour is verified by tests/webhooks/timeout.test.ts (E16.1 VERIFIED). The remaining concern is sustained-load behaviour — leaked sockets and hung handles only manifest under thousands of concurrent timeouts, which is the SRE / load-testing domain.",
+        "follow_up": "Cover via the project's k6 / vegeta benchmark suite or live monitoring once deployed."
+      }
+    ],
     "recommended_next_steps": [
-      "Capture drift baseline with `manifold drift webhooks --update` to lock in current file hashes.",
-      "/manifold:m6-integrate webhooks — wire the m6 follow-ups: --webhook-journal-file path through journal.ts, BoundedRetryQueue.replay() method, schema/mock.json regeneration via zod-to-json-schema.",
-      "Non-blocking gaps (G4-G14) — 11 follow-up tests/integrations covering remaining BOUNDARY and GOAL constraints. Suitable for a hardening sprint."
+      "Open separate tickets for the two intentional out-of-scope items (cross-feature `# TYPE` lines, post-deploy load test).",
+      "Recapture drift baseline with `manifold drift webhooks --update`.",
+      "Push the branch and open a PR — convergence reached, all blocking and non-blocking gaps closed within scope."
     ]
   },
   "file_hashes": {
@@ -606,5 +683,5 @@
     "ops/dashboards/webhooks.json": "45881f48face950db9e44606cf858b6769b8f3181123d31ed7a073a6f77feed1",
     "ops/alerts/webhooks.yaml": "bee43a021d6f4791ebfa47b09906a94c25ae7e1a079684e4baf2c8e72e0fa768"
   },
-  "hashes_updated_at": "2026-05-07T13:46:02.227Z"
+  "hashes_updated_at": "2026-05-07T13:59:38.130Z"
 }
