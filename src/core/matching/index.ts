@@ -69,7 +69,7 @@ export function buildMatchIndex(entries: readonly Entry[]): MatchIndex {
     get size(): number {
       return entries.length;
     },
-    match(method, path, req): MatchResult | null {
+    match(method: string, path: string, req: RequestView): MatchResult | null {
       const hits = orderCandidates(candidates(method, path));
       for (const hit of hits) {
         const failure = evaluateDiscriminators(hit.value.entry.match, req);
@@ -79,7 +79,7 @@ export function buildMatchIndex(entries: readonly Entry[]): MatchIndex {
       }
       return null;
     },
-    nearestMatch(method, path, req, limit = 3): NearestMatch[] {
+    nearestMatch(method: string, path: string, req: RequestView, limit = 3): NearestMatch[] {
       const hits = orderCandidates(candidates(method, path));
       const out: NearestMatch[] = [];
       for (const hit of hits) {

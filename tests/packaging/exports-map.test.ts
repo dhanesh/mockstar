@@ -9,7 +9,11 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-type Conditions = Record<string, string | Conditions>;
+// Interface form (rather than `type`) is required for self-referential structures —
+// `type Conditions = Record<string, string | Conditions>` triggers TS2456.
+interface Conditions {
+  [condition: string]: string | Conditions;
+}
 
 const pkg: {
   type?: string;

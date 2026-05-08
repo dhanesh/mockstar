@@ -5,16 +5,19 @@
 // header (X-Mockstar-Tenant) so mockstar's existing tenancy middleware (RT-4 of
 // mockstar manifold) routes without URL rewriting.
 
+import type { StructuredLogger } from "../../core/observability/index.ts";
 import type { HostConfig, ProxyConfig } from "./types.ts";
 
 export interface ForwardContext {
   readonly config: ProxyConfig;
   readonly host: HostConfig;
   readonly requestId: string;
-  readonly logger: {
-    info: (fields: Record<string, unknown>) => void;
-    error: (fields: Record<string, unknown>) => void;
-  };
+  /**
+   * Structured logger — only info+error are used by the forwarder, so we
+   * narrow with Pick so test mocks that don't supply `warn` still satisfy
+   * the contract. The shape is compatible with StructuredLogger.
+   */
+  readonly logger: Pick<StructuredLogger, "info" | "error">;
 }
 
 /**

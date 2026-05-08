@@ -91,7 +91,9 @@ describe("installProcessHandlers (tiers 2-4 of TN2)", () => {
   it("flips /ready to 503 on unhandledRejection and calls exit", async () => {
     const { logger } = captureLogger();
     let readyFlag = true;
-    let exitedWith: number | null = null;
+    // Sentinel `-1` means exit() was never called. Using `number | null` here
+    // would narrow the expect() overload to its `(null) => void` branch.
+    let exitedWith = -1;
     const uninstall = installProcessHandlers({
       logger,
       setReady: (v) => {

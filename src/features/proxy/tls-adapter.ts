@@ -160,10 +160,15 @@ export function leavesFromSnapshot(snapshot: ProxySnapshot): TlsLeaf[] {
   }));
 }
 
+/**
+ * SNI resolver: given an inbound hostname, return the leaf to present OR null
+ * to reject the handshake. Closure form lets the resolver capture a snapshot
+ * and stay reactive to reloads (see sni-gate.ts).
+ */
+export type SniResolver = (servername: string) => { certPem: string; keyPem: string } | null;
+
 /** Resolver closure used by sni-gate's diagnostics (NOT by Bun — Bun does its own SNI). */
-export function snapshotResolver(
-  snapshot: ProxySnapshot,
-): (servername: string) => { certPem: string; keyPem: string } | null {
+export function snapshotResolver(snapshot: ProxySnapshot): SniResolver {
   return (servername) => {
     const leaf = snapshot.leaves.get(servername.toLowerCase());
     if (!leaf) return null;

@@ -55,7 +55,7 @@ export function adminRouter(deps: AdminDeps): Hono {
       scope: "tenant",
     }),
     (ctx: Context) => {
-      const tenant = ctx.req.param("tenant");
+      const tenant = ctx.req.param("tenant") ?? "";
       const snap = deps.holder.get();
       const tenantSnap = snap?.tenants.get(tenant);
       if (!tenantSnap) return ctx.json({ error: "tenant_not_found", tenant }, 404);
@@ -94,7 +94,7 @@ export function adminRouter(deps: AdminDeps): Hono {
       scope: "tenant",
     }),
     (ctx: Context) => {
-      const tenant = ctx.req.param("tenant");
+      const tenant = ctx.req.param("tenant") ?? "";
       const entries = deps.journal.snapshot(tenant);
       return ctx.json({ tenant, count: entries.length, entries });
     },

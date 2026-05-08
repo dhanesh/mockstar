@@ -35,7 +35,8 @@ export interface HandlerRegistry {
 export class HandlerLoadError extends Error {
   constructor(
     public readonly file: string,
-    public readonly cause: unknown,
+    // `cause` is declared on the base Error class (ES2022) — explicit override quiets TS4115.
+    public override readonly cause: unknown,
   ) {
     super(
       `Failed to load handler module '${file}': ${cause instanceof Error ? cause.message : String(cause)}`,

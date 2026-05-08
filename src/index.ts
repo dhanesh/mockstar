@@ -86,6 +86,7 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
   };
 }
 
+// `LaunchOptions` is already exported above via `export interface LaunchOptions`.
+// Re-exporting it here would conflict (TS2484), so the line was removed.
 export type { RunningServer, CreateServerOptions } from "./server.ts";
-export type { LaunchOptions };
 export { SnapshotHolder } from "./core/config/index.ts";

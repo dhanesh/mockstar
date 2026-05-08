@@ -13,7 +13,7 @@ import type { SnapshotHolder } from "./cert-cache.ts";
  * it reflect reloads.
  */
 export function sniGate(holder: SnapshotHolder): SniResolver {
-  return (servername) => {
+  return (servername: string) => {
     const resolver = snapshotResolver(holder.get());
     return resolver(servername.toLowerCase());
   };

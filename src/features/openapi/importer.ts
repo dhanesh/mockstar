@@ -38,8 +38,12 @@ function parseSpec(raw: string, ext: string): unknown {
     // Bun ships a YAML parser; in case this runs on older Bun, fall back to JSON.
     // Users with YAML specs can convert to JSON first via `bunx js-yaml`.
     try {
-      // @ts-expect-error — Bun may expose YAML natively in future; fall back safely.
-      if (typeof Bun !== "undefined" && Bun.YAML?.parse) return Bun.YAML.parse(raw);
+      // Bun.YAML is not in the official types yet (may land in a future release).
+      // biome-ignore lint/suspicious/noExplicitAny: probing for an optional runtime API
+      const bunGlobal = (globalThis as any).Bun;
+      if (bunGlobal && typeof bunGlobal.YAML?.parse === "function") {
+        return bunGlobal.YAML.parse(raw) as unknown;
+      }
     } catch {
       // ignore, fall through
     }
