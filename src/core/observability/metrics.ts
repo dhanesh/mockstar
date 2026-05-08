@@ -19,9 +19,7 @@ export class Metrics implements MetricsSnapshot {
   // RT-12: gauge support (webhook_queue_depth, webhook_circuit_state). Map<labelKey, value>.
   readonly #gauges = new Map<string, number>();
 
-  constructor(
-    bucketsMicros: readonly number[] = [50, 100, 250, 500, 1000, 2500, 5000, 10_000, 50_000],
-  ) {
+  constructor(bucketsMicros: readonly number[] = [50, 100, 250, 500, 1000, 2500, 5000, 10_000, 50_000]) {
     this.#latencyBuckets = bucketsMicros;
   }
 
@@ -84,32 +82,37 @@ export class Metrics implements MetricsSnapshot {
         lines.push(`${metric}_bucket${labelString(labelsWithLe)} ${cumulative}`);
       }
       cumulative += counts[counts.length - 1] ?? 0;
-      lines.push(`${metric}_bucket${labelString({ ...labels, le: '+Inf' })} ${cumulative}`);
-      lines.push(`${metric}_sum${labelString(labels)} ${((this.#latencySum.get(key) ?? 0) / 1_000_000).toFixed(6)}`);
+      lines.push(`${metric}_bucket${labelString({ ...labels, le: "+Inf" })} ${cumulative}`);
+      lines.push(
+        `${metric}_sum${labelString(labels)} ${((this.#latencySum.get(key) ?? 0) / 1_000_000).toFixed(6)}`,
+      );
       lines.push(`${metric}_count${labelString(labels)} ${cumulative}`);
     }
-    return lines.join('\n') + '\n';
+    return lines.join("\n") + "\n";
   }
 }
 
 function keyOf(metric: string, labels: Record<string, string>): string {
-  return `${metric}\0${Object.entries(labels).sort().map(([k, v]) => `${k}=${v}`).join(',')}`;
+  return `${metric}\0${Object.entries(labels)
+    .sort()
+    .map(([k, v]) => `${k}=${v}`)
+    .join(",")}`;
 }
 
 function unkey(key: string): { metric: string; labels: Record<string, string> } {
-  const [metric, labelString] = key.split('\0');
+  const [metric, labelString] = key.split("\0");
   const labels: Record<string, string> = {};
   if (labelString) {
-    for (const pair of labelString.split(',')) {
-      const [k, v] = pair.split('=');
-      if (k) labels[k] = v ?? '';
+    for (const pair of labelString.split(",")) {
+      const [k, v] = pair.split("=");
+      if (k) labels[k] = v ?? "";
     }
   }
-  return { metric: metric ?? '', labels };
+  return { metric: metric ?? "", labels };
 }
 
 function labelString(labels: Record<string, string>): string {
   const entries = Object.entries(labels);
-  if (entries.length === 0) return '';
-  return `{${entries.map(([k, v]) => `${k}="${v.replace(/"/g, '\\"')}"`).join(',')}}`;
+  if (entries.length === 0) return "";
+  return `{${entries.map(([k, v]) => `${k}="${v.replace(/"/g, '\\"')}"`).join(",")}}`;
 }

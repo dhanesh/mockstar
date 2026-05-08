@@ -2,22 +2,26 @@
 // Satisfies: T1 (Hono on Bun), RT-5 (config snapshot reads)
 // Satisfies: O1 (request logging), O2 (metrics), O3 (journal)
 
-import { Hono, type Context } from 'hono';
-import type { ConfigSnapshot, SnapshotHolder } from './core/config/snapshot.ts';
-import type { HandlerRegistry } from './core/handlers/index.ts';
-import { JournalRegistry, type JournalEntry } from './core/journal/index.ts';
-import { Metrics, createLogger, type StructuredLogger } from './core/observability/index.ts';
-import { installProcessHandlers } from './core/errors/index.ts';
-import { effectivePath, tenantMiddleware } from './core/tenancy/index.ts';
-import { renderStatic } from './features/static-mock.ts';
-import { renderDynamic } from './features/dynamic-mock.ts';
-import { renderPassThrough } from './features/pass-through.ts';
-import { adminRouter } from './features/admin/index.ts';
-import { createFaker, type FakerInstance } from './core/templating/faker.ts';
-import { createClock, type Clock } from './core/templating/tier2/now.ts';
-import { createIdHelpers } from './core/templating/tier2/id.ts';
-import { evaluateScenarios, type ScenarioAttrs } from './core/scenarios/evaluator.ts';
-import { mergeStaticResponse, scenarioResponseForNonStatic, renderScenario } from './core/scenarios/merger.ts';
+import { Hono, type Context } from "hono";
+import type { ConfigSnapshot, SnapshotHolder } from "./core/config/snapshot.ts";
+import type { HandlerRegistry } from "./core/handlers/index.ts";
+import { JournalRegistry, type JournalEntry } from "./core/journal/index.ts";
+import { Metrics, createLogger, type StructuredLogger } from "./core/observability/index.ts";
+import { installProcessHandlers } from "./core/errors/index.ts";
+import { effectivePath, tenantMiddleware } from "./core/tenancy/index.ts";
+import { renderStatic } from "./features/static-mock.ts";
+import { renderDynamic } from "./features/dynamic-mock.ts";
+import { renderPassThrough } from "./features/pass-through.ts";
+import { adminRouter } from "./features/admin/index.ts";
+import { createFaker, type FakerInstance } from "./core/templating/faker.ts";
+import { createClock, type Clock } from "./core/templating/tier2/now.ts";
+import { createIdHelpers } from "./core/templating/tier2/id.ts";
+import { evaluateScenarios, type ScenarioAttrs } from "./core/scenarios/evaluator.ts";
+import {
+  mergeStaticResponse,
+  scenarioResponseForNonStatic,
+  renderScenario,
+} from "./core/scenarios/merger.ts";
 import {
   BoundedRetryQueue,
   CircuitBreaker,
@@ -25,16 +29,16 @@ import {
   WebhookJournalRegistry,
   dispatchWebhooks,
   type CompiledWebhookSpec,
-} from './features/webhooks/index.ts';
+} from "./features/webhooks/index.ts";
 
 // Hono variable augmentation — all middleware reads typed `ctx.var.*`.
-declare module 'hono' {
+declare module "hono" {
   interface ContextVariableMap {
     tenant: string;
     originalPath: string;
     tenantStrippedPath: string;
     requestId: string;
-    adminAuth: { scope: 'tenant' | 'root'; tenant: string | null };
+    adminAuth: { scope: "tenant" | "root"; tenant: string | null };
   }
 }
 
@@ -74,7 +78,10 @@ export interface RunningServer {
 
 export type ReplayResult =
   | { ok: true; newDeliveryId: string }
-  | { ok: false; code: 'tenant_not_found' | 'delivery_not_in_journal' | 'mock_entry_removed' | 'webhook_spec_removed' };
+  | {
+      ok: false;
+      code: "tenant_not_found" | "delivery_not_in_journal" | "mock_entry_removed" | "webhook_spec_removed";
+    };
 
 export function createServer(opts: CreateServerOptions): RunningServer {
   const logger = opts.logger ?? createLogger({ deterministic: opts.deterministic });
@@ -99,11 +106,11 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     let q = webhookQueues.get(tenant);
     if (!q) {
       q = new BoundedRetryQueue({
-        onDropped: () => metrics.incCounter('mockstar_webhook_queue_dropped_total', { tenant }),
+        onDropped: () => metrics.incCounter("mockstar_webhook_queue_dropped_total", { tenant }),
         // Keep webhook_queue_depth gauge in sync with reality on every state mutation
         // (enqueue +1, task completion -1) — fixes the previous lag where the gauge
         // sampled only at enqueue and stuck at the high-water mark.
-        onSizeChange: (size) => metrics.setGauge('mockstar_webhook_queue_depth', { tenant }, size),
+        onSizeChange: (size) => metrics.setGauge("mockstar_webhook_queue_depth", { tenant }, size),
       });
       webhookQueues.set(tenant, q);
     }
@@ -130,9 +137,10 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     },
   };
 
-  const uninstallCrashHandlers = opts.installCrashHandlers !== false
-    ? installProcessHandlers({ logger, setReady: ready.set })
-    : (): void => undefined;
+  const uninstallCrashHandlers =
+    opts.installCrashHandlers !== false
+      ? installProcessHandlers({ logger, setReady: ready.set })
+      : (): void => undefined;
 
   const faker: FakerInstance = createFaker({ deterministic: opts.deterministic ?? false });
   const clock: Clock = createClock({ deterministic: opts.deterministic ?? false });
@@ -145,22 +153,22 @@ export function createServer(opts: CreateServerOptions): RunningServer {
   const replayWebhook = (tenant: string, deliveryId: string): ReplayResult => {
     const snap = opts.holder.get();
     const tenantSnap = snap.tenants.get(tenant);
-    if (!tenantSnap) return { ok: false, code: 'tenant_not_found' };
+    if (!tenantSnap) return { ok: false, code: "tenant_not_found" };
 
     const original = webhookJournal.findLatestByDeliveryId(tenant, deliveryId);
-    if (!original) return { ok: false, code: 'delivery_not_in_journal' };
+    if (!original) return { ok: false, code: "delivery_not_in_journal" };
 
     const specs = tenantSnap.compiledWebhooks.get(original.entryId);
-    if (!specs || specs.length === 0) return { ok: false, code: 'mock_entry_removed' };
+    if (!specs || specs.length === 0) return { ok: false, code: "mock_entry_removed" };
     const spec = specs.find((s) => s.id === original.webhookId);
-    if (!spec) return { ok: false, code: 'webhook_spec_removed' };
+    if (!spec) return { ok: false, code: "webhook_spec_removed" };
 
     // Build a minimal template context. Replay uses the CURRENT snapshot's spec
     // and an EMPTY request snapshot — templates referencing request data render
     // as empty strings. Documented in DECISIONS.md INT-2.
     const replayCtx = {
       faker,
-      request: { method: 'GET', path: '/__replay', query: {}, headers: {}, body: null, params: {} },
+      request: { method: "GET", path: "/__replay", query: {}, headers: {}, body: null, params: {} },
       tenant,
       requestId: original.triggerRequestId,
       clock,
@@ -183,7 +191,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
       },
       {
         tenant,
-        matchPath: '/__replay',  // synthetic path; admin-skip prefix-list is checked, this is safe
+        matchPath: "/__replay", // synthetic path; admin-skip prefix-list is checked, this is safe
         triggerRequestId: original.triggerRequestId,
         entryId: original.entryId,
         webhooks: [spec],
@@ -193,23 +201,31 @@ export function createServer(opts: CreateServerOptions): RunningServer {
       },
     );
 
-    return { ok: true, newDeliveryId: enqueued[0] ?? '' };
+    return { ok: true, newDeliveryId: enqueued[0] ?? "" };
   };
 
   // Admin routes — mounted BEFORE the tenant extractor so /health and /ready
   // are not subject to tenant rewriting (RT-3.2).
-  app.route('/', adminRouter({ holder: opts.holder, journal, metrics, ready, webhookJournal, webhookEvents, replayWebhook }));
+  app.route(
+    "/",
+    adminRouter({
+      holder: opts.holder,
+      journal,
+      metrics,
+      ready,
+      webhookJournal,
+      webhookEvents,
+      replayWebhook,
+    }),
+  );
 
   // Tenant extractor — first non-admin middleware (RT-4.1).
   const snapshot = opts.holder.get();
-  app.use(
-    '*',
-    tenantMiddleware({ modes: snapshot.server.tenancyModes }),
-  );
+  app.use("*", tenantMiddleware({ modes: snapshot.server.tenancyModes }));
 
   // Main mock dispatcher.
   const allowWebhookUrlHeader = opts.allowWebhookUrlHeader ?? false;
-  app.all('*', async (ctx) =>
+  app.all("*", async (ctx) =>
     dispatch(ctx, {
       opts,
       logger,
@@ -227,7 +243,16 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     }),
   );
 
-  return { hono: app, journal, metrics, ready, uninstallCrashHandlers, webhookJournal, webhookEvents, replayWebhook };
+  return {
+    hono: app,
+    journal,
+    metrics,
+    ready,
+    uninstallCrashHandlers,
+    webhookJournal,
+    webhookEvents,
+    replayWebhook,
+  };
 }
 
 interface DispatchDeps {
@@ -261,7 +286,7 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   const tenant = ctx.var.tenant;
   const tenantSnap = snapshot.tenants.get(tenant);
   const requestId = deps.genRequestId();
-  ctx.set('requestId', requestId);
+  ctx.set("requestId", requestId);
   const startedUs = performance.now() * 1000;
 
   // Path after /t/{tenant} stripping (RT-4).
@@ -279,16 +304,28 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
       response = notFoundUnknownTenant(tenant, method, matchPath);
     } else {
       // Rate / size caps (S5) — cheap pre-check.
-      const contentLength = Number.parseInt(ctx.req.header('content-length') ?? '0', 10);
+      const contentLength = Number.parseInt(ctx.req.header("content-length") ?? "0", 10);
       if (contentLength > tenantSnap.limits.maxBodyBytes) {
-        response = new Response(JSON.stringify({ error: 'body_too_large', limit: tenantSnap.limits.maxBodyBytes }), {
-          status: 413,
-          headers: { 'content-type': 'application/json' },
-        });
+        response = new Response(
+          JSON.stringify({ error: "body_too_large", limit: tenantSnap.limits.maxBodyBytes }),
+          {
+            status: 413,
+            headers: { "content-type": "application/json" },
+          },
+        );
       } else {
-        const result = await routeToMock(ctx, matchPath, method, tenant, snapshot, tenantSnap, requestId, deps);
+        const result = await routeToMock(
+          ctx,
+          matchPath,
+          method,
+          tenant,
+          snapshot,
+          tenantSnap,
+          requestId,
+          deps,
+        );
         response = result.response;
-        matchedMockId = (response.headers.get('x-mockstar-matched') ?? null);
+        matchedMockId = response.headers.get("x-mockstar-matched") ?? null;
         scenarioId = result.scenarioId;
         scenarioMissReason = result.scenarioMissReason;
         webhookTrigger = result.webhookTrigger;
@@ -296,16 +333,16 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
     }
   } catch (err) {
     deps.logger.error({
-      event: 'dispatch_error',
+      event: "dispatch_error",
       tenant,
       method,
       path: matchPath,
       requestId,
       message: err instanceof Error ? err.message : String(err),
     });
-    response = new Response(JSON.stringify({ error: 'internal' }), {
+    response = new Response(JSON.stringify({ error: "internal" }), {
       status: 500,
-      headers: { 'content-type': 'application/json' },
+      headers: { "content-type": "application/json" },
     });
   }
 
@@ -325,15 +362,15 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
       ...(scenarioMissReason !== undefined && { scenarioMissReason }),
     };
     deps.journal.record(entry);
-    deps.metrics.incCounter('mockstar_requests_total', {
+    deps.metrics.incCounter("mockstar_requests_total", {
       tenant,
       method,
       status: String(response.status),
-      matched: matchedMockId ? '1' : '0',
+      matched: matchedMockId ? "1" : "0",
     });
-    deps.metrics.observeLatencyUs('mockstar_request_latency_us', { tenant }, durationUs);
+    deps.metrics.observeLatencyUs("mockstar_request_latency_us", { tenant }, durationUs);
     deps.logger.info({
-      event: 'request',
+      event: "request",
       tenant,
       method,
       path: matchPath,
@@ -403,7 +440,7 @@ async function routeToMock(
   method: string,
   tenant: string,
   snapshot: ConfigSnapshot,
-  tenantSnap: NonNullable<ReturnType<ConfigSnapshot['tenants']['get']>>,
+  tenantSnap: NonNullable<ReturnType<ConfigSnapshot["tenants"]["get"]>>,
   requestId: string,
   deps: DispatchDeps,
 ): Promise<RouteResult> {
@@ -423,7 +460,7 @@ async function routeToMock(
     return {
       response: new Response(
         JSON.stringify({
-          error: 'unmatched',
+          error: "unmatched",
           method,
           path: matchPath,
           tenant,
@@ -432,23 +469,24 @@ async function routeToMock(
             failed_predicate: n.failure,
           })),
         }),
-        { status: 404, headers: { 'content-type': 'application/json' } },
+        { status: 404, headers: { "content-type": "application/json" } },
       ),
     };
   }
 
   // Webhook fan-out trigger info (T5). Built once; threaded through both scenario and main return paths.
   const compiledWebhooks = tenantSnap.compiledWebhooks.get(hit.entry.id) ?? [];
-  const webhookTrigger: WebhookTrigger | undefined = compiledWebhooks.length > 0
-    ? {
-        entryId: hit.entry.id,
-        webhooks: compiledWebhooks,
-        body,
-        params: hit.params,
-        query: Object.fromEntries(req.query),
-        headers: Object.fromEntries(req.headers),
-      }
-    : undefined;
+  const webhookTrigger: WebhookTrigger | undefined =
+    compiledWebhooks.length > 0
+      ? {
+          entryId: hit.entry.id,
+          webhooks: compiledWebhooks,
+          body,
+          params: hit.params,
+          query: Object.fromEntries(req.query),
+          headers: Object.fromEntries(req.headers),
+        }
+      : undefined;
 
   // Scenario evaluation — runs before kind dispatch (RT-1 insertion point, T7 kind-agnostic).
   const compiledScenarios = tenantSnap.compiledScenarios.get(hit.entry.id) ?? [];
@@ -461,7 +499,10 @@ async function routeToMock(
       headers: req.headers,
       body,
     };
-    const { match: scenarioMatch, scenarioMissReason: missReason } = evaluateScenarios(compiledScenarios, attrs);
+    const { match: scenarioMatch, scenarioMissReason: missReason } = evaluateScenarios(
+      compiledScenarios,
+      attrs,
+    );
     scenarioMissReason = missReason;
     if (scenarioMatch) {
       scenarioId = scenarioMatch.id;
@@ -478,7 +519,7 @@ async function routeToMock(
         maxResponseBytes: tenantSnap.limits.maxResponseBytes,
       };
       let scenarioResp: Response;
-      if (hit.entry.response.kind === 'static') {
+      if (hit.entry.response.kind === "static") {
         const compiled = tenantSnap.compiledResponses.get(hit.entry.id);
         if (!compiled) throw new Error(`Missing compiled response for entry '${hit.entry.id}'`);
         const merged = mergeStaticResponse(
@@ -491,8 +532,8 @@ async function routeToMock(
         scenarioResp = await renderScenario(scenarioResponseForNonStatic(scenarioMatch), scenarioRenderOpts);
       }
       const h = new Headers(scenarioResp.headers);
-      h.set('x-mockstar-matched', hit.entry.id);
-      h.set('x-mockstar-scenario', scenarioMatch.id);
+      h.set("x-mockstar-matched", hit.entry.id);
+      h.set("x-mockstar-scenario", scenarioMatch.id);
       return {
         response: new Response(scenarioResp.body, { status: scenarioResp.status, headers: h }),
         scenarioId,
@@ -503,7 +544,7 @@ async function routeToMock(
 
   let response: Response;
   switch (hit.entry.response.kind) {
-    case 'static': {
+    case "static": {
       const compiled = tenantSnap.compiledResponses.get(hit.entry.id);
       if (!compiled) throw new Error(`Missing compiled response for entry '${hit.entry.id}'`);
       response = await renderStatic({
@@ -521,7 +562,7 @@ async function routeToMock(
       });
       break;
     }
-    case 'dynamic':
+    case "dynamic":
       response = await renderDynamic({
         entry: hit.entry,
         ctx,
@@ -532,7 +573,7 @@ async function routeToMock(
         boundary: { logger: deps.logger, timeoutMs: deps.handlerTimeoutMs },
       });
       break;
-    case 'passthrough':
+    case "passthrough":
       response = await renderPassThrough(hit.entry, ctx, {
         allowPrivateUpstreams: tenantSnap.allowPrivateUpstreams,
         logger: deps.logger,
@@ -541,7 +582,7 @@ async function routeToMock(
   }
 
   const headers = new Headers(response.headers);
-  headers.set('x-mockstar-matched', hit.entry.id);
+  headers.set("x-mockstar-matched", hit.entry.id);
   return {
     response: new Response(response.body, { status: response.status, headers }),
     scenarioMissReason,
@@ -550,17 +591,17 @@ async function routeToMock(
 }
 
 function notFoundUnknownTenant(tenant: string, method: string, path: string): Response {
-  return new Response(
-    JSON.stringify({ error: 'unknown_tenant', tenant, method, path }),
-    { status: 404, headers: { 'content-type': 'application/json' } },
-  );
+  return new Response(JSON.stringify({ error: "unknown_tenant", tenant, method, path }), {
+    status: 404,
+    headers: { "content-type": "application/json" },
+  });
 }
 
 async function safeParseBody(ctx: Context): Promise<unknown> {
   const method = ctx.req.method;
-  if (method === 'GET' || method === 'HEAD') return null;
-  const contentType = ctx.req.header('content-type') ?? '';
-  if (!contentType.includes('json')) return null;
+  if (method === "GET" || method === "HEAD") return null;
+  const contentType = ctx.req.header("content-type") ?? "";
+  if (!contentType.includes("json")) return null;
   try {
     // Hono's req.json() clones; we use raw to avoid double-read issues downstream.
     const text = await ctx.req.text();
@@ -582,6 +623,6 @@ function createRequestIdGenerator(deterministic: boolean): () => string {
   let counter = 0;
   return (): string => {
     counter += 1;
-    return `req-${counter.toString().padStart(8, '0')}`;
+    return `req-${counter.toString().padStart(8, "0")}`;
   };
 }

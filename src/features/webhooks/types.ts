@@ -2,20 +2,20 @@
 // Satisfies: U2 (response-body assertion), U4 (delivery journal entry shape)
 // Satisfies: S1 (signing opt-in), B5 (header channel opt-out per-route), B2 (URL channels)
 
-import type { CompiledTemplate } from '../../core/templating/index.ts';
+import type { CompiledTemplate } from "../../core/templating/index.ts";
 
 /** Terminal outcome of a delivery — every delivery resolves to exactly one of these. */
 export type DeliveryOutcome =
-  | 'success'        // attempt returned matching status (and matching body if expectResponse set)
-  | 'failed'         // retry budget exhausted, last attempt non-2xx or threw
-  | 'dropped'        // queue cap overflow evicted before delivery (TN2)
-  | 'circuit-open';  // breaker open at attempt time, no HTTP call made (O3)
+  | "success" // attempt returned matching status (and matching body if expectResponse set)
+  | "failed" // retry budget exhausted, last attempt non-2xx or threw
+  | "dropped" // queue cap overflow evicted before delivery (TN2)
+  | "circuit-open"; // breaker open at attempt time, no HTTP call made (O3)
 
 /** Signing config for a single webhook. Off unless explicitly enabled (S1). */
 export interface WebhookSigningSpec {
   enabled: boolean;
   /** Algorithm — only sha256 supported in v0.x. */
-  algorithm: 'sha256';
+  algorithm: "sha256";
   /** Secret reference: must be `{{ env.NAME }}` form OR a file:// path. Inline strings rejected at config load (S3). */
   secretRef: string;
   /** Header carrying the hex signature. Default: x-mockstar-signature. */
@@ -28,21 +28,21 @@ export interface WebhookSigningSpec {
 
 /** Retry config — explicit backoff array preferred (T3 default: [1000,2000,4000,8000,16000,32000]). */
 export interface WebhookRetrySpec {
-  attempts: number;          // total attempts including the first try (T3 default: 6)
+  attempts: number; // total attempts including the first try (T3 default: 6)
   backoff: readonly number[]; // length must equal (attempts - 1)
-  jitterRatio: number;        // ±ratio (T3 default: 0.20)
+  jitterRatio: number; // ±ratio (T3 default: 0.20)
 }
 
 /** Circuit-breaker tunables per webhook (O3). */
 export interface WebhookCircuitSpec {
-  failureThreshold: number;  // consecutive failures before opening; default 5
-  cooldownMs: number;        // duration in OPEN state; default 30_000
+  failureThreshold: number; // consecutive failures before opening; default 5
+  cooldownMs: number; // duration in OPEN state; default 30_000
 }
 
 /** Optional response assertion — only matching responses count as success (U2). */
 export interface WebhookExpectSpec {
   status?: number | readonly number[];
-  body?: unknown;  // exact-match or partial object
+  body?: unknown; // exact-match or partial object
 }
 
 /**
@@ -56,19 +56,19 @@ export interface CompiledWebhookSpec {
   id: string;
   /** Compiled URL template — re-rendered each attempt (per-attempt URL re-validation, S2). */
   urlTemplate: CompiledTemplate;
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** Compiled body template OR a JSON tree with leaf templates (T7). null = no body (GET/HEAD). */
   body: CompiledTemplate | null;
   /** Compiled header values; keys are lowercased. */
   headers: ReadonlyMap<string, CompiledTemplate>;
   retry: WebhookRetrySpec;
-  signing: WebhookSigningSpec | null;  // null = no signing (S1 opt-in)
+  signing: WebhookSigningSpec | null; // null = no signing (S1 opt-in)
   circuit: WebhookCircuitSpec;
   expectResponse: WebhookExpectSpec | null;
-  timeoutMs: number;                   // T8 per-attempt timeout
-  allowHttp: boolean;                  // TN4 — relaxes HTTPS-only
-  allowPrivateNetworks: boolean;       // TN4 — relaxes private/loopback block
-  acceptHeaderOverride: boolean;       // TN5 — per-route opt-out for header URL channel
+  timeoutMs: number; // T8 per-attempt timeout
+  allowHttp: boolean; // TN4 — relaxes HTTPS-only
+  allowPrivateNetworks: boolean; // TN4 — relaxes private/loopback block
+  acceptHeaderOverride: boolean; // TN5 — per-route opt-out for header URL channel
 }
 
 /**
@@ -76,7 +76,7 @@ export interface CompiledWebhookSpec {
  * Mirrors the request-journal shape but discriminated as kind: 'webhook'.
  */
 export interface WebhookJournalEntry {
-  kind: 'webhook';
+  kind: "webhook";
   timestamp: number;
   tenant: string;
   /** Stable per-delivery id; same value across all retry attempts of one delivery (B3 idempotency). */

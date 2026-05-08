@@ -2,12 +2,12 @@
 // Satisfies: T11 (config hot-swap atomicity — in-flight requests see consistent snapshot)
 // Satisfies: RT-4 (compiled scenarios stored in TenantSnapshot — O2/O3 atomicity and GC)
 
-import type { HandlerRegistry } from '../handlers/index.ts';
-import type { MatchIndex } from '../matching/index.ts';
-import type { CompiledResponse } from '../templating/compiler.ts';
-import type { CompiledScenario } from '../scenarios/evaluator.ts';
-import type { CompiledWebhookSpec } from '../../features/webhooks/types.ts';
-import type { Entry, Server, Tenant } from './schema.ts';
+import type { HandlerRegistry } from "../handlers/index.ts";
+import type { MatchIndex } from "../matching/index.ts";
+import type { CompiledResponse } from "../templating/compiler.ts";
+import type { CompiledScenario } from "../scenarios/evaluator.ts";
+import type { CompiledWebhookSpec } from "../../features/webhooks/types.ts";
+import type { Entry, Server, Tenant } from "./schema.ts";
 
 export interface TenantSnapshot {
   readonly name: string;
@@ -20,7 +20,7 @@ export interface TenantSnapshot {
   readonly compiledScenarios: ReadonlyMap<string, readonly CompiledScenario[]>;
   /** Pre-compiled webhook specs keyed by mock entry ID (RT-8, T7). */
   readonly compiledWebhooks: ReadonlyMap<string, readonly CompiledWebhookSpec[]>;
-  readonly limits: Tenant['limits'];
+  readonly limits: Tenant["limits"];
   readonly adminToken?: string;
   readonly allowPrivateUpstreams: boolean;
 }

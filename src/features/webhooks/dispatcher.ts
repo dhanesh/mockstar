@@ -4,22 +4,27 @@
 // Satisfies: T7 (templating reuse via CompiledTemplate.render)
 // Satisfies: U2 (expectResponse assertion), U4 (journal entry per attempt), TN5 (header value validated, not bypassed)
 
-import { validateUpstreamUrl } from '../url-validator.ts';
-import { CircuitBreaker } from './circuit-breaker.ts';
-import type { DeliveryEventRegistry } from './event-registry.ts';
-import type { WebhookJournalRegistry } from './journal.ts';
-import type { BoundedRetryQueue, AttemptRecord } from './queue.ts';
-import { resolveSecret, signPayload } from './signing.ts';
-import type { CompiledWebhookSpec, DeliverySummary, WebhookExpectSpec, WebhookJournalEntry } from './types.ts';
-import type { TemplateContext } from '../../core/templating/index.ts';
-import type { Metrics } from '../../core/observability/metrics.ts';
+import type { Metrics } from "../../core/observability/metrics.ts";
+import type { TemplateContext } from "../../core/templating/index.ts";
+import { validateUpstreamUrl } from "../url-validator.ts";
+import type { CircuitBreaker } from "./circuit-breaker.ts";
+import type { DeliveryEventRegistry } from "./event-registry.ts";
+import type { WebhookJournalRegistry } from "./journal.ts";
+import type { AttemptRecord, BoundedRetryQueue } from "./queue.ts";
+import { resolveSecret, signPayload } from "./signing.ts";
+import type {
+  CompiledWebhookSpec,
+  DeliverySummary,
+  WebhookExpectSpec,
+  WebhookJournalEntry,
+} from "./types.ts";
 
 /**
  * Internal admin/health paths that MUST NEVER trigger webhooks (S4).
  * Hard-coded — no user override. A too-broad mock match path would otherwise
  * hook the mock server's own health/metrics endpoints and explode delivery volume.
  */
-const ADMIN_PATH_PREFIXES = ['/_mockstar', '/__admin', '/health', '/ready', '/metrics'];
+const ADMIN_PATH_PREFIXES = ["/_mockstar", "/__admin", "/health", "/ready", "/metrics"];
 
 export interface DispatcherDeps {
   metrics: Metrics;
@@ -86,7 +91,7 @@ export function dispatchWebhooks(deps: DispatcherDeps, input: DispatcherTriggerI
       recordCircuitOutcome: (success) => {
         breaker.record(success);
         deps.metrics.setGauge(
-          'mockstar_webhook_circuit_state',
+          "mockstar_webhook_circuit_state",
           { tenant: input.tenant, webhook: spec.id },
           breaker.metricValue(),
         );
@@ -95,7 +100,7 @@ export function dispatchWebhooks(deps: DispatcherDeps, input: DispatcherTriggerI
       onAttempt: (record) => recordAttempt(record, spec, input, deps, deliveryId),
       onTerminal: (summary) => {
         deps.events.publish(summary);
-        deps.metrics.incCounter('mockstar_webhook_delivery_total', {
+        deps.metrics.incCounter("mockstar_webhook_delivery_total", {
           tenant: input.tenant,
           webhook: spec.id,
           outcome: summary.outcome,
@@ -124,13 +129,14 @@ async function performAttempt(
 
   // Resolve URL: header override (if allowed) wins, otherwise the per-route template.
   let urlString: string;
-  const headerUrl = _deps.allowWebhookUrlHeader && spec.acceptHeaderOverride
-    ? input.requestHeaders.get('x-mockstar-webhook-url')
-    : undefined;
+  const headerUrl =
+    _deps.allowWebhookUrlHeader && spec.acceptHeaderOverride
+      ? input.requestHeaders.get("x-mockstar-webhook-url")
+      : undefined;
   urlString = headerUrl ?? spec.urlTemplate.render(input.templateContext);
 
   // S2: re-validate the URL each attempt (it may template differently per request).
-  const allowedSchemes = spec.allowHttp ? ['http', 'https'] : ['https'];
+  const allowedSchemes = spec.allowHttp ? ["http", "https"] : ["https"];
   validateUpstreamUrl(urlString, {
     allowedSchemes,
     allowPrivateUpstreams: spec.allowPrivateNetworks,
@@ -142,7 +148,7 @@ async function performAttempt(
   for (const [key, tmpl] of spec.headers) {
     renderedHeaders.set(key, tmpl.render(input.templateContext));
   }
-  const rawBody = spec.body ? spec.body.render(input.templateContext) : '';
+  const rawBody = spec.body ? spec.body.render(input.templateContext) : "";
 
   // Sign if enabled (S1 opt-in).
   if (spec.signing && spec.signing.enabled) {
@@ -154,8 +160,8 @@ async function performAttempt(
   }
 
   // Idempotency-id header — same deliveryId across all retries (B3).
-  if (!renderedHeaders.has('x-mockstar-delivery-id')) {
-    renderedHeaders.set('x-mockstar-delivery-id', input.triggerRequestId);
+  if (!renderedHeaders.has("x-mockstar-delivery-id")) {
+    renderedHeaders.set("x-mockstar-delivery-id", input.triggerRequestId);
   }
 
   // Per-attempt timeout via AbortSignal.timeout (T8, RT-16).
@@ -166,7 +172,7 @@ async function performAttempt(
     response = await fetch(urlString, {
       method: spec.method,
       headers: renderedHeaders,
-      body: spec.method === 'GET' || spec.method === 'DELETE' ? undefined : rawBody,
+      body: spec.method === "GET" || spec.method === "DELETE" ? undefined : rawBody,
       signal,
     });
   } catch (err) {
@@ -198,16 +204,16 @@ function isSuccessStatus(status: number, expect: WebhookExpectSpec | null): bool
   if (!expect || expect.status === undefined) {
     return status >= 200 && status < 300;
   }
-  if (typeof expect.status === 'number') return status === expect.status;
+  if (typeof expect.status === "number") return status === expect.status;
   return expect.status.includes(status);
 }
 
 function matchesExpectedBody(actual: string, expected: unknown): boolean {
-  if (typeof expected === 'string') return actual === expected;
+  if (typeof expected === "string") return actual === expected;
   // Object/partial match — parse actual as JSON, do shallow partial-equal.
   try {
     const parsed = JSON.parse(actual) as Record<string, unknown>;
-    if (typeof expected !== 'object' || expected === null) return false;
+    if (typeof expected !== "object" || expected === null) return false;
     for (const [key, val] of Object.entries(expected as Record<string, unknown>)) {
       if (parsed[key] !== val) return false;
     }
@@ -225,7 +231,7 @@ function recordAttempt(
   deliveryId: string,
 ): void {
   const journalEntry: WebhookJournalEntry = {
-    kind: 'webhook',
+    kind: "webhook",
     timestamp: Date.now(),
     tenant: input.tenant,
     deliveryId,
@@ -242,7 +248,7 @@ function recordAttempt(
   };
   deps.journal.record(journalEntry);
   deps.metrics.observeLatencyUs(
-    'mockstar_webhook_delivery_latency_us',
+    "mockstar_webhook_delivery_latency_us",
     { tenant: input.tenant, webhook: spec.id },
     record.durationUs,
   );

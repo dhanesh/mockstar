@@ -2,9 +2,9 @@
 // Pre-compiles every templated string in a webhook spec at config-load so the
 // hot path only renders ops, never parses tokens.
 
-import { compileTemplate, type CompiledTemplate } from '../../core/templating/compiler.ts';
-import type { Entry, WebhookSpecT } from '../../core/config/schema.ts';
-import type { CompiledWebhookSpec } from './types.ts';
+import type { Entry, WebhookSpecT } from "../../core/config/schema.ts";
+import { type CompiledTemplate, compileTemplate } from "../../core/templating/compiler.ts";
+import type { CompiledWebhookSpec } from "./types.ts";
 
 /**
  * Compile webhook specs for every entry that declares them. Returns a map keyed
@@ -33,7 +33,7 @@ function compileOne(spec: WebhookSpecT): CompiledWebhookSpec {
 
   let body: CompiledTemplate | null = null;
   if (spec.body !== undefined && spec.body !== null) {
-    const bodyString = typeof spec.body === 'string' ? spec.body : JSON.stringify(spec.body);
+    const bodyString = typeof spec.body === "string" ? spec.body : JSON.stringify(spec.body);
     body = compileTemplate(bodyString);
   }
 

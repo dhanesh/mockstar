@@ -2,19 +2,19 @@
 // Satisfies: U2 (bunx / npm distribution channel)
 // Satisfies: T4 (boot time target applies to this path)
 
-import { resolve } from 'node:path';
-import { launch } from './index.ts';
-import { runImporter } from './features/openapi/index.ts';
-import { preflight } from './core/preflight.ts';
-import { dispatchProxyCommand } from './features/proxy/cli.ts';
-import { runEnhance } from './features/enhance/index.ts';
-import { runMigrateSchema } from './cli/commands/migrate.ts';
-import { minorTagFromVersion, runInit } from './cli/commands/init.ts';
+import { resolve } from "node:path";
+import { launch } from "./index.ts";
+import { runImporter } from "./features/openapi/index.ts";
+import { preflight } from "./core/preflight.ts";
+import { dispatchProxyCommand } from "./features/proxy/cli.ts";
+import { runEnhance } from "./features/enhance/index.ts";
+import { runMigrateSchema } from "./cli/commands/migrate.ts";
+import { minorTagFromVersion, runInit } from "./cli/commands/init.ts";
 
-const MOCKSTAR_VERSION = '0.1.0-alpha.1';
+const MOCKSTAR_VERSION = "0.1.0-alpha.1";
 
 interface ParsedArgs {
-  command: 'serve' | 'import' | 'enhance' | 'migrate' | 'init' | 'proxy' | 'help' | 'version';
+  command: "serve" | "import" | "enhance" | "migrate" | "init" | "proxy" | "help" | "version";
   proxyArgs?: readonly string[];
   configRoot?: string;
   handlersDir?: string;
@@ -42,63 +42,64 @@ interface ParsedArgs {
 
 function parseArgs(argv: readonly string[]): ParsedArgs {
   const [head, ...rest] = argv;
-  if (!head || head === '--help' || head === '-h' || head === 'help') return { command: 'help' };
-  if (head === '--version' || head === '-v' || head === 'version') return { command: 'version' };
-  if (head === 'proxy') {
-    return { command: 'proxy', proxyArgs: rest };
+  if (!head || head === "--help" || head === "-h" || head === "help") return { command: "help" };
+  if (head === "--version" || head === "-v" || head === "version") return { command: "version" };
+  if (head === "proxy") {
+    return { command: "proxy", proxyArgs: rest };
   }
-  if (head === 'import') {
+  if (head === "import") {
     const specPath = rest[0];
-    const outDir = rest.find((r, i) => i > 0 && !r.startsWith('-')) ?? './mocks';
+    const outDir = rest.find((r, i) => i > 0 && !r.startsWith("-")) ?? "./mocks";
     return {
-      command: 'import',
+      command: "import",
       specPath,
       outDir,
-      tenantName: rest.find((r) => r.startsWith('--tenant='))?.slice('--tenant='.length),
-      allowPrivate: rest.includes('--allow-private'),
+      tenantName: rest.find((r) => r.startsWith("--tenant="))?.slice("--tenant=".length),
+      allowPrivate: rest.includes("--allow-private"),
     };
   }
-  if (head === 'enhance') {
-    const enhanceDir = rest.find((r) => !r.startsWith('-'));
+  if (head === "enhance") {
+    const enhanceDir = rest.find((r) => !r.startsWith("-"));
     return {
-      command: 'enhance',
+      command: "enhance",
       enhanceDir,
-      specPath: getFlag(rest, '--spec'),
-      dryRun: rest.includes('--dry-run'),
+      specPath: getFlag(rest, "--spec"),
+      dryRun: rest.includes("--dry-run"),
     };
   }
-  if (head === 'init') {
-    const initDir = rest.find((r) => !r.startsWith('-'));
+  if (head === "init") {
+    const initDir = rest.find((r) => !r.startsWith("-"));
     return {
-      command: 'init',
-      initDir: initDir ?? '.',
-      force: rest.includes('--force'),
+      command: "init",
+      initDir: initDir ?? ".",
+      force: rest.includes("--force"),
     };
   }
-  if (head === 'migrate') {
-    const migrateDir = rest.find((r) => !r.startsWith('-'));
+  if (head === "migrate") {
+    const migrateDir = rest.find((r) => !r.startsWith("-"));
     return {
-      command: 'migrate',
-      migrateSchema: rest.includes('--schema'),
-      migrateFrom: getFlag(rest, '--from'),
-      migrateTo: getFlag(rest, '--to'),
+      command: "migrate",
+      migrateSchema: rest.includes("--schema"),
+      migrateFrom: getFlag(rest, "--from"),
+      migrateTo: getFlag(rest, "--to"),
       migrateDir,
-      dryRun: rest.includes('--dry-run'),
+      dryRun: rest.includes("--dry-run"),
     };
   }
   // Default: serve from positional config root.
-  const configRoot = head.startsWith('-') ? './mocks' : head;
+  const configRoot = head.startsWith("-") ? "./mocks" : head;
   return {
-    command: 'serve',
+    command: "serve",
     configRoot,
-    handlersDir: getFlag(rest, '--handlers'),
-    port: Number.parseInt(getFlag(rest, '--port') ?? process.env.MOCKSTAR_PORT ?? '3000', 10),
-    host: getFlag(rest, '--host') ?? process.env.MOCKSTAR_HOST ?? '127.0.0.1',
-    deterministic: rest.includes('--deterministic') || process.env.MOCKSTAR_DETERMINISTIC === '1',
-    watch: !rest.includes('--no-watch'),
+    handlersDir: getFlag(rest, "--handlers"),
+    port: Number.parseInt(getFlag(rest, "--port") ?? process.env.MOCKSTAR_PORT ?? "3000", 10),
+    host: getFlag(rest, "--host") ?? process.env.MOCKSTAR_HOST ?? "127.0.0.1",
+    deterministic: rest.includes("--deterministic") || process.env.MOCKSTAR_DETERMINISTIC === "1",
+    watch: !rest.includes("--no-watch"),
     // B5/TN5: defaults OFF; admin must explicitly enable to honour X-Mockstar-Webhook-Url.
-    allowWebhookUrlHeader: rest.includes('--allow-webhook-url-header') || process.env.MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER === '1',
-    webhookJournalFile: getFlag(rest, '--webhook-journal-file'),
+    allowWebhookUrlHeader:
+      rest.includes("--allow-webhook-url-header") || process.env.MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER === "1",
+    webhookJournalFile: getFlag(rest, "--webhook-journal-file"),
   };
 }
 
@@ -118,8 +119,8 @@ async function main(): Promise<number> {
   if (pf.warning) process.stderr.write(`mockstar: ${pf.warning}\n`);
   if (!pf.ok) return 1;
 
-  if (args.command === 'help' || args.command === 'version') {
-    if (args.command === 'version') {
+  if (args.command === "help" || args.command === "version") {
+    if (args.command === "version") {
       process.stdout.write(`mockstar ${MOCKSTAR_VERSION}\n`);
       return 0;
     }
@@ -127,11 +128,11 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  if (args.command === 'proxy') {
+  if (args.command === "proxy") {
     return dispatchProxyCommand(args.proxyArgs ?? []);
   }
 
-  if (args.command === 'import') {
+  if (args.command === "import") {
     if (!args.specPath || !args.outDir) {
       process.stderr.write(usage());
       return 2;
@@ -148,9 +149,9 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  if (args.command === 'init') {
+  if (args.command === "init") {
     const result = await runInit({
-      dir: resolve(args.initDir ?? '.'),
+      dir: resolve(args.initDir ?? "."),
       minorTag: minorTagFromVersion(MOCKSTAR_VERSION),
       force: args.force ?? false,
     });
@@ -158,19 +159,19 @@ async function main(): Promise<number> {
     for (const path of result.skipped) {
       process.stdout.write(`skipped ${path} (already exists; pass --force to overwrite)\n`);
     }
-    process.stdout.write('\nNext: bunx mockstar ./mocks\n');
+    process.stdout.write("\nNext: bunx mockstar ./mocks\n");
     return 0;
   }
 
-  if (args.command === 'migrate') {
+  if (args.command === "migrate") {
     if (!args.migrateSchema) {
-      process.stderr.write('mockstar migrate currently only supports --schema.\n');
+      process.stderr.write("mockstar migrate currently only supports --schema.\n");
       process.stderr.write(usage());
       return 2;
     }
     if (!args.migrateFrom || !args.migrateTo || !args.migrateDir) {
       process.stderr.write(
-        'mockstar migrate --schema requires --from <minor>, --to <minor>, and a target directory.\n',
+        "mockstar migrate --schema requires --from <minor>, --to <minor>, and a target directory.\n",
       );
       return 2;
     }
@@ -180,7 +181,7 @@ async function main(): Promise<number> {
       to: args.migrateTo,
       dryRun: args.dryRun ?? false,
     });
-    const suffix = args.dryRun ? ' (dry-run)' : '';
+    const suffix = args.dryRun ? " (dry-run)" : "";
     process.stdout.write(
       `migrate --schema: rewrote ${result.filesChanged}/${result.filesScanned} files${suffix}\n`,
     );
@@ -194,7 +195,7 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  if (args.command === 'enhance') {
+  if (args.command === "enhance") {
     if (!args.enhanceDir) {
       process.stderr.write(usage());
       return 2;
@@ -206,13 +207,13 @@ async function main(): Promise<number> {
     });
     process.stdout.write(
       `Enhanced ${result.filesChanged}/${result.filesScanned} files (${result.rewrites} rewrites)` +
-      (result.warnings.length ? `\nWarnings:\n  ${result.warnings.join('\n  ')}` : '') +
-      '\n',
+        (result.warnings.length ? `\nWarnings:\n  ${result.warnings.join("\n  ")}` : "") +
+        "\n",
     );
     return 0;
   }
 
-  const configRoot = resolve(args.configRoot ?? './mocks');
+  const configRoot = resolve(args.configRoot ?? "./mocks");
   const adminEnabled = Boolean(process.env.MOCKSTAR_ADMIN_TOKEN);
 
   const launched = await launch({
@@ -223,7 +224,7 @@ async function main(): Promise<number> {
     allowWebhookUrlHeader: args.allowWebhookUrlHeader,
     webhookJournalFile: args.webhookJournalFile,
     server: {
-      host: args.host ?? '127.0.0.1',
+      host: args.host ?? "127.0.0.1",
       port: args.port ?? 3000,
       adminEnabled,
       rootToken: process.env.MOCKSTAR_ADMIN_TOKEN,
@@ -233,11 +234,13 @@ async function main(): Promise<number> {
   // biome-ignore lint/suspicious/noExplicitAny: Bun global
   const serve = (globalThis as any).Bun?.serve;
   if (!serve) {
-    process.stderr.write('Mockstar CLI requires the Bun runtime (https://bun.sh). Use library embed otherwise.\n');
+    process.stderr.write(
+      "Mockstar CLI requires the Bun runtime (https://bun.sh). Use library embed otherwise.\n",
+    );
     return 1;
   }
   const bunServer = serve({
-    hostname: args.host ?? '127.0.0.1',
+    hostname: args.host ?? "127.0.0.1",
     port: args.port ?? 3000,
     fetch: launched.server.hono.fetch,
   }) as { hostname: string; port: number };
@@ -246,41 +249,43 @@ async function main(): Promise<number> {
   );
 
   // Keep process alive; Bun.serve already holds the event loop. Still handle SIGTERM for orchestrators.
-  process.on('SIGTERM', () => {
+  process.on("SIGTERM", () => {
     void launched.stop().then(() => process.exit(0));
   });
   return 0;
 }
 
 function usage(): string {
-  return [
-    'mockstar <command> [options]',
-    '',
-    'Commands:',
-    '  init [dir]                  Scaffold a starter mocks/ + mockstar.config.json',
-    '  serve [config-root]         Start the mock server (default command)',
-    '  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON',
-    '  enhance <mocks-dir>         Rewrite imported mocks with Tier 2 placeholders',
-    '  migrate --schema <mocks-dir> --from <minor> --to <minor>',
-    '                              Rewrite $schema URLs when bumping a minor',
-    '  proxy <install|start|...>   Run the HTTPS transparent upstream proxy (tier1)',
-    '  help                        Show this help',
-    '  version                     Print version',
-    '',
-    'Serve options:',
-    '  --handlers <path>           Path to handlers directory (default ../handlers)',
-    '  --port <port>               Listen port (default 3000; env: MOCKSTAR_PORT)',
-    '  --host <host>               Bind host (default 127.0.0.1; env: MOCKSTAR_HOST)',
-    '  --deterministic             Enable CI deterministic mode',
-    '  --no-watch                  Disable file-watch hot reload',
-    '  --allow-webhook-url-header  Honour X-Mockstar-Webhook-Url request header (TN5; default off)',
-    '  --webhook-journal-file <p>  Append-only log of webhook deliveries for post-restart replay',
-    '',
-    'Env:',
-    '  MOCKSTAR_ADMIN_TOKEN                Root admin token (enables /metrics)',
-    '  MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER   Set to 1 to honour the header URL channel (B5)',
-    '',
-  ].join('\n') + '\n';
+  return (
+    [
+      "mockstar <command> [options]",
+      "",
+      "Commands:",
+      "  init [dir]                  Scaffold a starter mocks/ + mockstar.config.json",
+      "  serve [config-root]         Start the mock server (default command)",
+      "  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON",
+      "  enhance <mocks-dir>         Rewrite imported mocks with Tier 2 placeholders",
+      "  migrate --schema <mocks-dir> --from <minor> --to <minor>",
+      "                              Rewrite $schema URLs when bumping a minor",
+      "  proxy <install|start|...>   Run the HTTPS transparent upstream proxy (tier1)",
+      "  help                        Show this help",
+      "  version                     Print version",
+      "",
+      "Serve options:",
+      "  --handlers <path>           Path to handlers directory (default ../handlers)",
+      "  --port <port>               Listen port (default 3000; env: MOCKSTAR_PORT)",
+      "  --host <host>               Bind host (default 127.0.0.1; env: MOCKSTAR_HOST)",
+      "  --deterministic             Enable CI deterministic mode",
+      "  --no-watch                  Disable file-watch hot reload",
+      "  --allow-webhook-url-header  Honour X-Mockstar-Webhook-Url request header (TN5; default off)",
+      "  --webhook-journal-file <p>  Append-only log of webhook deliveries for post-restart replay",
+      "",
+      "Env:",
+      "  MOCKSTAR_ADMIN_TOKEN                Root admin token (enables /metrics)",
+      "  MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER   Set to 1 to honour the header URL channel (B5)",
+      "",
+    ].join("\n") + "\n"
+  );
 }
 
 // Entry point. Bun executes this file directly via bunx.

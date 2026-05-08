@@ -1,7 +1,7 @@
 // Satisfies: U1 (sync await endpoint backed by terminal-state events), RT-14 (event registry primitive)
 // Satisfies: TN3 (lifecycle separation — await runs on a different request than the trigger)
 
-import type { DeliverySummary } from './types.ts';
+import type { DeliverySummary } from "./types.ts";
 
 /**
  * Promise-registry for delivery terminal-state subscription.

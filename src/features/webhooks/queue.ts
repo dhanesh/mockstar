@@ -4,8 +4,8 @@
 // Satisfies: T3 (default retry curve via explicit backoff ladder; per-webhook overrides accepted)
 // Satisfies: B4 (no Redis required), TN6 (in-flight retries scoped to process lifetime)
 
-import PQueue from 'p-queue';
-import type { DeliveryOutcome, DeliverySummary } from './types.ts';
+import PQueue from "p-queue";
+import type { DeliveryOutcome, DeliverySummary } from "./types.ts";
 
 /**
  * One delivery as the queue sees it. The queue does NOT know how to make HTTP calls,
@@ -30,7 +30,7 @@ export interface QueuedDelivery {
   /** Terminal-state callback — fires exactly once per delivery, for the await endpoint (RT-14). */
   onTerminal: (summary: DeliverySummary) => void;
   /** Circuit gate — checked before each HTTP attempt; if it returns 'open', delivery short-circuits (O3). */
-  circuitGate: () => 'closed' | 'open' | 'half-open';
+  circuitGate: () => "closed" | "open" | "half-open";
   /** Attempt success/failure feeds back into the circuit. */
   recordCircuitOutcome: (success: boolean) => void;
 }
@@ -156,11 +156,13 @@ export class BoundedRetryQueue {
       const next = this.#waiting.shift();
       if (!next) break;
       // Fire-and-forget; #pq.add returns a Promise we don't need to await.
-      void this.#pq.add(() => this.#runWithRetry(next)).then(() => {
-        // After the task settles, p-queue's `pending` has decremented — size went down.
-        this.#fireSizeChange();
-        this.#drain();
-      });
+      void this.#pq
+        .add(() => this.#runWithRetry(next))
+        .then(() => {
+          // After the task settles, p-queue's `pending` has decremented — size went down.
+          this.#fireSizeChange();
+          this.#drain();
+        });
     }
   }
 
@@ -189,17 +191,17 @@ export class BoundedRetryQueue {
       // Circuit gate check immediately before HTTP — covers the case where another
       // delivery in the same window tripped the circuit while we were sleeping.
       const gate = req.circuitGate();
-      if (gate === 'open') {
+      if (gate === "open") {
         const summary: DeliverySummary = {
           deliveryId: req.deliveryId,
-          outcome: 'circuit-open',
-          totalAttempts: attempt - 1,  // we never made this attempt
+          outcome: "circuit-open",
+          totalAttempts: attempt - 1, // we never made this attempt
           lastHttpStatus,
           totalDurationUs: Math.round((performance.now() - totalStart) * 1000),
         };
         req.onAttempt({
           attempt,
-          outcome: 'circuit-open',
+          outcome: "circuit-open",
           durationUs: 0,
         });
         req.onTerminal(summary);
@@ -211,7 +213,7 @@ export class BoundedRetryQueue {
         lastHttpStatus = result.httpStatus;
         req.onAttempt({
           attempt,
-          outcome: 'success',
+          outcome: "success",
           httpStatus: result.httpStatus,
           durationUs: result.durationUs,
           resolvedUrl: result.resolvedUrl,
@@ -219,7 +221,7 @@ export class BoundedRetryQueue {
         req.recordCircuitOutcome(true);
         req.onTerminal({
           deliveryId: req.deliveryId,
-          outcome: 'success',
+          outcome: "success",
           totalAttempts: attempt,
           lastHttpStatus,
           totalDurationUs: Math.round((performance.now() - totalStart) * 1000),
@@ -229,7 +231,7 @@ export class BoundedRetryQueue {
         lastError = errorToString(err);
         req.onAttempt({
           attempt,
-          outcome: attempt === req.retry.attempts ? 'failed' : 'success',  // 'success' here means "we'll retry" — actual semantics handled by outcome on terminal
+          outcome: attempt === req.retry.attempts ? "failed" : "success", // 'success' here means "we'll retry" — actual semantics handled by outcome on terminal
           durationUs: 0,
           error: lastError,
         });
@@ -240,7 +242,7 @@ export class BoundedRetryQueue {
     // All attempts exhausted.
     req.onTerminal({
       deliveryId: req.deliveryId,
-      outcome: 'failed',
+      outcome: "failed",
       totalAttempts: req.retry.attempts,
       lastHttpStatus,
       totalDurationUs: Math.round((performance.now() - totalStart) * 1000),
@@ -251,12 +253,12 @@ export class BoundedRetryQueue {
     this.#onDropped?.(req);
     req.onAttempt({
       attempt: 0,
-      outcome: 'dropped',
+      outcome: "dropped",
       durationUs: 0,
     });
     req.onTerminal({
       deliveryId: req.deliveryId,
-      outcome: 'dropped',
+      outcome: "dropped",
       totalAttempts: 0,
       totalDurationUs: 0,
     });

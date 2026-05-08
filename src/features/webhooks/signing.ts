@@ -2,7 +2,7 @@
 // Satisfies: RT-2 (node:crypto HMAC + timing-safe compare in Bun)
 // Satisfies: B3 (industry contract — Stripe/GitHub/Slack/Svix shape)
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
  * Sign a webhook payload.
@@ -17,7 +17,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  */
 export function signPayload(rawBody: string, secret: string, timestampMs: number): string {
   const stringToSign = `${timestampMs}.${rawBody}`;
-  return createHmac('sha256', secret).update(stringToSign, 'utf8').digest('hex');
+  return createHmac("sha256", secret).update(stringToSign, "utf8").digest("hex");
 }
 
 /**
@@ -27,19 +27,29 @@ export function signPayload(rawBody: string, secret: string, timestampMs: number
  *
  * Returns false on length mismatch or timing-safe-compare miss. Never throws.
  */
-export function verifySignature(rawBody: string, secret: string, timestampMs: number, signatureHex: string): boolean {
+export function verifySignature(
+  rawBody: string,
+  secret: string,
+  timestampMs: number,
+  signatureHex: string,
+): boolean {
   const expected = signPayload(rawBody, secret, timestampMs);
   // timingSafeEqual requires equal-length buffers — different lengths means immediate mismatch.
   if (expected.length !== signatureHex.length) return false;
   try {
-    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(signatureHex, 'hex'));
+    return timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signatureHex, "hex"));
   } catch {
     return false;
   }
 }
 
 /** Replay-window check helper — returns false if `timestampMs` is outside `[now - windowMs, now + skewMs]`. */
-export function withinReplayWindow(timestampMs: number, windowMs: number, nowMs: number = Date.now(), futureSkewMs: number = 60_000): boolean {
+export function withinReplayWindow(
+  timestampMs: number,
+  windowMs: number,
+  nowMs: number = Date.now(),
+  futureSkewMs = 60_000,
+): boolean {
   const delta = nowMs - timestampMs;
   return delta <= windowMs && delta >= -futureSkewMs;
 }
@@ -64,13 +74,13 @@ export function resolveSecret(secretRef: string): string {
     if (!val) throw new Error(`webhook signing: env var '${name}' is unset; signing cannot proceed`);
     return val;
   }
-  if (secretRef.startsWith('file:')) {
+  if (secretRef.startsWith("file:")) {
     // Synchronous file read at delivery time — the secret rarely changes; reading once
     // per delivery is acceptable and avoids stale-cache hazards.
-    const path = secretRef.slice('file:'.length);
+    const path = secretRef.slice("file:".length);
     // biome-ignore lint/correctness/noNodejsModules: node:fs is intentional for secret-from-file pattern
-    const { readFileSync } = require('node:fs');
-    const content = (readFileSync(path, 'utf8') as string).trim();
+    const { readFileSync } = require("node:fs");
+    const content = (readFileSync(path, "utf8") as string).trim();
     if (!content) throw new Error(`webhook signing: secret file '${path}' is empty`);
     return content;
   }

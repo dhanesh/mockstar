@@ -2,20 +2,20 @@
 // Contributes to: RT-1.3 (handler-reference cross-check)
 // Satisfies: RT-4 (snapshot builder compiles scenario rules into compiledScenarios map)
 
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { basename, resolve } from 'node:path';
-import type { HandlerRegistry } from '../handlers/index.ts';
-import { verifyHandlerReferences } from '../handlers/index.ts';
-import { compileEntryResponses, type CompiledResponse } from '../templating/compiler.ts';
-import { compileWebhookSpecs } from '../../features/webhooks/compile.ts';
-import { buildMatchIndex } from '../matching/index.ts';
-import { compileScenarioRules } from '../scenarios/evaluator.ts';
-import type { CompiledScenario } from '../scenarios/evaluator.ts';
-import { type ConfigSnapshot, type TenantSnapshot } from './snapshot.ts';
-import { MockEntry, ServerConfig, TenantConfig, TenantLimits, type Entry, type Server } from './schema.ts';
+import { readdir, readFile, stat } from "node:fs/promises";
+import { basename, resolve } from "node:path";
+import type { HandlerRegistry } from "../handlers/index.ts";
+import { verifyHandlerReferences } from "../handlers/index.ts";
+import { compileEntryResponses, type CompiledResponse } from "../templating/compiler.ts";
+import { compileWebhookSpecs } from "../../features/webhooks/compile.ts";
+import { buildMatchIndex } from "../matching/index.ts";
+import { compileScenarioRules } from "../scenarios/evaluator.ts";
+import type { CompiledScenario } from "../scenarios/evaluator.ts";
+import { type ConfigSnapshot, type TenantSnapshot } from "./snapshot.ts";
+import { MockEntry, ServerConfig, TenantConfig, TenantLimits, type Entry, type Server } from "./schema.ts";
 
 export interface LoadOptions {
-  configRoot: string;         // directory containing per-tenant subdirs
+  configRoot: string; // directory containing per-tenant subdirs
   server: Server;
   handlers: HandlerRegistry;
 }
@@ -31,7 +31,9 @@ export async function loadSnapshot(opts: LoadOptions): Promise<ConfigSnapshot> {
   }
 
   if (tenants.size === 0) {
-    throw new Error(`No tenant directories found under ${opts.configRoot}. Expected ./mocks/{tenant}/*.json structure.`);
+    throw new Error(
+      `No tenant directories found under ${opts.configRoot}. Expected ./mocks/{tenant}/*.json structure.`,
+    );
   }
 
   return Object.freeze({
@@ -60,7 +62,7 @@ export async function loadTenant(
         const entry = MockEntry.parse(raw);
         entries.push(entry);
       }
-    } else if (parsed && typeof parsed === 'object' && 'mocks' in parsed) {
+    } else if (parsed && typeof parsed === "object" && "mocks" in parsed) {
       const maybe = parsed as { mocks: unknown };
       if (!Array.isArray(maybe.mocks)) throw new Error(`${file}: 'mocks' must be an array`);
       for (const raw of maybe.mocks) {
@@ -72,16 +74,18 @@ export async function loadTenant(
     }
 
     for (const e of entries.slice(beforeCount)) {
-      if (e.response.kind === 'dynamic') {
+      if (e.response.kind === "dynamic") {
         referencedHandlers.push({ name: e.response.handler, configPath: `${file}#${e.id}` });
       }
     }
   }
 
   // Also look for tenant.json to override limits / adminToken / allowPrivateUpstreams.
-  const tenantJson = await tryReadJson(resolve(tenantDir, 'tenant.json'));
+  const tenantJson = await tryReadJson(resolve(tenantDir, "tenant.json"));
   const tenantMeta = tenantJson
-    ? TenantConfig.omit({ mocks: true }).partial({ name: true }).parse({ name, ...tenantJson })
+    ? TenantConfig.omit({ mocks: true })
+        .partial({ name: true })
+        .parse({ name, ...tenantJson })
     : { name, limits: TenantLimits.parse({}), allowPrivateUpstreams: false };
 
   // Cross-check handler references (RT-1.3). Boot fails here if any are missing.
@@ -121,11 +125,11 @@ async function listTenantDirs(root: string): Promise<string[]> {
 
 async function listJsonFiles(dir: string): Promise<string[]> {
   const names = await readdir(dir);
-  return names.filter((n) => n.endsWith('.json') && n !== 'tenant.json').map((n) => resolve(dir, n));
+  return names.filter((n) => n.endsWith(".json") && n !== "tenant.json").map((n) => resolve(dir, n));
 }
 
 async function readJson(file: string): Promise<unknown> {
-  const contents = await readFile(file, 'utf8');
+  const contents = await readFile(file, "utf8");
   try {
     return JSON.parse(contents);
   } catch (err) {

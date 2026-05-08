@@ -2,9 +2,9 @@
 // Satisfies: O4 (admin replay endpoint reads from this), TN7 (replay scope = ring-buffer-resident)
 // Satisfies: T2 (in-memory only) + INT-1 (--webhook-journal-file optional JSONL append)
 
-import { appendFileSync } from 'node:fs';
-import { RingBuffer } from '../../core/journal/ring-buffer.ts';
-import type { WebhookJournalEntry } from './types.ts';
+import { appendFileSync } from "node:fs";
+import { RingBuffer } from "../../core/journal/ring-buffer.ts";
+import type { WebhookJournalEntry } from "./types.ts";
 
 export interface WebhookJournalOptions {
   /**
