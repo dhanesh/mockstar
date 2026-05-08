@@ -14,18 +14,18 @@
 //     the walker has already visited in the SAME render pass. The cycle set tracks by identity.
 
 export const DEFAULT_MAX_RESPONSE_BYTES = 1_000_000; // 1 MB — inherits S4 / mockstar core body cap.
-export const DEFAULT_MAX_DEPTH = 64;                  // T14 — depth cap independent of cycles.
+export const DEFAULT_MAX_DEPTH = 64; // T14 — depth cap independent of cycles.
 
-export type Tier2ErrorCode = 'PAYLOAD_TOO_LARGE' | 'MAX_DEPTH_EXCEEDED' | 'CYCLE_DETECTED';
+export type Tier2ErrorCode = "PAYLOAD_TOO_LARGE" | "MAX_DEPTH_EXCEEDED" | "CYCLE_DETECTED";
 
 export class Tier2RenderError extends Error {
   readonly code: Tier2ErrorCode;
   readonly httpStatus: number;
   constructor(code: Tier2ErrorCode, message: string) {
     super(message);
-    this.name = 'Tier2RenderError';
+    this.name = "Tier2RenderError";
     this.code = code;
-    this.httpStatus = code === 'PAYLOAD_TOO_LARGE' ? 413 : 500;
+    this.httpStatus = code === "PAYLOAD_TOO_LARGE" ? 413 : 500;
   }
 }
 
@@ -56,8 +56,8 @@ export class RenderBudget {
     this.bytes += delta;
     if (this.bytes > this.maxBytes) {
       throw new Tier2RenderError(
-        'PAYLOAD_TOO_LARGE',
-        `Response body would exceed ${this.maxBytes} bytes (walker saw ${this.bytes}).`
+        "PAYLOAD_TOO_LARGE",
+        `Response body would exceed ${this.maxBytes} bytes (walker saw ${this.bytes}).`,
       );
     }
   }
@@ -65,10 +65,7 @@ export class RenderBudget {
   enterDepth(): void {
     this.depth++;
     if (this.depth > this.maxDepth) {
-      throw new Tier2RenderError(
-        'MAX_DEPTH_EXCEEDED',
-        `Response tree exceeded max depth ${this.maxDepth}.`
-      );
+      throw new Tier2RenderError("MAX_DEPTH_EXCEEDED", `Response tree exceeded max depth ${this.maxDepth}.`);
     }
   }
 
@@ -99,12 +96,12 @@ export class RenderBudget {
  */
 export function estimateJsonSize(value: unknown, budget: RenderBudget): number {
   if (value === null || value === undefined) return 4; // "null"
-  if (typeof value === 'boolean') return value ? 4 : 5;
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value).length : 4;
-  if (typeof value === 'string') return value.length + 2; // quotes
+  if (typeof value === "boolean") return value ? 4 : 5;
+  if (typeof value === "number") return Number.isFinite(value) ? String(value).length : 4;
+  if (typeof value === "string") return value.length + 2; // quotes
   if (Array.isArray(value)) {
     if (budget.markSeen(value)) {
-      throw new Tier2RenderError('CYCLE_DETECTED', 'Cycle detected in substituted request-body value.');
+      throw new Tier2RenderError("CYCLE_DETECTED", "Cycle detected in substituted request-body value.");
     }
     budget.enterDepth();
     let total = 2; // []
@@ -116,10 +113,10 @@ export function estimateJsonSize(value: unknown, budget: RenderBudget): number {
     budget.forget(value);
     return total;
   }
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
     if (budget.markSeen(obj)) {
-      throw new Tier2RenderError('CYCLE_DETECTED', 'Cycle detected in substituted request-body value.');
+      throw new Tier2RenderError("CYCLE_DETECTED", "Cycle detected in substituted request-body value.");
     }
     budget.enterDepth();
     let total = 2; // {}

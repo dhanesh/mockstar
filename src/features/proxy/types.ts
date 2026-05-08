@@ -25,7 +25,7 @@ export interface ProxyConfig {
   /** Leaf cert TTL in hours (RT-4.1; 24 per TN4). */
   readonly leafTtlHours: number;
   /** DNS strategy — set by env detection at install time. */
-  readonly dnsMode: 'dnsmasq' | 'hosts-fallback';
+  readonly dnsMode: "dnsmasq" | "hosts-fallback";
 }
 
 export interface LeafCert {
@@ -48,17 +48,17 @@ export interface ProxySnapshot {
 }
 
 export type EnvHostility =
-  | { kind: 'clean' }
-  | { kind: 'mdm-managed'; detail: string }
-  | { kind: 'vpn-resolver-override'; detail: string }
-  | { kind: 'port-443-bound'; detail: string }
-  | { kind: 'containerized-or-ci'; detail: string };
+  | { kind: "clean" }
+  | { kind: "mdm-managed"; detail: string }
+  | { kind: "vpn-resolver-override"; detail: string }
+  | { kind: "port-443-bound"; detail: string }
+  | { kind: "containerized-or-ci"; detail: string };
 
 /** A single recorded mutation in the install journal (RT-7). */
 export interface InstallStep {
   readonly step: number;
   readonly timestamp: string; // ISO
-  readonly action: string;    // human-readable description
+  readonly action: string; // human-readable description
   readonly reverseCommand: ReverseCommand;
   /** SHA-256 of {step, timestamp, action, reverseCommand} JSON. */
   readonly checksum: string;
@@ -70,19 +70,23 @@ export interface InstallStep {
  * arguments at replay time and because shell quoting is a footgun.
  */
 export type ReverseCommand =
-  | { kind: 'mkcert_uninstall' }
-  | { kind: 'remove_file'; path: string }
-  | { kind: 'remove_dir'; path: string }
-  | { kind: 'revert_file'; path: string; originalContent: string }
-  | { kind: 'dnsmasq_stop_and_remove' }
-  | { kind: 'revert_hosts_entries'; blockMarker: string }
-  | { kind: 'setcap_drop'; path: string }
-  | { kind: 'launchctl_unload_and_remove'; plistPath: string }
-  | { kind: 'noop'; reason: string };
+  | { kind: "mkcert_uninstall" }
+  | { kind: "remove_file"; path: string }
+  | { kind: "remove_dir"; path: string }
+  | { kind: "revert_file"; path: string; originalContent: string }
+  | { kind: "dnsmasq_stop_and_remove" }
+  | { kind: "revert_hosts_entries"; blockMarker: string }
+  | { kind: "setcap_drop"; path: string }
+  | { kind: "launchctl_unload_and_remove"; plistPath: string }
+  | { kind: "noop"; reason: string };
 
 export class ProxyError extends Error {
-  constructor(message: string, public readonly code: string, public readonly hint?: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly hint?: string,
+  ) {
     super(message);
-    this.name = 'ProxyError';
+    this.name = "ProxyError";
   }
 }

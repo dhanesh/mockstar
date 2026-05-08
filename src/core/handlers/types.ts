@@ -1,17 +1,14 @@
 // Satisfies: T5, T6, RT-1
 // Types shared by the handler registry and its callers.
 
-import type { Context } from 'hono';
+import type { Context } from "hono";
 
 /**
  * A named dynamic-mock handler. Receives the Hono context plus a
  * per-request helper bundle. Must await any async work it spawns —
  * fire-and-forget rejections escape to the process-level hook (RT-3).
  */
-export type MockHandler = (
-  ctx: Context,
-  helpers: HandlerHelpers,
-) => Response | Promise<Response>;
+export type MockHandler = (ctx: Context, helpers: HandlerHelpers) => Response | Promise<Response>;
 
 export interface HandlerHelpers {
   readonly tenant: string;
@@ -40,8 +37,10 @@ export class HandlerLoadError extends Error {
     public readonly file: string,
     public readonly cause: unknown,
   ) {
-    super(`Failed to load handler module '${file}': ${cause instanceof Error ? cause.message : String(cause)}`);
-    this.name = 'HandlerLoadError';
+    super(
+      `Failed to load handler module '${file}': ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
+    this.name = "HandlerLoadError";
   }
 }
 
@@ -52,8 +51,8 @@ export class MissingHandlerError extends Error {
   ) {
     const lines = missing.map((m) => `  - '${m.name}' referenced by ${m.configPath}`);
     super(
-      `Config references ${missing.length} handler(s) not found in the handlers/ directory:\n${lines.join('\n')}\n\nAvailable handlers: ${available.length === 0 ? '(none)' : available.join(', ')}`,
+      `Config references ${missing.length} handler(s) not found in the handlers/ directory:\n${lines.join("\n")}\n\nAvailable handlers: ${available.length === 0 ? "(none)" : available.join(", ")}`,
     );
-    this.name = 'MissingHandlerError';
+    this.name = "MissingHandlerError";
   }
 }

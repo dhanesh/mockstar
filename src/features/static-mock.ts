@@ -4,14 +4,14 @@
 //            S4 (413 on exceeded body budget)
 // Priority: binding (on the hot path)
 
-import type { Context } from 'hono';
-import type { Entry } from '../core/config/schema.ts';
-import type { CompiledResponse, TemplateContext } from '../core/templating/compiler.ts';
-import { renderCompiledJson } from '../core/templating/compiler.ts';
-import type { FakerInstance } from '../core/templating/faker.ts';
-import { createIdHelpers, fnv1a } from '../core/templating/tier2/id.ts';
-import type { Clock } from '../core/templating/tier2/now.ts';
-import { RenderBudget, Tier2RenderError } from '../core/templating/tier2/walker.ts';
+import type { Context } from "hono";
+import type { Entry } from "../core/config/schema.ts";
+import type { CompiledResponse, TemplateContext } from "../core/templating/compiler.ts";
+import { renderCompiledJson } from "../core/templating/compiler.ts";
+import type { FakerInstance } from "../core/templating/faker.ts";
+import { createIdHelpers, fnv1a } from "../core/templating/tier2/id.ts";
+import type { Clock } from "../core/templating/tier2/now.ts";
+import { RenderBudget, Tier2RenderError } from "../core/templating/tier2/walker.ts";
 
 export interface StaticRenderInput {
   entry: Entry;
@@ -31,7 +31,7 @@ export interface StaticRenderInput {
 }
 
 export async function renderStatic(input: StaticRenderInput): Promise<Response> {
-  if (input.entry.response.kind !== 'static') {
+  if (input.entry.response.kind !== "static") {
     throw new Error(`renderStatic called for non-static entry '${input.entry.id}'`);
   }
   const response = input.entry.response;
@@ -82,15 +82,15 @@ export async function renderStatic(input: StaticRenderInput): Promise<Response> 
     } else if (input.compiled.bodyJson !== null) {
       const budget = new RenderBudget({ maxBytes: input.maxResponseBytes });
       bodyOut = JSON.stringify(renderCompiledJson(input.compiled.bodyJson, templateCtx, budget));
-      if (!headers.has('content-type')) headers.set('content-type', 'application/json');
+      if (!headers.has("content-type")) headers.set("content-type", "application/json");
     } else {
-      bodyOut = '';
+      bodyOut = "";
     }
   } catch (err) {
     if (err instanceof Tier2RenderError) {
       return new Response(
         JSON.stringify({ error: err.code.toLowerCase(), message: err.message, mockId: input.entry.id }),
-        { status: err.httpStatus, headers: { 'content-type': 'application/json' } },
+        { status: err.httpStatus, headers: { "content-type": "application/json" } },
       );
     }
     throw err;
@@ -100,6 +100,7 @@ export async function renderStatic(input: StaticRenderInput): Promise<Response> 
 }
 
 async function applyDelay(spec: number | { min: number; max: number }): Promise<void> {
-  const ms = typeof spec === 'number' ? spec : spec.min + Math.floor(Math.random() * (spec.max - spec.min + 1));
+  const ms =
+    typeof spec === "number" ? spec : spec.min + Math.floor(Math.random() * (spec.max - spec.min + 1));
   if (ms > 0) await new Promise((r) => setTimeout(r, ms));
 }

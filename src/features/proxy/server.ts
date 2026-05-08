@@ -5,17 +5,12 @@
 // This file is the glue. It imports from every other proxy module, wires them together,
 // and exposes `startProxyServer` as the single entry point used by the CLI.
 
-import { createLogger, Metrics, type StructuredLogger } from '../../core/observability/index.ts';
-import { buildSnapshot, evictedHostnames, SnapshotHolder } from './cert-cache.ts';
-import {
-  startTlsServer,
-  leavesFromSnapshot,
-  type RequestMeta,
-  type TlsServerHandle,
-} from './tls-adapter.ts';
-import { forwardToMockstar, probeMockstarHealth } from './upstream.ts';
-import { watchConfig } from './config.ts';
-import type { Hostname, ProxyConfig } from './types.ts';
+import { createLogger, Metrics, type StructuredLogger } from "../../core/observability/index.ts";
+import { buildSnapshot, evictedHostnames, SnapshotHolder } from "./cert-cache.ts";
+import { startTlsServer, leavesFromSnapshot, type RequestMeta, type TlsServerHandle } from "./tls-adapter.ts";
+import { forwardToMockstar, probeMockstarHealth } from "./upstream.ts";
+import { watchConfig } from "./config.ts";
+import type { Hostname, ProxyConfig } from "./types.ts";
 
 export interface ProxyRuntime {
   readonly server: TlsServerHandle;
@@ -44,9 +39,9 @@ export async function startProxyServer(opts: StartOptions): Promise<ProxyRuntime
   const upstreamOk = await probeMockstarHealth(opts.config);
   if (!upstreamOk) {
     logger.warn({
-      event: 'proxy_upstream_unreachable_at_start',
+      event: "proxy_upstream_unreachable_at_start",
       upstream: opts.config.mockstarUrl,
-      hint: 'Start mockstar via `make dev` or `bunx mockstar ./mocks`.',
+      hint: "Start mockstar via `make dev` or `bunx mockstar ./mocks`.",
     });
   }
 
@@ -59,22 +54,23 @@ export async function startProxyServer(opts: StartOptions): Promise<ProxyRuntime
   });
 
   logger.info({
-    event: 'proxy_listening',
+    event: "proxy_listening",
     url: server.url,
     hosts: opts.config.hosts.map((h) => h.host),
     mockstarUrl: opts.config.mockstarUrl,
   });
 
   // File-watch hot reload.
-  const watcher = opts.watch === false
-    ? null
-    : await watchConfig(opts.configPath, (result) => {
-        if (!result.ok) {
-          logger.warn({ event: 'proxy_config_reload_rejected', details: result.error });
-          return;
-        }
-        void reloadSnapshot(holder, result.config, server, logger);
-      });
+  const watcher =
+    opts.watch === false
+      ? null
+      : await watchConfig(opts.configPath, (result) => {
+          if (!result.ok) {
+            logger.warn({ event: "proxy_config_reload_rejected", details: result.error });
+            return;
+          }
+          void reloadSnapshot(holder, result.config, server, logger);
+        });
 
   return {
     server,
@@ -102,13 +98,13 @@ async function dispatch(req: Request, meta: RequestMeta, deps: DispatchDeps): Pr
   if (!host) {
     // This should be rare — TLS handshake was accepted but config raced ahead.
     deps.logger.warn({
-      event: 'proxy_host_disappeared_mid_request',
+      event: "proxy_host_disappeared_mid_request",
       servername: meta.servername,
     });
-    return new Response(
-      JSON.stringify({ error: 'host_not_configured', servername: meta.servername }),
-      { status: 421, headers: { 'content-type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ error: "host_not_configured", servername: meta.servername }), {
+      status: 421,
+      headers: { "content-type": "application/json" },
+    });
   }
 
   const requestId = `prx-${meta.connectionId}-${Date.now().toString(36)}`;
@@ -124,21 +120,21 @@ async function dispatch(req: Request, meta: RequestMeta, deps: DispatchDeps): Pr
     });
   } catch (err) {
     deps.logger.error({
-      event: 'proxy_dispatch_error',
+      event: "proxy_dispatch_error",
       requestId,
       message: err instanceof Error ? err.message : String(err),
     });
-    response = new Response(
-      JSON.stringify({ error: 'proxy_internal', requestId }),
-      { status: 500, headers: { 'content-type': 'application/json' } },
-    );
+    response = new Response(JSON.stringify({ error: "proxy_internal", requestId }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
   }
 
   // Observability: deferred log + counter increment (RT-9 follows mockstar's O1/O2 shape).
   queueMicrotask(() => {
     const durationUs = Math.round(performance.now() * 1000 - startedUs);
     deps.logger.info({
-      event: 'proxy_request',
+      event: "proxy_request",
       host: host.host,
       tenant: host.tenant,
       method: req.method,
@@ -147,13 +143,13 @@ async function dispatch(req: Request, meta: RequestMeta, deps: DispatchDeps): Pr
       requestId,
       durationUs,
     });
-    deps.metrics.incCounter('mockstar_proxy_requests_total', {
+    deps.metrics.incCounter("mockstar_proxy_requests_total", {
       host: host.host,
       tenant: host.tenant,
       status: String(response.status),
       method: req.method,
     });
-    deps.metrics.observeLatencyUs('mockstar_proxy_request_latency_us', { tenant: host.tenant }, durationUs);
+    deps.metrics.observeLatencyUs("mockstar_proxy_request_latency_us", { tenant: host.tenant }, durationUs);
   });
 
   return response;
@@ -176,16 +172,16 @@ async function reloadSnapshot(
     if (evicted.size > 0) {
       await server.closeWhere((meta: RequestMeta) => evicted.has(meta.servername.toLowerCase() as Hostname));
       logger.info({
-        event: 'proxy_config_reload_ok_with_eviction',
+        event: "proxy_config_reload_ok_with_eviction",
         version: next.version,
         evicted: [...evicted],
       });
     } else {
-      logger.info({ event: 'proxy_config_reload_ok', version: next.version });
+      logger.info({ event: "proxy_config_reload_ok", version: next.version });
     }
   } catch (err) {
     logger.warn({
-      event: 'proxy_config_reload_failed',
+      event: "proxy_config_reload_failed",
       message: err instanceof Error ? err.message : String(err),
     });
     // Keep the previous snapshot active (TN5 behaviour: warn-and-keep-previous).

@@ -9,11 +9,11 @@
 //   - reload also triggers forced-close on connections matching evicted hostnames
 //     (RT-4.3 — implemented via a predicate passed to tls-adapter's closeWhere)
 
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { generateLeaf } from './ca.ts';
-import type { Hostname, HostConfig, LeafCert, ProxyConfig, ProxySnapshot } from './types.ts';
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { generateLeaf } from "./ca.ts";
+import type { Hostname, HostConfig, LeafCert, ProxyConfig, ProxySnapshot } from "./types.ts";
 
 // --- PUBLIC API ----------------------------------------------------------
 
@@ -54,7 +54,7 @@ export async function buildSnapshot(
   }
 
   const leaves = new Map<Hostname, LeafCert>();
-  const scratchDir = await mkdtemp(join(tmpdir(), 'mockstar-leaves-'));
+  const scratchDir = await mkdtemp(join(tmpdir(), "mockstar-leaves-"));
   try {
     for (const hostname of hosts.keys()) {
       // RT-4.4: if the previous snapshot has a non-expired leaf for this hostname

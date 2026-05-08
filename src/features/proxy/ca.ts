@@ -12,47 +12,47 @@
 // External dependency: `mkcert` binary on PATH. If missing, the proxy refuses to start with
 // a specific remediation message.
 
-import { spawn } from 'node:child_process';
-import { access, chmod, stat } from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
-import { join } from 'node:path';
-import { ProxyError } from './types.ts';
+import { spawn } from "node:child_process";
+import { access, chmod, stat } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { join } from "node:path";
+import { ProxyError } from "./types.ts";
 
 // --- PUBLIC API ----------------------------------------------------------
 
 export interface CaPaths {
-  readonly caRoot: string;        // directory containing rootCA.pem + rootCA-key.pem
-  readonly rootCertPem: string;   // absolute path to rootCA.pem
-  readonly rootKeyPem: string;    // absolute path to rootCA-key.pem
+  readonly caRoot: string; // directory containing rootCA.pem + rootCA-key.pem
+  readonly rootCertPem: string; // absolute path to rootCA.pem
+  readonly rootKeyPem: string; // absolute path to rootCA-key.pem
 }
 
 export interface CaFacts {
   readonly paths: CaPaths;
-  readonly installed: boolean;    // is the CA in the OS trust store?
-  readonly commonName: string;    // self-identifying CN per S5
+  readonly installed: boolean; // is the CA in the OS trust store?
+  readonly commonName: string; // self-identifying CN per S5
   readonly nodeExtraCaCertsCommand: string; // copy-paste snippet for Node.js users
 }
 
 /** Build the scoped CN used for the dev CA (S5 — self-identifying). */
 export function scopedCommonName(user: string, host: string): string {
-  const safe = (s: string): string => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 32) || 'anon';
+  const safe = (s: string): string => s.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 32) || "anon";
   return `mockstar-dev-ca-${safe(user)}@${safe(host)}`;
 }
 
 /** Return the mkcert CAROOT directory and the standard file paths within it. */
 export async function resolveCaPaths(): Promise<CaPaths> {
-  const caRoot = (await runMkcert(['-CAROOT'])).stdout.trim();
+  const caRoot = (await runMkcert(["-CAROOT"])).stdout.trim();
   if (!caRoot) {
     throw new ProxyError(
-      'mkcert returned an empty CAROOT directory',
-      'mkcert_no_caroot',
-      'Ensure mkcert is installed and accessible on PATH (brew install mkcert || apt install mkcert).',
+      "mkcert returned an empty CAROOT directory",
+      "mkcert_no_caroot",
+      "Ensure mkcert is installed and accessible on PATH (brew install mkcert || apt install mkcert).",
     );
   }
   return {
     caRoot,
-    rootCertPem: join(caRoot, 'rootCA.pem'),
-    rootKeyPem: join(caRoot, 'rootCA-key.pem'),
+    rootCertPem: join(caRoot, "rootCA.pem"),
+    rootKeyPem: join(caRoot, "rootCA-key.pem"),
   };
 }
 
@@ -76,23 +76,23 @@ export async function isCaInstalled(paths: CaPaths): Promise<boolean> {
  * Records no journal entry here — the caller is responsible for journaling via install-journal.ts.
  */
 export async function installCa(): Promise<void> {
-  const result = await runMkcert(['-install']);
+  const result = await runMkcert(["-install"]);
   if (result.exitCode !== 0) {
     throw new ProxyError(
       `mkcert -install failed: ${result.stderr.trim() || result.stdout.trim()}`,
-      'mkcert_install_failed',
-      'Check that mkcert can write to the system trust store (may require sudo on some systems).',
+      "mkcert_install_failed",
+      "Check that mkcert can write to the system trust store (may require sudo on some systems).",
     );
   }
 }
 
 /** Run `mkcert -uninstall`. Safe to call multiple times. */
 export async function uninstallCa(): Promise<void> {
-  const result = await runMkcert(['-uninstall']);
+  const result = await runMkcert(["-uninstall"]);
   if (result.exitCode !== 0) {
     throw new ProxyError(
       `mkcert -uninstall failed: ${result.stderr.trim() || result.stdout.trim()}`,
-      'mkcert_uninstall_failed',
+      "mkcert_uninstall_failed",
     );
   }
 }
@@ -111,8 +111,8 @@ export async function enforceKeyPermissions(paths: CaPaths): Promise<number> {
     if (newMode !== 0o600) {
       throw new ProxyError(
         `Could not enforce 0600 on ${paths.rootKeyPem}; current mode is ${newMode.toString(8)}`,
-        'ca_key_permission_refused',
-        'Check the file system (some FS types strip mode bits). Consider moving the CAROOT to a local filesystem.',
+        "ca_key_permission_refused",
+        "Check the file system (some FS types strip mode bits). Consider moving the CAROOT to a local filesystem.",
       );
     }
   }
@@ -129,11 +129,11 @@ export async function generateLeaf(
 ): Promise<{ certPem: string; keyPem: string; expiresAt: number }> {
   const certPath = join(opts.scratchDir, `${safeHostFilename(host)}.pem`);
   const keyPath = join(opts.scratchDir, `${safeHostFilename(host)}-key.pem`);
-  const result = await runMkcert(['-cert-file', certPath, '-key-file', keyPath, host]);
+  const result = await runMkcert(["-cert-file", certPath, "-key-file", keyPath, host]);
   if (result.exitCode !== 0) {
     throw new ProxyError(
       `mkcert leaf generation failed for ${host}: ${result.stderr.trim() || result.stdout.trim()}`,
-      'mkcert_leaf_failed',
+      "mkcert_leaf_failed",
     );
   }
 
@@ -175,36 +175,36 @@ interface ShellResult {
 }
 
 async function runMkcert(args: readonly string[]): Promise<ShellResult> {
-  return runCmd('mkcert', args);
+  return runCmd("mkcert", args);
 }
 
 function runCmd(cmd: string, args: readonly string[]): Promise<ShellResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args as string[], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString('utf8');
+    const child = spawn(cmd, args as string[], { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString("utf8");
     });
-    child.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString('utf8');
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString("utf8");
     });
-    child.on('error', (err) => {
+    child.on("error", (err) => {
       reject(
         new ProxyError(
           `Failed to run '${cmd}': ${err.message}`,
-          'mkcert_not_found',
+          "mkcert_not_found",
           `Install mkcert: 'brew install mkcert' (macOS) or 'apt install mkcert libnss3-tools' (Debian).`,
         ),
       );
     });
-    child.on('close', (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
+    child.on("close", (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
   });
 }
 
 async function readAndClear(path: string): Promise<string> {
-  const { readFile, unlink } = await import('node:fs/promises');
-  const content = await readFile(path, 'utf8');
+  const { readFile, unlink } = await import("node:fs/promises");
+  const content = await readFile(path, "utf8");
   await unlink(path).catch(() => {
     /* best-effort cleanup; leaf files are transient */
   });
@@ -212,5 +212,5 @@ async function readAndClear(path: string): Promise<string> {
 }
 
 function safeHostFilename(host: string): string {
-  return host.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return host.replace(/[^a-zA-Z0-9._-]/g, "_");
 }

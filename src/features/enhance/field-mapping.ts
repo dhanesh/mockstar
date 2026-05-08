@@ -24,32 +24,28 @@ export interface FieldRewrite {
  * regex validation. Per TN6 resolution: ambiguous mappings are left as literals plus a warning,
  * not silently substituted.
  */
-export function decideRewrite(
-  fieldName: string,
-  value: unknown,
-  hint: EnhanceHint,
-): FieldRewrite | null {
-  if (typeof value !== 'string' && typeof value !== 'number') return null;
+export function decideRewrite(fieldName: string, value: unknown, hint: EnhanceHint): FieldRewrite | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
   const lower = fieldName.toLowerCase();
 
   // ID-like fields: literal strings that look like opaque IDs get replaced with `{{id(...)}}`
-  if (looksLikeIdField(fieldName, lower) && typeof value === 'string' && looksLikeIdValue(value)) {
+  if (looksLikeIdField(fieldName, lower) && typeof value === "string" && looksLikeIdValue(value)) {
     const { prefix, length, alphabet } = idShapeFor(hint.providerTag, lower, value);
     const prefixArg = JSON.stringify(prefix);
-    const alphaArg = alphabet ? `, ${JSON.stringify(alphabet)}` : '';
+    const alphaArg = alphabet ? `, ${JSON.stringify(alphabet)}` : "";
     return {
       token: `{{id(${prefixArg}, ${length}${alphaArg})}}`,
-      reason: `name-matches-id-field (provider=${hint.providerTag ?? 'generic'})`,
+      reason: `name-matches-id-field (provider=${hint.providerTag ?? "generic"})`,
     };
   }
 
   // Timestamp-ish fields
   if (looksLikeTimestampField(fieldName, lower)) {
-    if (typeof value === 'string' && ISO_RE.test(value)) {
-      return { token: '{{now.iso}}', reason: 'iso8601-timestamp' };
+    if (typeof value === "string" && ISO_RE.test(value)) {
+      return { token: "{{now.iso}}", reason: "iso8601-timestamp" };
     }
-    if (typeof value === 'number' && value > 1_000_000_000) {
-      return { token: '{{now.unix}}', reason: 'unix-seconds' };
+    if (typeof value === "number" && value > 1_000_000_000) {
+      return { token: "{{now.unix}}", reason: "unix-seconds" };
     }
   }
 
@@ -59,25 +55,45 @@ export function decideRewrite(
 // --- heuristics --------------------------------------------------------------
 
 const ID_FIELD_NAMES = new Set([
-  'id',
-  'orderid', 'order_id',
-  'customerid', 'customer_id',
-  'paymentid', 'payment_id',
-  'refundid', 'refund_id',
-  'entityid', 'entity_id',
-  'messagesid', 'messages_id', 'sid',
-  'userid', 'user_id',
-  'transactionid', 'transaction_id',
-  'accountid', 'account_id',
-  'subscriptionid', 'subscription_id',
+  "id",
+  "orderid",
+  "order_id",
+  "customerid",
+  "customer_id",
+  "paymentid",
+  "payment_id",
+  "refundid",
+  "refund_id",
+  "entityid",
+  "entity_id",
+  "messagesid",
+  "messages_id",
+  "sid",
+  "userid",
+  "user_id",
+  "transactionid",
+  "transaction_id",
+  "accountid",
+  "account_id",
+  "subscriptionid",
+  "subscription_id",
 ]);
 
 const TIMESTAMP_FIELD_NAMES = new Set([
-  'created', 'created_at', 'createdat',
-  'updated', 'updated_at', 'updatedat',
-  'timestamp', 'date_created', 'datecreated',
-  'date_updated', 'dateupdated',
-  'issued_at', 'expires_at', 'expiresat',
+  "created",
+  "created_at",
+  "createdat",
+  "updated",
+  "updated_at",
+  "updatedat",
+  "timestamp",
+  "date_created",
+  "datecreated",
+  "date_updated",
+  "dateupdated",
+  "issued_at",
+  "expires_at",
+  "expiresat",
 ]);
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/;
@@ -89,15 +105,15 @@ const CAMEL_AT_RE = /[a-z0-9](At|AT)$/;
 
 function looksLikeIdField(rawName: string, lowerName: string): boolean {
   if (ID_FIELD_NAMES.has(lowerName)) return true;
-  if (lowerName.endsWith('_id')) return true;  // snake_case boundary
-  if (CAMEL_ID_RE.test(rawName)) return true;   // camelCase boundary
+  if (lowerName.endsWith("_id")) return true; // snake_case boundary
+  if (CAMEL_ID_RE.test(rawName)) return true; // camelCase boundary
   return false;
 }
 
 function looksLikeTimestampField(rawName: string, lowerName: string): boolean {
   if (TIMESTAMP_FIELD_NAMES.has(lowerName)) return true;
-  if (lowerName.endsWith('_at')) return true;   // snake_case boundary
-  if (CAMEL_AT_RE.test(rawName)) return true;    // camelCase boundary
+  if (lowerName.endsWith("_at")) return true; // snake_case boundary
+  if (CAMEL_AT_RE.test(rawName)) return true; // camelCase boundary
   return false;
 }
 
@@ -123,7 +139,7 @@ function idShapeFor(_provider: string | null, _fieldName: string, originalValue:
   // Provider shapes are registered via a generic registry — NO provider-name conditionals in
   // the core. See manifold for the TN5 / RT-9 resolution: provider-specific shape inferred
   // from the fixture's OWN content, not from hard-coded conditionals.
-  const sep = originalValue.indexOf('_');
+  const sep = originalValue.indexOf("_");
   if (sep > 0 && sep < 10) {
     const prefix = `${originalValue.slice(0, sep + 1)}`;
     const remainder = originalValue.slice(sep + 1);
@@ -132,7 +148,8 @@ function idShapeFor(_provider: string | null, _fieldName: string, originalValue:
   // Unprefixed: preserve length + alphabet feel.
   const onlyHex = /^[0-9a-f]+$/i.test(originalValue);
   const onlyUpper = /^[0-9A-Z]+$/.test(originalValue);
-  if (onlyHex) return { prefix: '', length: originalValue.length, alphabet: '0123456789abcdef' };
-  if (onlyUpper) return { prefix: '', length: originalValue.length, alphabet: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ' };
-  return { prefix: '', length: Math.max(originalValue.length, 14) };
+  if (onlyHex) return { prefix: "", length: originalValue.length, alphabet: "0123456789abcdef" };
+  if (onlyUpper)
+    return { prefix: "", length: originalValue.length, alphabet: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" };
+  return { prefix: "", length: Math.max(originalValue.length, 14) };
 }

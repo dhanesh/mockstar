@@ -1,11 +1,11 @@
 // Satisfies: dynamic mocking via named JS handlers (outcome, T5)
 // Traces to: RT-1 (registry), RT-2 (error boundary on invocation)
 
-import type { Context } from 'hono';
-import type { Entry } from '../core/config/schema.ts';
-import type { HandlerRegistry } from '../core/handlers/index.ts';
-import type { FakerInstance } from '../core/templating/faker.ts';
-import { invokeWithBoundary, type BoundaryOptions } from '../core/errors/index.ts';
+import type { Context } from "hono";
+import type { Entry } from "../core/config/schema.ts";
+import type { HandlerRegistry } from "../core/handlers/index.ts";
+import type { FakerInstance } from "../core/templating/faker.ts";
+import { invokeWithBoundary, type BoundaryOptions } from "../core/errors/index.ts";
 
 export interface DynamicInput {
   entry: Entry;
@@ -18,7 +18,7 @@ export interface DynamicInput {
 }
 
 export async function renderDynamic(input: DynamicInput): Promise<Response> {
-  if (input.entry.response.kind !== 'dynamic') {
+  if (input.entry.response.kind !== "dynamic") {
     throw new Error(`renderDynamic called for non-dynamic entry '${input.entry.id}'`);
   }
   const handler = input.registry.get(input.entry.response.handler);
@@ -26,15 +26,15 @@ export async function renderDynamic(input: DynamicInput): Promise<Response> {
   // but defensive 500 keeps server alive if registry was manipulated at runtime.
   if (!handler) {
     input.boundary.logger.error({
-      event: 'handler_missing_at_runtime',
+      event: "handler_missing_at_runtime",
       handler: input.entry.response.handler,
       entryId: input.entry.id,
       tenant: input.tenant,
       requestId: input.requestId,
     });
-    return new Response(JSON.stringify({ error: 'handler_missing', handler: input.entry.response.handler }), {
+    return new Response(JSON.stringify({ error: "handler_missing", handler: input.entry.response.handler }), {
       status: 500,
-      headers: { 'content-type': 'application/json' },
+      headers: { "content-type": "application/json" },
     });
   }
 

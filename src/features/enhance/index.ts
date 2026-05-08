@@ -2,17 +2,17 @@
 //            TN6 (spec-aware + heuristic fallback), TN7 (_mockstarGenerated boundary)
 // Priority: binding — enhancer's idempotency is load-bearing
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
-import { loadSpec, type ParsedSpec } from '../spec/index.ts';
-import { decideRewrite, type EnhanceHint } from './field-mapping.ts';
+import { readdir, readFile, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
+import { loadSpec, type ParsedSpec } from "../spec/index.ts";
+import { decideRewrite, type EnhanceHint } from "./field-mapping.ts";
 import {
   GENERATED_VERSION,
   clearManifest,
   readManifest,
   writeManifest,
   type GeneratedEntry,
-} from './boundary.ts';
+} from "./boundary.ts";
 
 export interface EnhanceOptions {
   /** Directory containing Mockstar mock files (JSON). Walked non-recursively. */
@@ -52,7 +52,7 @@ export async function runEnhance(opts: EnhanceOptions): Promise<EnhanceResult> {
   const files = await listMockFiles(opts.inputDir);
   for (const file of files) {
     result.filesScanned++;
-    const text = await readFile(file, 'utf-8');
+    const text = await readFile(file, "utf-8");
     const raw = JSON.parse(text) as Record<string, unknown>;
     const before = canonicalJSON(raw);
 
@@ -62,7 +62,7 @@ export async function runEnhance(opts: EnhanceOptions): Promise<EnhanceResult> {
     if (before !== after) {
       result.filesChanged++;
       if (!opts.dryRun) {
-        await writeFile(file, `${JSON.stringify(raw, null, 2)}\n`, 'utf-8');
+        await writeFile(file, `${JSON.stringify(raw, null, 2)}\n`, "utf-8");
       }
     }
   }
@@ -73,7 +73,7 @@ export async function runEnhance(opts: EnhanceOptions): Promise<EnhanceResult> {
 
 async function listMockFiles(dir: string): Promise<string[]> {
   const names = await readdir(dir);
-  return names.filter((n) => n.endsWith('.json')).map((n) => join(dir, n));
+  return names.filter((n) => n.endsWith(".json")).map((n) => join(dir, n));
 }
 
 async function enhanceFile(
@@ -110,21 +110,20 @@ async function enhanceFile(
 
   // Step 2 — apply heuristics to every mock's response.body.
   const entries: GeneratedEntry[] = [];
-  const mocks = Array.isArray(raw.mocks) ? raw.mocks as Mock[] : [];
+  const mocks = Array.isArray(raw.mocks) ? (raw.mocks as Mock[]) : [];
   for (const mock of mocks) {
-    if (!mock?.response || mock.response.kind !== 'static') continue;
+    if (!mock?.response || mock.response.kind !== "static") continue;
     const hint: EnhanceHint = {
       providerTag: spec?.providerTag ?? inferProviderFromPath(filePath),
       knownFieldNames: spec?.fieldsByEndpoint.get(methodPathKey(mock)),
     };
-    const skipPath = (path: string[]): boolean =>
-      userOwnedPaths.has(`${mock.id}|${path.join('.')}`);
+    const skipPath = (path: string[]): boolean => userOwnedPaths.has(`${mock.id}|${path.join(".")}`);
     walkAndRewrite(
       mock.response,
-      ['body'],
+      ["body"],
       hint,
       (path, token, original) => {
-        entries.push({ entry: mock.id, path: path.join('.'), token, original });
+        entries.push({ entry: mock.id, path: path.join("."), token, original });
         result.rewrites++;
       },
       skipPath,
@@ -133,9 +132,10 @@ async function enhanceFile(
 
   // Step 3 — write back the manifest if any rewrites happened OR a prior manifest existed.
   if (entries.length > 0 || prior) {
-    const enhancedAt = prior && !opts.forceRefreshTimestamp && entries.length === prior.entries.length
-      ? prior.enhancedAt
-      : (opts.now ?? defaultNow)();
+    const enhancedAt =
+      prior && !opts.forceRefreshTimestamp && entries.length === prior.entries.length
+        ? prior.enhancedAt
+        : (opts.now ?? defaultNow)();
     writeManifest(raw, {
       version: GENERATED_VERSION,
       enhancedAt,
@@ -143,7 +143,6 @@ async function enhanceFile(
       providerTag: spec?.providerTag ?? null,
     });
   }
-
 }
 
 function walkAndRewrite(
@@ -161,10 +160,10 @@ function walkAndRewrite(
     }
     return;
   }
-  if (typeof current !== 'object') return;
+  if (typeof current !== "object") return;
   for (const [key, value] of Object.entries(current as Record<string, unknown>)) {
     const childPath = [...path, key];
-    if (value !== null && typeof value === 'object') {
+    if (value !== null && typeof value === "object") {
       walkAndRewrite(root, childPath, hint, onRewrite, skip);
       continue;
     }
@@ -187,7 +186,7 @@ function getAt(root: unknown, path: readonly string[]): unknown {
       cursor = Number.isNaN(idx) ? undefined : cursor[idx];
       continue;
     }
-    if (typeof cursor === 'object') {
+    if (typeof cursor === "object") {
       cursor = (cursor as Record<string, unknown>)[seg];
       continue;
     }
@@ -204,7 +203,7 @@ function setAt(root: unknown, path: readonly string[], value: unknown): void {
     if (Array.isArray(cursor)) {
       const idx = Number.parseInt(seg, 10);
       cursor = Number.isNaN(idx) ? undefined : cursor[idx];
-    } else if (typeof cursor === 'object' && cursor !== null) {
+    } else if (typeof cursor === "object" && cursor !== null) {
       cursor = (cursor as Record<string, unknown>)[seg];
     } else {
       return;
@@ -214,30 +213,26 @@ function setAt(root: unknown, path: readonly string[], value: unknown): void {
   if (Array.isArray(cursor)) {
     const idx = Number.parseInt(lastSeg, 10);
     if (!Number.isNaN(idx)) cursor[idx] = value;
-  } else if (typeof cursor === 'object' && cursor !== null) {
+  } else if (typeof cursor === "object" && cursor !== null) {
     (cursor as Record<string, unknown>)[lastSeg] = value;
   }
 }
 
 function restoreOriginalAt(raw: Record<string, unknown>, entry: GeneratedEntry): void {
-  const mock = Array.isArray(raw.mocks)
-    ? (raw.mocks as Mock[]).find((m) => m.id === entry.entry)
-    : undefined;
+  const mock = Array.isArray(raw.mocks) ? (raw.mocks as Mock[]).find((m) => m.id === entry.entry) : undefined;
   if (!mock?.response) return;
-  setAt(mock.response, entry.path.split('.'), entry.original);
+  setAt(mock.response, entry.path.split("."), entry.original);
 }
 
 function getEntryValue(raw: Record<string, unknown>, entry: GeneratedEntry): unknown {
-  const mock = Array.isArray(raw.mocks)
-    ? (raw.mocks as Mock[]).find((m) => m.id === entry.entry)
-    : undefined;
+  const mock = Array.isArray(raw.mocks) ? (raw.mocks as Mock[]).find((m) => m.id === entry.entry) : undefined;
   if (!mock?.response) return undefined;
-  return getAt(mock.response, entry.path.split('.'));
+  return getAt(mock.response, entry.path.split("."));
 }
 
 function methodPathKey(mock: Mock): string {
   const match = mock.match as { method?: string; path?: string } | undefined;
-  return `${(match?.method ?? 'GET').toUpperCase()} ${match?.path ?? ''}`;
+  return `${(match?.method ?? "GET").toUpperCase()} ${match?.path ?? ""}`;
 }
 
 function inferProviderFromPath(filePath: string): string | null {
@@ -245,7 +240,7 @@ function inferProviderFromPath(filePath: string): string | null {
   // provider list — per RT-9 / TN5 the runtime has ZERO provider-name awareness. Folder
   // organisation is the only channel through which a fixture library can self-label.
   const parent = basename(dirname(filePath));
-  if (!parent || parent === '.' || parent === 'mocks' || parent === 'default') return null;
+  if (!parent || parent === "." || parent === "mocks" || parent === "default") return null;
   return parent.toLowerCase();
 }
 

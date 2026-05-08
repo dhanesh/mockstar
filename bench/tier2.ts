@@ -6,44 +6,46 @@
 // non-zero exit if p95 exceeds the budget. Intended to be run in CI on every PR touching
 // src/core/templating/** or src/features/static-mock.ts.
 
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { launch, type Launched } from '../src/index.ts';
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { launch, type Launched } from "../src/index.ts";
 
 const ITERATIONS = Number(process.env.TIER2_BENCH_N ?? 5000);
-const P95_BUDGET_US = Number(process.env.TIER2_BENCH_P95_US ?? 500);  // 0.5 ms
+const P95_BUDGET_US = Number(process.env.TIER2_BENCH_P95_US ?? 500); // 0.5 ms
 const P99_BUDGET_US = Number(process.env.TIER2_BENCH_P99_US ?? 1500); // 1.5 ms
 
 async function setup(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'tier2-bench-'));
-  await mkdir(join(root, 'mocks', 'acme'), { recursive: true });
-  await mkdir(join(root, 'handlers'), { recursive: true });
+  const root = await mkdtemp(join(tmpdir(), "tier2-bench-"));
+  await mkdir(join(root, "mocks", "acme"), { recursive: true });
+  await mkdir(join(root, "handlers"), { recursive: true });
   await writeFile(
-    join(root, 'mocks', 'acme', 'bench.json'),
+    join(root, "mocks", "acme", "bench.json"),
     JSON.stringify({
-      mocks: [{
-        id: 'create-order',
-        match: { method: 'POST', path: '/orders' },
-        response: {
-          kind: 'static',
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-          body: {
-            id: '{{id("order_", 14)}}',
-            amount: '{{request.body.amount}}',
-            notes: '{{request.body.notes}}',
-            status: 'created',
-            currency: 'INR',
-            receipt: 'rcpt_{{request.body.receipt}}',
-            created_at: '{{now.unix}}',
-            nested: {
-              customer_id: '{{id("cust_", 14)}}',
-              payment_id: '{{id("pay_", 14)}}',
+      mocks: [
+        {
+          id: "create-order",
+          match: { method: "POST", path: "/orders" },
+          response: {
+            kind: "static",
+            status: 200,
+            headers: { "content-type": "application/json" },
+            body: {
+              id: '{{id("order_", 14)}}',
+              amount: "{{request.body.amount}}",
+              notes: "{{request.body.notes}}",
+              status: "created",
+              currency: "INR",
+              receipt: "rcpt_{{request.body.receipt}}",
+              created_at: "{{now.unix}}",
+              nested: {
+                customer_id: '{{id("cust_", 14)}}',
+                payment_id: '{{id("pay_", 14)}}',
+              },
             },
           },
         },
-      }],
+      ],
     }),
   );
   return root;
@@ -57,26 +59,30 @@ function percentile(sorted: readonly number[], p: number): number {
 async function main(): Promise<number> {
   const root = await setup();
   const launched: Launched = await launch({
-    configRoot: join(root, 'mocks'),
-    handlersDir: join(root, 'handlers'),
+    configRoot: join(root, "mocks"),
+    handlersDir: join(root, "handlers"),
     deterministic: false,
     watch: false,
     installCrashHandlers: false,
-    server: { tenancyModes: ['header'] },
+    server: { tenancyModes: ["header"] },
   });
 
-  const payload = JSON.stringify({ amount: 50000, notes: { a: 1 }, receipt: 'r1' });
-  const headers = { 'x-mockstar-tenant': 'acme', 'content-type': 'application/json' };
+  const payload = JSON.stringify({ amount: 50000, notes: { a: 1 }, receipt: "r1" });
+  const headers = { "x-mockstar-tenant": "acme", "content-type": "application/json" };
 
   // Warm-up
   for (let i = 0; i < 200; i++) {
-    await launched.server.hono.request('http://localhost/orders', { method: 'POST', headers, body: payload });
+    await launched.server.hono.request("http://localhost/orders", { method: "POST", headers, body: payload });
   }
 
   const samples = new Array<number>(ITERATIONS);
   for (let i = 0; i < ITERATIONS; i++) {
     const start = performance.now();
-    const res = await launched.server.hono.request('http://localhost/orders', { method: 'POST', headers, body: payload });
+    const res = await launched.server.hono.request("http://localhost/orders", {
+      method: "POST",
+      headers,
+      body: payload,
+    });
     const durUs = Math.round((performance.now() - start) * 1000);
     await res.text();
     samples[i] = durUs;
@@ -104,7 +110,7 @@ async function main(): Promise<number> {
     process.stderr.write(`FAIL: p99 ${p99}µs exceeds budget ${P99_BUDGET_US}µs\n`);
     return 1;
   }
-  process.stdout.write('PASS\n');
+  process.stdout.write("PASS\n");
   return 0;
 }
 

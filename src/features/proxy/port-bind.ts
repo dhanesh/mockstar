@@ -8,10 +8,10 @@
 // from the install/uninstall paths, never from steady-state runtime. The privilege escalation
 // is explicit and user-visible (the user sees their OS's password prompt).
 
-import { spawn } from 'node:child_process';
-import { platform } from 'node:os';
-import { writeFile } from 'node:fs/promises';
-import { ProxyError, type ReverseCommand } from './types.ts';
+import { spawn } from "node:child_process";
+import { platform } from "node:os";
+import { writeFile } from "node:fs/promises";
+import { ProxyError, type ReverseCommand } from "./types.ts";
 
 // --- PUBLIC API ----------------------------------------------------------
 
@@ -37,19 +37,19 @@ export function portBindMutation(params: {
   launchdLabel?: string;
 }): PortBindMutation {
   const os = platform();
-  if (os === 'linux') {
+  if (os === "linux") {
     return linuxSetcapMutation(params.binaryPath);
   }
-  if (os === 'darwin') {
+  if (os === "darwin") {
     return macosLaunchdMutation({
       plistPath: params.plistPath ?? `${process.env.HOME}/Library/LaunchAgents/com.mockstar.proxy.plist`,
-      label: params.launchdLabel ?? 'com.mockstar.proxy',
+      label: params.launchdLabel ?? "com.mockstar.proxy",
       binaryPath: params.binaryPath,
     });
   }
   throw new ProxyError(
     `Unsupported platform for port 443 bind: ${os}. macOS and Linux only in v1 (B2).`,
-    'unsupported_platform',
+    "unsupported_platform",
   );
 }
 
@@ -60,13 +60,13 @@ export function portBindMutation(params: {
 export function runPrivileged(
   argv: readonly string[],
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  return runCmd('sudo', argv);
+  return runCmd("sudo", argv);
 }
 
 /** Does the host OS support our port-443 binding strategy? */
 export function isPlatformSupported(): boolean {
   const os = platform();
-  return os === 'linux' || os === 'darwin';
+  return os === "linux" || os === "darwin";
 }
 
 // --- LINUX: setcap -------------------------------------------------------
@@ -74,13 +74,13 @@ export function isPlatformSupported(): boolean {
 function linuxSetcapMutation(binaryPath: string): PortBindMutation {
   return {
     action: `setcap cap_net_bind_service=+ep ${binaryPath}`,
-    reverseCommand: { kind: 'setcap_drop', path: binaryPath },
+    reverseCommand: { kind: "setcap_drop", path: binaryPath },
     async apply(): Promise<void> {
-      const result = await runPrivileged(['setcap', 'cap_net_bind_service=+ep', binaryPath]);
+      const result = await runPrivileged(["setcap", "cap_net_bind_service=+ep", binaryPath]);
       if (result.exitCode !== 0) {
         throw new ProxyError(
           `setcap failed: ${result.stderr.trim() || result.stdout.trim()}`,
-          'setcap_failed',
+          "setcap_failed",
           "Ensure 'libcap2-bin' is installed and the binary path is absolute.",
         );
       }
@@ -98,14 +98,14 @@ function macosLaunchdMutation(params: {
   const plistContents = macosPlist(params.label, params.binaryPath);
   return {
     action: `install launchd plist at ${params.plistPath}`,
-    reverseCommand: { kind: 'launchctl_unload_and_remove', plistPath: params.plistPath },
+    reverseCommand: { kind: "launchctl_unload_and_remove", plistPath: params.plistPath },
     async apply(): Promise<void> {
-      await writeFile(params.plistPath, plistContents, { encoding: 'utf8', mode: 0o644 });
-      const loadResult = await runCmd('launchctl', ['load', '-w', params.plistPath]);
+      await writeFile(params.plistPath, plistContents, { encoding: "utf8", mode: 0o644 });
+      const loadResult = await runCmd("launchctl", ["load", "-w", params.plistPath]);
       if (loadResult.exitCode !== 0) {
         throw new ProxyError(
           `launchctl load failed: ${loadResult.stderr.trim() || loadResult.stdout.trim()}`,
-          'launchctl_load_failed',
+          "launchctl_load_failed",
           `Check ${params.plistPath} permissions + XML validity.`,
         );
       }
@@ -159,16 +159,16 @@ function runCmd(
   argv: readonly string[],
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, argv as string[], { stdio: ['inherit', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (c: Buffer) => {
-      stdout += c.toString('utf8');
+    const child = spawn(cmd, argv as string[], { stdio: ["inherit", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (c: Buffer) => {
+      stdout += c.toString("utf8");
     });
-    child.stderr.on('data', (c: Buffer) => {
-      stderr += c.toString('utf8');
+    child.stderr.on("data", (c: Buffer) => {
+      stderr += c.toString("utf8");
     });
-    child.on('error', reject);
-    child.on('close', (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
   });
 }

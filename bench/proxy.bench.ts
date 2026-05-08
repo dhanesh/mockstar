@@ -11,18 +11,18 @@
 // Run:   bun run bench/proxy.bench.ts [--duration=5] [--rps=100]
 // CI:    invoked from scripts/tier1-integration-smoke.sh
 
-import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { SnapshotHolder } from '../src/features/proxy/cert-cache.ts';
+import { spawnSync } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { SnapshotHolder } from "../src/features/proxy/cert-cache.ts";
 import {
   startTlsServer,
   leavesFromSnapshot,
   type TlsServerHandle,
-} from '../src/features/proxy/tls-adapter.ts';
-import { computePercentiles } from './harness.ts';
-import type { ProxyConfig } from '../src/features/proxy/types.ts';
+} from "../src/features/proxy/tls-adapter.ts";
+import { computePercentiles } from "./harness.ts";
+import type { ProxyConfig } from "../src/features/proxy/types.ts";
 
 export interface ProxyBenchResult {
   readonly scenario: string;
@@ -48,7 +48,7 @@ interface BenchDeps {
 
 export async function runProxyBench(opts: BenchDeps): Promise<ProxyBenchResult> {
   if (!opensslAvailable()) {
-    return skipResult('openssl not available — cannot generate self-signed cert for bench');
+    return skipResult("openssl not available — cannot generate self-signed cert for bench");
   }
   if (!mkcertAvailable()) {
     // buildSnapshot() shells out to mkcert; without it we can't populate the cert cache.
@@ -60,9 +60,9 @@ export async function runProxyBench(opts: BenchDeps): Promise<ProxyBenchResult> 
 }
 
 async function benchWithStubLeaf(opts: BenchDeps): Promise<ProxyBenchResult> {
-  const certDir = await mkdtemp(join(tmpdir(), 'mockstar-bench-cert-'));
+  const certDir = await mkdtemp(join(tmpdir(), "mockstar-bench-cert-"));
   try {
-    const { certPem, keyPem } = await generateSelfSigned('api.bench.local', certDir);
+    const { certPem, keyPem } = await generateSelfSigned("api.bench.local", certDir);
     return runBenchLoop(opts, { certPem, keyPem });
   } finally {
     await rm(certDir, { recursive: true, force: true });
@@ -70,9 +70,9 @@ async function benchWithStubLeaf(opts: BenchDeps): Promise<ProxyBenchResult> {
 }
 
 async function benchWithRealSnapshot(opts: BenchDeps): Promise<ProxyBenchResult> {
-  const certDir = await mkdtemp(join(tmpdir(), 'mockstar-bench-cert-'));
+  const certDir = await mkdtemp(join(tmpdir(), "mockstar-bench-cert-"));
   try {
-    const { certPem, keyPem } = await generateSelfSigned('api.bench.local', certDir);
+    const { certPem, keyPem } = await generateSelfSigned("api.bench.local", certDir);
     return runBenchLoop(opts, { certPem, keyPem });
   } finally {
     await rm(certDir, { recursive: true, force: true });
@@ -88,15 +88,18 @@ async function runBenchLoop(
   const cfg = makeBenchConfig();
   const snapshot = Object.freeze({
     version: 1,
-    hosts: new Map([['api.bench.local', cfg.hosts[0] as NonNullable<(typeof cfg.hosts)[0]>]]),
+    hosts: new Map([["api.bench.local", cfg.hosts[0] as NonNullable<(typeof cfg.hosts)[0]>]]),
     leaves: new Map([
-      ['api.bench.local', {
-        host: 'api.bench.local',
-        certPem: leaf.certPem,
-        keyPem: leaf.keyPem,
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-        snapshotVersion: 1,
-      }],
+      [
+        "api.bench.local",
+        {
+          host: "api.bench.local",
+          certPem: leaf.certPem,
+          keyPem: leaf.keyPem,
+          expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+          snapshotVersion: 1,
+        },
+      ],
     ]),
     config: cfg,
   }) as unknown as Parameters<typeof SnapshotHolder.prototype.swap>[0];
@@ -105,10 +108,10 @@ async function runBenchLoop(
   const bootStart = performance.now();
   const holder = new SnapshotHolder(snapshot);
   const server = await startTlsServer({
-    hostname: '127.0.0.1',
+    hostname: "127.0.0.1",
     port: 0,
     leaves: leavesFromSnapshot(holder.get()),
-    handle: async () => new Response('ok', { status: 200 }),
+    handle: async () => new Response("ok", { status: 200 }),
   });
   const bootMs = performance.now() - bootStart;
 
@@ -118,7 +121,7 @@ async function runBenchLoop(
     await warmFetch(server.url);
     for (let i = 0; i < 5; i++) {
       const start = performance.now();
-      await fetchWithoutKeepAlive(server.url + '/ping');
+      await fetchWithoutKeepAlive(server.url + "/ping");
       firstHandshakeSamples.push((performance.now() - start) * 1000);
     }
   } catch {
@@ -134,7 +137,7 @@ async function runBenchLoop(
   const endAt = performance.now() + opts.durationSec * 1000;
   while (performance.now() < endAt && warmSamples.length < targetSamples) {
     const start = performance.now();
-    const res = await fetchWithKeepAlive(server.url + '/ping');
+    const res = await fetchWithKeepAlive(server.url + "/ping");
     const elapsed = performance.now() - start;
     if (res.status !== 200) throw new Error(`bench got status ${res.status}`);
     warmSamples.push(elapsed * 1000);
@@ -146,7 +149,7 @@ async function runBenchLoop(
 
   const warmPercentiles = computePercentiles(warmSamples);
   return {
-    scenario: 'proxy-warm-overhead',
+    scenario: "proxy-warm-overhead",
     bootMs,
     firstHandshakeP99Us,
     warmRequestP99Us: warmPercentiles.p99,
@@ -163,42 +166,54 @@ async function runBenchLoop(
 }
 
 function opensslAvailable(): boolean {
-  return spawnSync('openssl', ['version'], { stdio: 'ignore' }).status === 0;
+  return spawnSync("openssl", ["version"], { stdio: "ignore" }).status === 0;
 }
 
 function mkcertAvailable(): boolean {
-  return spawnSync('mkcert', ['-CAROOT'], { stdio: 'ignore' }).status === 0;
+  return spawnSync("mkcert", ["-CAROOT"], { stdio: "ignore" }).status === 0;
 }
 
-async function generateSelfSigned(host: string, outDir: string): Promise<{ certPem: string; keyPem: string }> {
-  const certPath = join(outDir, 'cert.pem');
-  const keyPath = join(outDir, 'key.pem');
+async function generateSelfSigned(
+  host: string,
+  outDir: string,
+): Promise<{ certPem: string; keyPem: string }> {
+  const certPath = join(outDir, "cert.pem");
+  const keyPath = join(outDir, "key.pem");
   const result = spawnSync(
-    'openssl',
+    "openssl",
     [
-      'req', '-x509', '-nodes', '-newkey', 'rsa:2048',
-      '-subj', `/CN=${host}`,
-      '-addext', `subjectAltName=DNS:${host}`,
-      '-days', '1',
-      '-keyout', keyPath,
-      '-out', certPath,
+      "req",
+      "-x509",
+      "-nodes",
+      "-newkey",
+      "rsa:2048",
+      "-subj",
+      `/CN=${host}`,
+      "-addext",
+      `subjectAltName=DNS:${host}`,
+      "-days",
+      "1",
+      "-keyout",
+      keyPath,
+      "-out",
+      certPath,
     ],
-    { stdio: 'pipe' },
+    { stdio: "pipe" },
   );
-  if (result.status !== 0) throw new Error(`openssl failed: ${result.stderr?.toString('utf8') ?? ''}`);
-  const [certPem, keyPem] = await Promise.all([readFile(certPath, 'utf8'), readFile(keyPath, 'utf8')]);
+  if (result.status !== 0) throw new Error(`openssl failed: ${result.stderr?.toString("utf8") ?? ""}`);
+  const [certPem, keyPem] = await Promise.all([readFile(certPath, "utf8"), readFile(keyPath, "utf8")]);
   return { certPem, keyPem };
 }
 
 function makeBenchConfig(): ProxyConfig {
   return Object.freeze({
-    hosts: [{ host: 'api.bench.local', tenant: 'bench' }],
-    mockstarUrl: 'http://127.0.0.1:1',
-    listenHost: '127.0.0.1',
+    hosts: [{ host: "api.bench.local", tenant: "bench" }],
+    mockstarUrl: "http://127.0.0.1:1",
+    listenHost: "127.0.0.1",
     listenPort: 0,
     upstreamTimeoutMs: 5000,
     leafTtlHours: 24,
-    dnsMode: 'dnsmasq',
+    dnsMode: "dnsmasq",
   }) as unknown as ProxyConfig;
 }
 
@@ -214,7 +229,7 @@ async function warmFetch(url: string): Promise<void> {
 }
 
 async function fetchWithoutKeepAlive(url: string): Promise<Response> {
-  return fetch(url, { ...insecureTls, headers: { connection: 'close' } });
+  return fetch(url, { ...insecureTls, headers: { connection: "close" } });
 }
 
 async function fetchWithKeepAlive(url: string): Promise<Response> {
@@ -223,7 +238,7 @@ async function fetchWithKeepAlive(url: string): Promise<Response> {
 
 function skipResult(reason: string): ProxyBenchResult {
   return {
-    scenario: 'proxy-warm-overhead',
+    scenario: "proxy-warm-overhead",
     bootMs: 0,
     firstHandshakeP99Us: null,
     warmRequestP99Us: 0,
@@ -239,14 +254,14 @@ function skipResult(reason: string): ProxyBenchResult {
 // biome-ignore lint/suspicious/noExplicitAny: Bun import.meta
 const isMain = (import.meta as any).main === true;
 if (isMain) {
-  const durationSec = Number.parseInt(getFlag('--duration') ?? '5', 10);
-  const rps = Number.parseInt(getFlag('--rps') ?? '100', 10);
+  const durationSec = Number.parseInt(getFlag("--duration") ?? "5", 10);
+  const rps = Number.parseInt(getFlag("--rps") ?? "100", 10);
   runProxyBench({ durationSec, rps })
     .then((r) => {
-      process.stdout.write(JSON.stringify(r, null, 2) + '\n');
+      process.stdout.write(JSON.stringify(r, null, 2) + "\n");
       if (r.skipped) return;
       if (!r.sla.bootUnderBudget || !r.sla.warmOverheadUnderBudget) {
-        process.stderr.write('Bench: one or more SLAs NOT met\n');
+        process.stderr.write("Bench: one or more SLAs NOT met\n");
         process.exit(1);
       }
     })

@@ -5,10 +5,10 @@
 // docs/SCHEMA-HOSTING.md, patch-level upgrades never need this command —
 // only minor bumps do.
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { readdir, readFile, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
-const SCHEMA_HOST = 'https://schemas.mockstar.dev';
+const SCHEMA_HOST = "https://schemas.mockstar.dev";
 
 export interface MigrateOptions {
   readonly dir: string;
@@ -32,9 +32,9 @@ async function* walkJson(dir: string): AsyncGenerator<string> {
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+      if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
       yield* walkJson(full);
-    } else if (entry.isFile() && entry.name.endsWith('.json')) {
+    } else if (entry.isFile() && entry.name.endsWith(".json")) {
       yield full;
     }
   }
@@ -51,17 +51,17 @@ export async function runMigrateSchema(options: MigrateOptions): Promise<Migrate
 
   for await (const path of walkJson(root)) {
     scanned += 1;
-    const text = await readFile(path, 'utf8');
+    const text = await readFile(path, "utf8");
     let doc: unknown;
     try {
       doc = JSON.parse(text);
     } catch {
       continue; // Not a JSON we care about.
     }
-    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) continue;
+    if (!doc || typeof doc !== "object" || Array.isArray(doc)) continue;
     const record = doc as Record<string, unknown>;
     const current = record.$schema;
-    if (typeof current !== 'string') continue;
+    if (typeof current !== "string") continue;
 
     // Only touch schema URLs that live under schemas.mockstar.dev; leave
     // unrelated $schema fields (e.g. OpenAPI schemas) alone.
@@ -76,7 +76,7 @@ export async function runMigrateSchema(options: MigrateOptions): Promise<Migrate
     record.$schema = toUrl;
     changed += 1;
     if (!options.dryRun) {
-      const trailingNewline = text.endsWith('\n') ? '\n' : '';
+      const trailingNewline = text.endsWith("\n") ? "\n" : "";
       await writeFile(path, `${JSON.stringify(record, null, 2)}${trailingNewline}`);
     }
   }

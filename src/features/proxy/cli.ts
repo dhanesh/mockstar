@@ -3,9 +3,9 @@
 //
 // Dispatched from src/cli.ts when the user invokes `mockstar proxy ...`.
 
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { homedir, platform, userInfo, hostname as osHostname } from 'node:os';
-import { join, resolve } from 'node:path';
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { homedir, platform, userInfo, hostname as osHostname } from "node:os";
+import { join, resolve } from "node:path";
 import {
   appendStep,
   atomicInstall,
@@ -29,27 +29,27 @@ import {
   startProxyServer,
   type Mutation,
   type ProxyConfig,
-} from './index.ts';
-import { ProxyError } from './types.ts';
+} from "./index.ts";
+import { ProxyError } from "./types.ts";
 
 // --- PUBLIC ENTRY --------------------------------------------------------
 
 export async function dispatchProxyCommand(argv: readonly string[]): Promise<number> {
   const [sub, ...rest] = argv;
-  if (!sub || sub === '--help' || sub === 'help') {
+  if (!sub || sub === "--help" || sub === "help") {
     process.stdout.write(proxyHelp());
     return 0;
   }
   switch (sub) {
-    case 'install':
+    case "install":
       return install(rest);
-    case 'uninstall':
+    case "uninstall":
       return uninstall(rest);
-    case 'start':
+    case "start":
       return start(rest);
-    case 'reload':
+    case "reload":
       return reload(rest);
-    case 'status':
+    case "status":
       return status(rest);
     default:
       process.stderr.write(`Unknown proxy subcommand: ${sub}\n\n${proxyHelp()}`);
@@ -60,9 +60,9 @@ export async function dispatchProxyCommand(argv: readonly string[]): Promise<num
 // --- SUBCOMMANDS ---------------------------------------------------------
 
 async function install(argv: readonly string[]): Promise<number> {
-  const force = argv.includes('--force');
-  const dnsModeOverride = pickFlag(argv, '--dns-mode');
-  const configPathOverride = pickFlag(argv, '--config');
+  const force = argv.includes("--force");
+  const dnsModeOverride = pickFlag(argv, "--dns-mode");
+  const configPathOverride = pickFlag(argv, "--config");
   const configPath = configPathOverride ? resolve(configPathOverride) : defaultConfigPath();
   const journalPath = defaultJournalPath();
 
@@ -73,10 +73,10 @@ async function install(argv: readonly string[]): Promise<number> {
 
   // Env hostility detection (U5).
   const hostility = await detectEnvHostility();
-  if (hostility.kind !== 'clean') {
+  if (hostility.kind !== "clean") {
     process.stderr.write(`Environment check: ${hostility.kind}\n`);
     process.stderr.write(`${remediationMessage(hostility)}\n\n`);
-    if (!force && hostility.kind === 'containerized-or-ci') {
+    if (!force && hostility.kind === "containerized-or-ci") {
       return 3; // S4 refusal
     }
     if (!force) {
@@ -96,7 +96,7 @@ async function install(argv: readonly string[]): Promise<number> {
   }
 
   // Ensure journal dir exists.
-  await mkdir(join(homedir(), '.mockstar'), { recursive: true });
+  await mkdir(join(homedir(), ".mockstar"), { recursive: true });
 
   // Build the install mutation list.
   const mutations: Mutation[] = [];
@@ -104,7 +104,7 @@ async function install(argv: readonly string[]): Promise<number> {
   // Step 1 — mkcert -install.
   mutations.push({
     action: `mkcert -install (local CA: ${scopedName()})`,
-    reverseCommand: { kind: 'mkcert_uninstall' },
+    reverseCommand: { kind: "mkcert_uninstall" },
     async apply(): Promise<void> {
       await installCa();
       const paths = (await caFacts({ user: userInfo().username, hostname: osHostname() })).paths;
@@ -118,7 +118,7 @@ async function install(argv: readonly string[]): Promise<number> {
   // Step 3 — Port 443 binding capability.
   mutations.push(
     portBindMutation({
-      binaryPath: process.argv[0] ?? '/usr/bin/env',
+      binaryPath: process.argv[0] ?? "/usr/bin/env",
     }),
   );
 
@@ -173,7 +173,7 @@ async function uninstall(_argv: readonly string[]): Promise<number> {
 }
 
 async function start(argv: readonly string[]): Promise<number> {
-  const configPath = pickFlag(argv, '--config') ?? defaultConfigPath();
+  const configPath = pickFlag(argv, "--config") ?? defaultConfigPath();
   const config = await loadConfigFile(resolve(configPath));
 
   // Quick sanity: CA must be installed (RT-1 binding — fail fast if not).
@@ -189,11 +189,11 @@ async function start(argv: readonly string[]): Promise<number> {
   const runtime = await startProxyServer({ configPath, config, watch: true });
   process.stdout.write(`mockstar-proxy listening on ${runtime.server.url}\n`);
   process.stdout.write(`  upstream: ${config.mockstarUrl}\n`);
-  process.stdout.write(`  hosts:    ${config.hosts.map((h) => h.host).join(', ')}\n`);
-  process.on('SIGTERM', () => {
+  process.stdout.write(`  hosts:    ${config.hosts.map((h) => h.host).join(", ")}\n`);
+  process.on("SIGTERM", () => {
     void runtime.stop().then(() => process.exit(0));
   });
-  process.on('SIGINT', () => {
+  process.on("SIGINT", () => {
     void runtime.stop().then(() => process.exit(0));
   });
   return 0;
@@ -208,7 +208,7 @@ async function reload(_argv: readonly string[]): Promise<number> {
 }
 
 async function status(argv: readonly string[]): Promise<number> {
-  const configPath = pickFlag(argv, '--config') ?? defaultConfigPath();
+  const configPath = pickFlag(argv, "--config") ?? defaultConfigPath();
   const journalPath = defaultJournalPath();
 
   const [caF, journalF, configExists] = await Promise.all([
@@ -220,24 +220,30 @@ async function status(argv: readonly string[]): Promise<number> {
   ]);
 
   process.stdout.write(`mockstar-proxy status\n`);
-  process.stdout.write(`  CA installed:     ${caF?.installed ? 'yes' : 'no'}\n`);
-  process.stdout.write(`  CA common name:   ${caF?.commonName ?? '(unknown)'}\n`);
-  process.stdout.write(`  CAROOT:           ${caF?.paths.caRoot ?? '(unknown)'}\n`);
-  process.stdout.write(`  Config:           ${configExists ? configPath : '(missing)'}\n`);
-  process.stdout.write(`  Journal:          ${journalF.exists ? `${journalPath} (${journalF.stepCount} steps${journalF.corrupt ? ', CORRUPT' : ''})` : '(none)'}\n`);
+  process.stdout.write(`  CA installed:     ${caF?.installed ? "yes" : "no"}\n`);
+  process.stdout.write(`  CA common name:   ${caF?.commonName ?? "(unknown)"}\n`);
+  process.stdout.write(`  CAROOT:           ${caF?.paths.caRoot ?? "(unknown)"}\n`);
+  process.stdout.write(`  Config:           ${configExists ? configPath : "(missing)"}\n`);
+  process.stdout.write(
+    `  Journal:          ${journalF.exists ? `${journalPath} (${journalF.stepCount} steps${journalF.corrupt ? ", CORRUPT" : ""})` : "(none)"}\n`,
+  );
 
   if (configExists) {
     try {
       const config = await loadConfigFile(configPath);
       const mockstarOk = await probeMockstarHealth(config);
-      process.stdout.write(`  Upstream:         ${config.mockstarUrl} (${mockstarOk ? 'reachable' : 'UNREACHABLE'})\n`);
+      process.stdout.write(
+        `  Upstream:         ${config.mockstarUrl} (${mockstarOk ? "reachable" : "UNREACHABLE"})\n`,
+      );
       process.stdout.write(`  DNS mode:         ${config.dnsMode}\n`);
       process.stdout.write(`  Hosts (${config.hosts.length}):\n`);
       for (const h of config.hosts) {
         process.stdout.write(`    - ${h.host} -> ${h.tenant}\n`);
       }
     } catch (err) {
-      process.stdout.write(`  Config load:      FAILED (${err instanceof Error ? err.message : String(err)})\n`);
+      process.stdout.write(
+        `  Config load:      FAILED (${err instanceof Error ? err.message : String(err)})\n`,
+      );
     }
   }
   return 0;
@@ -246,11 +252,11 @@ async function status(argv: readonly string[]): Promise<number> {
 // --- HELPERS -------------------------------------------------------------
 
 function defaultConfigPath(): string {
-  return join(homedir(), '.mockstar', 'proxy.json');
+  return join(homedir(), ".mockstar", "proxy.json");
 }
 
 function defaultJournalPath(): string {
-  return join(homedir(), '.mockstar', 'install-state.json');
+  return join(homedir(), ".mockstar", "install-state.json");
 }
 
 function pickFlag(args: readonly string[], name: string): string | undefined {
@@ -266,33 +272,33 @@ function scopedName(): string {
 }
 
 async function writeExampleConfig(path: string, dnsModeOverride: string | undefined): Promise<void> {
-  await mkdir(join(homedir(), '.mockstar'), { recursive: true });
+  await mkdir(join(homedir(), ".mockstar"), { recursive: true });
   const example: unknown = parseConfig({
-    hosts: [{ host: 'api.razorpay.com', tenant: 'razorpay' }],
-    mockstarUrl: 'http://127.0.0.1:3000',
-    dnsMode: dnsModeOverride === 'hosts' ? 'hosts-fallback' : 'dnsmasq',
+    hosts: [{ host: "api.razorpay.com", tenant: "razorpay" }],
+    mockstarUrl: "http://127.0.0.1:3000",
+    dnsMode: dnsModeOverride === "hosts" ? "hosts-fallback" : "dnsmasq",
   });
-  await writeFile(path, JSON.stringify(example, null, 2) + '\n', 'utf8');
+  await writeFile(path, JSON.stringify(example, null, 2) + "\n", "utf8");
 }
 
 function proxyHelp(): string {
   return [
-    'mockstar proxy <subcommand> [options]',
-    '',
-    'Subcommands:',
-    '  install               Install local CA + DNS + port-443 capability; journaled for clean uninstall.',
-    '                        Flags: --force, --dns-mode=<dnsmasq|hosts>, --config=<path>',
-    '  uninstall             Reverse every journaled install mutation (LIFO).',
-    '  start                 Run the HTTPS proxy (requires prior install).',
-    '                        Flags: --config=<path>',
-    '  reload                Describe how hot-reload works (it is automatic on config file change).',
-    '  status                Show CA, config, journal, upstream, and hosts.',
-    '                        Flags: --config=<path>',
-    '',
-    'Config (default ~/.mockstar/proxy.json):',
+    "mockstar proxy <subcommand> [options]",
+    "",
+    "Subcommands:",
+    "  install               Install local CA + DNS + port-443 capability; journaled for clean uninstall.",
+    "                        Flags: --force, --dns-mode=<dnsmasq|hosts>, --config=<path>",
+    "  uninstall             Reverse every journaled install mutation (LIFO).",
+    "  start                 Run the HTTPS proxy (requires prior install).",
+    "                        Flags: --config=<path>",
+    "  reload                Describe how hot-reload works (it is automatic on config file change).",
+    "  status                Show CA, config, journal, upstream, and hosts.",
+    "                        Flags: --config=<path>",
+    "",
+    "Config (default ~/.mockstar/proxy.json):",
     '  { "hosts": [{ "host": "api.razorpay.com", "tenant": "razorpay" }], "mockstarUrl": "http://127.0.0.1:3000" }',
-    '',
-    'Docs: docs/PROXY.md  |  Recovery: docs/PROXY-RECOVERY.md',
-    '',
-  ].join('\n');
+    "",
+    "Docs: docs/PROXY.md  |  Recovery: docs/PROXY-RECOVERY.md",
+    "",
+  ].join("\n");
 }

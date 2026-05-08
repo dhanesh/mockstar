@@ -6,8 +6,8 @@ export {
   BASE62,
   type IdHelpers,
   type IdSeed,
-} from './id.ts';
-export { createClock, type Clock, type ClockOptions } from './now.ts';
+} from "./id.ts";
+export { createClock, type Clock, type ClockOptions } from "./now.ts";
 export {
   RenderBudget,
   Tier2RenderError,
@@ -16,4 +16,4 @@ export {
   DEFAULT_MAX_DEPTH,
   type Tier2ErrorCode,
   type RenderBudgetOptions,
-} from './walker.ts';
+} from "./walker.ts";

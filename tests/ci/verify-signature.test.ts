@@ -8,18 +8,15 @@
 //      shape that would make a live verify pass — signing by DIGEST (never tag),
 //      attaching a CycloneDX SBOM via `cosign attest --type cyclonedx`.
 
-import { describe, expect, it } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-const workflow = readFileSync(
-  resolve(import.meta.dir, '..', '..', '.github/workflows/release.yml'),
-  'utf8',
-);
+const workflow = readFileSync(resolve(import.meta.dir, "..", "..", ".github/workflows/release.yml"), "utf8");
 
-describe('RT-4: cosign + CycloneDX static validation', () => {
+describe("RT-4: cosign + CycloneDX static validation", () => {
   // @constraint S1 — sign every published artifact
-  it('release.yml signs the container by DIGEST, not tag', () => {
+  it("release.yml signs the container by DIGEST, not tag", () => {
     // The attack surface we're closing: `cosign sign ghcr.io/.../mockstar:v0.1.0`
     // is vulnerable to tag mutation. Signing by `@sha256:...` binds to bytes.
     const signLine = workflow.match(/cosign sign[\s\S]*?@\$\{\{[\s\S]*?digest/);
@@ -36,26 +33,26 @@ describe('RT-4: cosign + CycloneDX static validation', () => {
   });
 
   // @constraint S2 — CycloneDX SBOM attestation
-  it('release.yml attaches a CycloneDX SBOM attestation', () => {
+  it("release.yml attaches a CycloneDX SBOM attestation", () => {
     expect(workflow).toMatch(/cosign attest[\s\S]*--type cyclonedx/);
   });
 
-  it('SBOM is generated from the pushed digest (syft)', () => {
+  it("SBOM is generated from the pushed digest (syft)", () => {
     expect(workflow).toMatch(/syft.*@\$\{\{\s*steps\.build\.outputs\.digest/);
   });
 });
 
-describe('RT-4: cosign verify (live, optional)', () => {
+describe("RT-4: cosign verify (live, optional)", () => {
   const digest = process.env.MOCKSTAR_VERIFY_DIGEST;
-  const image = process.env.MOCKSTAR_VERIFY_IMAGE ?? 'ghcr.io/your-org/mockstar';
+  const image = process.env.MOCKSTAR_VERIFY_IMAGE ?? "ghcr.io/your-org/mockstar";
 
   if (!digest) {
-    it.skip('cosign verify passes on published digest (set MOCKSTAR_VERIFY_DIGEST to run)', () => {});
+    it.skip("cosign verify passes on published digest (set MOCKSTAR_VERIFY_DIGEST to run)", () => {});
     return;
   }
 
-  it('cosign verify passes on published digest', async () => {
-    const { $ } = await import('bun');
+  it("cosign verify passes on published digest", async () => {
+    const { $ } = await import("bun");
     const result =
       await $`cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp "^https://github.com/" ${image}@${digest}`
         .nothrow()
