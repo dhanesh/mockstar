@@ -7,18 +7,18 @@
 // Satisfies: O1 (missReason returned for unresolved attribute keys — journal field)
 // Satisfies: O3 (CompiledScenario regex ownership scoped to snapshot via compileScenarioRules caller)
 
-import type { ScenarioRuleT } from '../config/schema.ts';
-import type { StringMatch } from '../matching/discriminators.ts';
-import type { CompiledTemplate, CompiledJsonValue } from '../templating/compiler.ts';
-import { compileTemplate, compileJsonValue } from '../templating/compiler.ts';
+import type { ScenarioRuleT } from "../config/schema.ts";
+import type { StringMatch } from "../matching/discriminators.ts";
+import type { CompiledTemplate, CompiledJsonValue } from "../templating/compiler.ts";
+import { compileTemplate, compileJsonValue } from "../templating/compiler.ts";
 
 // -- Compiled predicate types (pre-processed at snapshot build) --
 
 type CompiledMatcher =
-  | { kind: 'exact'; value: string }
-  | { kind: 'regex'; re: RegExp }
-  | { kind: 'startsWith'; value: string }
-  | { kind: 'contains'; value: string };
+  | { kind: "exact"; value: string }
+  | { kind: "regex"; re: RegExp }
+  | { kind: "startsWith"; value: string }
+  | { kind: "contains"; value: string };
 
 export interface CompiledScenarioPredicate {
   params?: ReadonlyMap<string, CompiledMatcher>;
@@ -32,7 +32,7 @@ export interface CompiledScenarioResponse {
   headers?: ReadonlyMap<string, CompiledTemplate>;
   bodyTemplate?: CompiledTemplate | null;
   bodyJson?: CompiledJsonValue | null;
-  delay?: ScenarioRuleT['response']['delay'];
+  delay?: ScenarioRuleT["response"]["delay"];
 }
 
 export interface CompiledScenario {
@@ -51,20 +51,18 @@ export interface ScenarioAttrs {
 // -- Compilation --
 
 function compileMatcher(spec: StringMatch): CompiledMatcher {
-  if (typeof spec === 'string') return { kind: 'exact', value: spec };
-  if ('equals' in spec) return { kind: 'exact', value: spec.equals };
-  if ('regex' in spec) return { kind: 'regex', re: new RegExp(spec.regex) };
-  if ('startsWith' in spec) return { kind: 'startsWith', value: spec.startsWith };
-  return { kind: 'contains', value: (spec as { contains: string }).contains };
+  if (typeof spec === "string") return { kind: "exact", value: spec };
+  if ("equals" in spec) return { kind: "exact", value: spec.equals };
+  if ("regex" in spec) return { kind: "regex", re: new RegExp(spec.regex) };
+  if ("startsWith" in spec) return { kind: "startsWith", value: spec.startsWith };
+  return { kind: "contains", value: (spec as { contains: string }).contains };
 }
 
 function compileDim(record: Record<string, unknown>): ReadonlyMap<string, CompiledMatcher> {
-  return new Map(
-    Object.entries(record).map(([k, v]) => [k, compileMatcher(v as StringMatch)]),
-  );
+  return new Map(Object.entries(record).map(([k, v]) => [k, compileMatcher(v as StringMatch)]));
 }
 
-function compilePredicate(pred: ScenarioRuleT['when']): CompiledScenarioPredicate {
+function compilePredicate(pred: ScenarioRuleT["when"]): CompiledScenarioPredicate {
   return {
     ...(pred.params && { params: compileDim(pred.params) }),
     ...(pred.query && { query: compileDim(pred.query) }),
@@ -73,7 +71,7 @@ function compilePredicate(pred: ScenarioRuleT['when']): CompiledScenarioPredicat
   };
 }
 
-function compileResponse(resp: ScenarioRuleT['response']): CompiledScenarioResponse {
+function compileResponse(resp: ScenarioRuleT["response"]): CompiledScenarioResponse {
   const out: CompiledScenarioResponse = {};
   if (resp.status !== undefined) out.status = resp.status;
   if (resp.delay !== undefined) out.delay = resp.delay;
@@ -81,7 +79,7 @@ function compileResponse(resp: ScenarioRuleT['response']): CompiledScenarioRespo
     out.headers = new Map(Object.entries(resp.headers).map(([k, v]) => [k, compileTemplate(v)]));
   }
   if (resp.body !== undefined) {
-    if (typeof resp.body === 'string') {
+    if (typeof resp.body === "string") {
       out.bodyTemplate = compileTemplate(resp.body);
       out.bodyJson = null;
     } else if (resp.body !== null) {
@@ -109,18 +107,22 @@ export function compileScenarioRules(rules: readonly ScenarioRuleT[]): readonly 
 function matcherOk(compiled: CompiledMatcher, got: string | undefined): boolean {
   if (got === undefined) return false;
   switch (compiled.kind) {
-    case 'exact': return got === compiled.value;
-    case 'regex': return compiled.re.test(got);
-    case 'startsWith': return got.startsWith(compiled.value);
-    case 'contains': return got.includes(compiled.value);
+    case "exact":
+      return got === compiled.value;
+    case "regex":
+      return compiled.re.test(got);
+    case "startsWith":
+      return got.startsWith(compiled.value);
+    case "contains":
+      return got.includes(compiled.value);
   }
 }
 
 // Navigate a dot-path into a JSON value. Returns undefined if any segment is absent.
 function dotGet(obj: unknown, path: string): unknown {
   let cur = obj;
-  for (const key of path.split('.')) {
-    if (cur === null || typeof cur !== 'object') return undefined;
+  for (const key of path.split(".")) {
+    if (cur === null || typeof cur !== "object") return undefined;
     cur = (cur as Record<string, unknown>)[key];
   }
   return cur;
@@ -130,17 +132,19 @@ function dotGet(obj: unknown, path: string): unknown {
 // Missing attributes return undefined (not an error — U1 silent no-match).
 function extractAttribute(
   attrs: ScenarioAttrs,
-  ns: 'params' | 'query' | 'headers' | 'body',
+  ns: "params" | "query" | "headers" | "body",
   key: string,
 ): string | undefined {
   switch (ns) {
-    case 'params': {
+    case "params": {
       const v = attrs.params[key];
       return v !== undefined ? String(v) : undefined;
     }
-    case 'query': return attrs.query.get(key);
-    case 'headers': return attrs.headers.get(key.toLowerCase());
-    case 'body': {
+    case "query":
+      return attrs.query.get(key);
+    case "headers":
+      return attrs.headers.get(key.toLowerCase());
+    case "body": {
       const v = dotGet(attrs.body, key);
       return v !== undefined && v !== null ? String(v) : undefined;
     }
@@ -152,7 +156,7 @@ function extractAttribute(
 function evalDim(
   dim: ReadonlyMap<string, CompiledMatcher>,
   attrs: ScenarioAttrs,
-  ns: 'params' | 'query' | 'headers' | 'body',
+  ns: "params" | "query" | "headers" | "body",
 ): { matched: boolean; missReason?: string } {
   for (const [key, matcher] of dim) {
     const got = extractAttribute(attrs, ns, key);
@@ -181,7 +185,7 @@ export function evaluateScenarios(
     const pred = scenario.predicate;
     let allMatched = true;
     let missReason: string | undefined;
-    for (const ns of ['params', 'query', 'headers', 'body'] as const) {
+    for (const ns of ["params", "query", "headers", "body"] as const) {
       const dim = pred[ns];
       if (!dim) continue;
       const result = evalDim(dim, attrs, ns);

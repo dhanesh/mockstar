@@ -18,7 +18,7 @@
 // callback. That API is NOT supported by Bun.serve — TLSOptions.serverName must be a
 // STRING. This refactor passes the tls config as an array and rebuilds it on reload.
 
-import type { ProxyConfig, ProxySnapshot } from './types.ts';
+import type { ProxyConfig, ProxySnapshot } from "./types.ts";
 
 // --- PUBLIC API ----------------------------------------------------------
 
@@ -73,8 +73,8 @@ export async function startTlsServer(opts: TlsServerOptions): Promise<TlsServerH
   const bun = (globalThis as { Bun?: BunGlobal }).Bun;
   if (!bun?.serve) {
     throw new Error(
-      'Bun.serve is not available. Mockstar proxy requires the Bun runtime (>=1.3.11). ' +
-        'Run `bun run src/cli.ts proxy start` rather than `node ...`.',
+      "Bun.serve is not available. Mockstar proxy requires the Bun runtime (>=1.3.11). " +
+        "Run `bun run src/cli.ts proxy start` rather than `node ...`.",
     );
   }
 
@@ -84,7 +84,7 @@ export async function startTlsServer(opts: TlsServerOptions): Promise<TlsServerH
   const buildTlsOption = (leaves: readonly TlsLeaf[]): unknown => {
     if (leaves.length === 0) {
       throw new Error(
-        'startTlsServer requires at least one leaf. Empty configurations cannot start a TLS listener.',
+        "startTlsServer requires at least one leaf. Empty configurations cannot start a TLS listener.",
       );
     }
     // Bun tls can be a single TLSOptions or an array for SNI. Single-leaf case
@@ -117,7 +117,7 @@ export async function startTlsServer(opts: TlsServerOptions): Promise<TlsServerH
     },
   });
 
-  const url = server.url?.toString().replace(/\/$/, '') ?? `https://${server.hostname}:${server.port}`;
+  const url = server.url?.toString().replace(/\/$/, "") ?? `https://${server.hostname}:${server.port}`;
 
   return {
     get url(): string {

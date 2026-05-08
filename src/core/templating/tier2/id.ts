@@ -9,8 +9,7 @@
 //   - Per-request isolation (TN8): `createIdHelpers(seed)` is called fresh for every request,
 //     so PRNG state never leaks across concurrent requests even in deterministic mode.
 
-export const BASE62 =
-  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+export const BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 export interface IdSeed {
   deterministic: boolean;
@@ -76,7 +75,7 @@ function draw(alphabet: string, size: number, rand: RandBytes): string {
   const aLen = alphabet.length;
   const mask = (2 << (31 - Math.clz32((aLen - 1) | 1))) - 1;
   const step = Math.ceil((1.6 * mask * size) / aLen);
-  let out = '';
+  let out = "";
   while (out.length < size) {
     const bytes = rand(step);
     for (let i = 0; i < step; i++) {

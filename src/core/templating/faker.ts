@@ -3,7 +3,7 @@
 // the same seed produce byte-identical outputs. Previously we reseeded the global
 // `faker` singleton, so the advancing state was shared across closures.
 
-import { Faker, en } from '@faker-js/faker';
+import { Faker, en } from "@faker-js/faker";
 
 export interface FakerInstance {
   uuid(): string;
@@ -26,7 +26,7 @@ export function createFaker(opts: { deterministic: boolean; seed?: number }): Fa
     name: (): string => instance.person.fullName(),
     integer: (min: number, max: number): number => instance.number.int({ min, max }),
     pick: <T>(items: readonly T[]): T => {
-      if (items.length === 0) throw new Error('faker.pick called with empty array');
+      if (items.length === 0) throw new Error("faker.pick called with empty array");
       return instance.helpers.arrayElement(items);
     },
     boolean: (): boolean => instance.datatype.boolean(),

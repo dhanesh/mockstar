@@ -3,17 +3,12 @@
 // Satisfies: T6 (handler-reference integrity)
 // Priority: structural (blocks T6; must be loaded before config cross-check in RT-1.3)
 
-import { resolve, isAbsolute, relative } from 'node:path';
-import { readdir, stat } from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
-import {
-  HandlerLoadError,
-  MissingHandlerError,
-  type HandlerRegistry,
-  type MockHandler,
-} from './types.ts';
+import { resolve, isAbsolute, relative } from "node:path";
+import { readdir, stat } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
+import { HandlerLoadError, MissingHandlerError, type HandlerRegistry, type MockHandler } from "./types.ts";
 
-const SUPPORTED_EXTENSIONS = ['.ts', '.js', '.mjs', '.mts'];
+const SUPPORTED_EXTENSIONS = [".ts", ".js", ".mjs", ".mts"];
 
 /**
  * Discover handler modules in the configured directory and build a frozen
@@ -31,8 +26,11 @@ export async function buildHandlerRegistry(handlersDir: string): Promise<Handler
   for (const file of entries) {
     // Defence in depth: refuse any file that escaped the handlers directory.
     const rel = relative(absDir, file);
-    if (rel.startsWith('..') || isAbsolute(rel)) {
-      throw new HandlerLoadError(file, new Error(`Handler file '${file}' is outside the handlers directory '${absDir}'`));
+    if (rel.startsWith("..") || isAbsolute(rel)) {
+      throw new HandlerLoadError(
+        file,
+        new Error(`Handler file '${file}' is outside the handlers directory '${absDir}'`),
+      );
     }
 
     let mod: Record<string, unknown>;
@@ -43,11 +41,13 @@ export async function buildHandlerRegistry(handlersDir: string): Promise<Handler
     }
 
     for (const [name, value] of Object.entries(mod)) {
-      if (name === 'default' || typeof value !== 'function') continue;
+      if (name === "default" || typeof value !== "function") continue;
       if (map.has(name)) {
         throw new HandlerLoadError(
           file,
-          new Error(`Handler '${name}' already registered from a previous file; names must be unique across handlers/`),
+          new Error(
+            `Handler '${name}' already registered from a previous file; names must be unique across handlers/`,
+          ),
         );
       }
       map.set(name, value as MockHandler);

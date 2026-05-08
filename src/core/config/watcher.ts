@@ -2,17 +2,17 @@
 // Satisfies: RT-5.4 (per-tenant reload isolation)
 // Satisfies: T7 (warn-and-keep-previous on invalid reload)
 
-import { watch, type FSWatcher } from 'node:fs';
-import { resolve } from 'node:path';
-import type { HandlerRegistry } from '../handlers/index.ts';
-import { loadTenant } from './loader.ts';
-import type { SnapshotHolder } from './snapshot.ts';
+import { watch, type FSWatcher } from "node:fs";
+import { resolve } from "node:path";
+import type { HandlerRegistry } from "../handlers/index.ts";
+import { loadTenant } from "./loader.ts";
+import type { SnapshotHolder } from "./snapshot.ts";
 
 export interface WatcherOptions {
   configRoot: string;
   holder: SnapshotHolder;
   handlers: HandlerRegistry;
-  onReload?: (tenant: string, result: 'ok' | 'rejected', details?: string) => void;
+  onReload?: (tenant: string, result: "ok" | "rejected", details?: string) => void;
   debounceMs?: number;
 }
 
@@ -49,10 +49,10 @@ async function reloadTenant(tenant: string, dir: string, opts: WatcherOptions): 
   try {
     const next = await loadTenant(dir, tenant, opts.handlers);
     opts.holder.swapTenant(tenant, next);
-    opts.onReload?.(tenant, 'ok');
+    opts.onReload?.(tenant, "ok");
   } catch (err) {
     // Warn-and-keep-previous: existing snapshot remains active (T7).
     const message = err instanceof Error ? err.message : String(err);
-    opts.onReload?.(tenant, 'rejected', message);
+    opts.onReload?.(tenant, "rejected", message);
   }
 }

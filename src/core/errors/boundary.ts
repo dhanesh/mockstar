@@ -1,8 +1,8 @@
 // Satisfies: RT-2 (per-request handler fault isolation; tier 1 of TN2)
 // Satisfies: T10 (handler crashes never kill the server — sync/await branch)
 
-import type { Context } from 'hono';
-import type { StructuredLogger } from '../observability/logger.ts';
+import type { Context } from "hono";
+import type { StructuredLogger } from "../observability/logger.ts";
 
 export interface BoundaryOptions {
   timeoutMs: number;
@@ -12,7 +12,7 @@ export interface BoundaryOptions {
 export interface HandlerInvocationResult {
   response: Response;
   faulted: boolean;
-  faultKind?: 'throw' | 'rejection' | 'timeout';
+  faultKind?: "throw" | "rejection" | "timeout";
 }
 
 /**
@@ -26,19 +26,16 @@ export async function invokeWithBoundary(
   invoke: () => Response | Promise<Response>,
   opts: BoundaryOptions,
 ): Promise<HandlerInvocationResult> {
-  const requestId = ctx.var.requestId ?? '-';
-  const tenant = ctx.var.tenant ?? '-';
+  const requestId = ctx.var.requestId ?? "-";
+  const tenant = ctx.var.tenant ?? "-";
   try {
-    const response = await Promise.race([
-      Promise.resolve().then(invoke),
-      timeout(opts.timeoutMs),
-    ]);
+    const response = await Promise.race([Promise.resolve().then(invoke), timeout(opts.timeoutMs)]);
     return { response, faulted: false };
   } catch (err) {
-    const kind: 'throw' | 'rejection' | 'timeout' =
-      err instanceof HandlerTimeoutError ? 'timeout' : err instanceof Error ? 'rejection' : 'throw';
+    const kind: "throw" | "rejection" | "timeout" =
+      err instanceof HandlerTimeoutError ? "timeout" : err instanceof Error ? "rejection" : "throw";
     opts.logger.error({
-      event: 'handler_fault',
+      event: "handler_fault",
       handler: handlerName,
       tenant,
       requestId,
@@ -49,13 +46,13 @@ export async function invokeWithBoundary(
     return {
       response: new Response(
         JSON.stringify({
-          error: 'handler_fault',
+          error: "handler_fault",
           handler: handlerName,
           requestId,
           // Never leak stack traces to clients; internal detail only.
           kind,
         }),
-        { status: 500, headers: { 'content-type': 'application/json' } },
+        { status: 500, headers: { "content-type": "application/json" } },
       ),
       faulted: true,
       faultKind: kind,
@@ -66,7 +63,7 @@ export async function invokeWithBoundary(
 export class HandlerTimeoutError extends Error {
   constructor(public readonly ms: number) {
     super(`Handler exceeded ${ms}ms timeout`);
-    this.name = 'HandlerTimeoutError';
+    this.name = "HandlerTimeoutError";
   }
 }
 

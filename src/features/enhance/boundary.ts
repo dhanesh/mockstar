@@ -2,7 +2,7 @@
 //            and user-owned fields — see manifold for full reasoning).
 // Priority: binding — idempotency hinges on this boundary
 
-export const GENERATED_KEY = '_mockstarGenerated';
+export const GENERATED_KEY = "_mockstarGenerated";
 export const GENERATED_VERSION = 1;
 
 /** Rewrite recorded per-mock entry. */
@@ -27,15 +27,15 @@ export interface GeneratedManifest {
 /** Extract the generated manifest from a raw mock-file object, if present. */
 export function readManifest(raw: Record<string, unknown>): GeneratedManifest | null {
   const v = raw[GENERATED_KEY];
-  if (typeof v !== 'object' || v === null) return null;
+  if (typeof v !== "object" || v === null) return null;
   const m = v as Partial<GeneratedManifest>;
   if (m.version !== GENERATED_VERSION) return null;
   if (!Array.isArray(m.entries)) return null;
   return {
     version: GENERATED_VERSION,
-    enhancedAt: typeof m.enhancedAt === 'string' ? m.enhancedAt : new Date(0).toISOString(),
+    enhancedAt: typeof m.enhancedAt === "string" ? m.enhancedAt : new Date(0).toISOString(),
     entries: m.entries as GeneratedEntry[],
-    providerTag: typeof m.providerTag === 'string' ? m.providerTag : null,
+    providerTag: typeof m.providerTag === "string" ? m.providerTag : null,
   };
 }
 

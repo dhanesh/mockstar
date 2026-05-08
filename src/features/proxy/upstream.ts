@@ -5,7 +5,7 @@
 // header (X-Mockstar-Tenant) so mockstar's existing tenancy middleware (RT-4 of
 // mockstar manifold) routes without URL rewriting.
 
-import type { HostConfig, ProxyConfig } from './types.ts';
+import type { HostConfig, ProxyConfig } from "./types.ts";
 
 export interface ForwardContext {
   readonly config: ProxyConfig;
@@ -33,14 +33,14 @@ export async function forwardToMockstar(req: Request, ctx: ForwardContext): Prom
   // Preserve original headers except hop-by-hop and the tenant hint (we set that ourselves).
   req.headers.forEach((value, key) => {
     if (HOP_BY_HOP.has(key.toLowerCase())) return;
-    if (key.toLowerCase() === 'x-mockstar-tenant') return;
-    if (key.toLowerCase() === 'host') return;
+    if (key.toLowerCase() === "x-mockstar-tenant") return;
+    if (key.toLowerCase() === "host") return;
     forwardHeaders.set(key, value);
   });
-  forwardHeaders.set('x-mockstar-tenant', ctx.host.tenant);
-  forwardHeaders.set('x-mockstar-proxy-request-id', ctx.requestId);
-  forwardHeaders.set('x-forwarded-host', ctx.host.host);
-  forwardHeaders.set('x-forwarded-proto', 'https');
+  forwardHeaders.set("x-mockstar-tenant", ctx.host.tenant);
+  forwardHeaders.set("x-mockstar-proxy-request-id", ctx.requestId);
+  forwardHeaders.set("x-forwarded-host", ctx.host.host);
+  forwardHeaders.set("x-forwarded-proto", "https");
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ctx.config.upstreamTimeoutMs);
@@ -48,23 +48,22 @@ export async function forwardToMockstar(req: Request, ctx: ForwardContext): Prom
 
   const started = performance.now();
   try {
-    const upstreamBody =
-      req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
+    const upstreamBody = req.method === "GET" || req.method === "HEAD" ? undefined : await req.arrayBuffer();
     const upstreamRes = await fetch(targetUrl, {
       method: req.method,
       headers: forwardHeaders,
       body: upstreamBody,
       signal: controller.signal,
-      redirect: 'manual',
+      redirect: "manual",
     });
     clearTimeout(timer);
     return upstreamRes;
   } catch (err) {
     clearTimeout(timer);
-    const aborted = err instanceof DOMException && err.name === 'AbortError';
+    const aborted = err instanceof DOMException && err.name === "AbortError";
     const durationMs = performance.now() - started;
     ctx.logger.error({
-      event: 'proxy_upstream_error',
+      event: "proxy_upstream_error",
       host: ctx.host.host,
       tenant: ctx.host.tenant,
       upstream: ctx.config.mockstarUrl,
@@ -75,16 +74,16 @@ export async function forwardToMockstar(req: Request, ctx: ForwardContext): Prom
     });
     return new Response(
       JSON.stringify({
-        error: 'mockstar_unreachable',
+        error: "mockstar_unreachable",
         upstream: ctx.config.mockstarUrl,
-        cause: aborted ? 'timeout' : 'connection_error',
+        cause: aborted ? "timeout" : "connection_error",
         requestId: ctx.requestId,
         durationMs: Math.round(durationMs),
         hint: aborted
           ? `Upstream exceeded ${ctx.config.upstreamTimeoutMs}ms timeout. Increase upstreamTimeoutMs in proxy config or check mockstar load.`
           : `Mockstar is not responding at ${ctx.config.mockstarUrl}. Run 'make dev' or check mockstar logs.`,
       }),
-      { status: 502, headers: { 'content-type': 'application/json' } },
+      { status: 502, headers: { "content-type": "application/json" } },
     );
   }
 }
@@ -95,7 +94,7 @@ export async function probeMockstarHealth(config: ProxyConfig, timeoutMs = 1500)
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   (timer as unknown as { unref?: () => void }).unref?.();
   try {
-    const res = await fetch(new URL('/health', config.mockstarUrl), { signal: controller.signal });
+    const res = await fetch(new URL("/health", config.mockstarUrl), { signal: controller.signal });
     return res.ok;
   } catch {
     return false;
@@ -106,13 +105,13 @@ export async function probeMockstarHealth(config: ProxyConfig, timeoutMs = 1500)
 
 // Hop-by-hop headers per RFC 7230 section 6.1 + CORS preflight hints.
 const HOP_BY_HOP = new Set([
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-  'content-length', // recomputed by fetch()
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "content-length", // recomputed by fetch()
 ]);

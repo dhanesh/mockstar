@@ -20,12 +20,12 @@ export function insertPattern<T>(root: PathPatternNode<T>, pattern: string, valu
   const segments = splitPath(pattern);
   let node = root;
   for (const seg of segments) {
-    if (seg === '*') {
+    if (seg === "*") {
       node.wildcard ??= createNode();
       node = node.wildcard;
       break; // wildcard consumes the rest
     }
-    if (seg.startsWith(':')) {
+    if (seg.startsWith(":")) {
       const name = seg.slice(1);
       if (node.param && node.param.name !== name) {
         // Two patterns disagree on the param name at the same slot — allowed,
@@ -90,6 +90,6 @@ function walk<T>(
 
 function splitPath(p: string): string[] {
   // Leading/trailing slashes don't count. '/' is the root.
-  const clean = p.replace(/^\/+|\/+$/g, '');
-  return clean === '' ? [] : clean.split('/');
+  const clean = p.replace(/^\/+|\/+$/g, "");
+  return clean === "" ? [] : clean.split("/");
 }

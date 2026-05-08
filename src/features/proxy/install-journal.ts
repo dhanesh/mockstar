@@ -6,11 +6,11 @@
 // Corruption detection: each line includes a SHA-256 checksum of the {step,
 // timestamp, action, reverseCommand} payload; readback verifies.
 
-import { appendFile, mkdir, readFile, rm, stat } from 'node:fs/promises';
-import { dirname } from 'node:path';
-import { createHash, randomBytes as _randomBytes } from 'node:crypto';
-import type { InstallStep, ReverseCommand } from './types.ts';
-import { ProxyError } from './types.ts';
+import { appendFile, mkdir, readFile, rm, stat } from "node:fs/promises";
+import { dirname } from "node:path";
+import { createHash, randomBytes as _randomBytes } from "node:crypto";
+import type { InstallStep, ReverseCommand } from "./types.ts";
+import { ProxyError } from "./types.ts";
 
 // --- PUBLIC API ----------------------------------------------------------
 
@@ -28,7 +28,7 @@ export interface JournalFacts {
  */
 export async function appendStep(
   path: string,
-  step: Omit<InstallStep, 'step' | 'timestamp' | 'checksum'>,
+  step: Omit<InstallStep, "step" | "timestamp" | "checksum">,
 ): Promise<InstallStep> {
   await mkdir(dirname(path), { recursive: true });
 
@@ -39,7 +39,7 @@ export async function appendStep(
     timestamp: new Date().toISOString(),
     action: step.action,
     reverseCommand: step.reverseCommand,
-    checksum: '',
+    checksum: "",
   };
   const payload = JSON.stringify({
     step: full.step,
@@ -49,8 +49,8 @@ export async function appendStep(
   });
   const withChecksum: InstallStep = { ...full, checksum: sha256(payload) };
 
-  const line = JSON.stringify(withChecksum) + '\n';
-  await appendFile(path, line, { encoding: 'utf8' });
+  const line = JSON.stringify(withChecksum) + "\n";
+  await appendFile(path, line, { encoding: "utf8" });
   return withChecksum;
 }
 
@@ -161,7 +161,7 @@ export async function executeReverse(cmd: ReverseCommand): Promise<void> {
   if (!fn) {
     throw new ProxyError(
       `No reverse implementation for command kind '${cmd.kind}'`,
-      'reverse_command_not_implemented',
+      "reverse_command_not_implemented",
     );
   }
   await fn(cmd as never);
@@ -170,12 +170,10 @@ export async function executeReverse(cmd: ReverseCommand): Promise<void> {
 // --- REVERSE COMMAND IMPLEMENTATIONS (idempotent; safe to re-run) --------
 
 const reverseCommandImpls: {
-  [K in ReverseCommand['kind']]: (
-    cmd: Extract<ReverseCommand, { kind: K }>,
-  ) => Promise<void>;
+  [K in ReverseCommand["kind"]]: (cmd: Extract<ReverseCommand, { kind: K }>) => Promise<void>;
 } = {
   mkcert_uninstall: async () => {
-    const { uninstallCa } = await import('./ca.ts');
+    const { uninstallCa } = await import("./ca.ts");
     await uninstallCa().catch(() => undefined); // mkcert is itself idempotent
   },
   remove_file: async ({ path }) => {
@@ -185,25 +183,25 @@ const reverseCommandImpls: {
     await rm(path, { recursive: true, force: true });
   },
   revert_file: async ({ path, originalContent }) => {
-    const { writeFile } = await import('node:fs/promises');
-    await writeFile(path, originalContent, 'utf8');
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(path, originalContent, "utf8");
   },
   dnsmasq_stop_and_remove: async () => {
     // Platform-specific; delegated to the dns module to know which service manager to use.
-    const dns = await import('./dns.ts');
+    const dns = await import("./dns.ts");
     await dns.stopAndRemoveDnsmasq();
   },
   revert_hosts_entries: async ({ blockMarker }) => {
-    const dns = await import('./dns.ts');
+    const dns = await import("./dns.ts");
     await dns.revertHostsBlock(blockMarker);
   },
   setcap_drop: async ({ path }) => {
-    const { runPrivileged } = await import('./port-bind.ts');
-    await runPrivileged(['setcap', '-r', path]).catch(() => undefined);
+    const { runPrivileged } = await import("./port-bind.ts");
+    await runPrivileged(["setcap", "-r", path]).catch(() => undefined);
   },
   launchctl_unload_and_remove: async ({ plistPath }) => {
-    const { runPrivileged } = await import('./port-bind.ts');
-    await runPrivileged(['launchctl', 'unload', '-w', plistPath]).catch(() => undefined);
+    const { runPrivileged } = await import("./port-bind.ts");
+    await runPrivileged(["launchctl", "unload", "-w", plistPath]).catch(() => undefined);
     await rm(plistPath, { force: true });
   },
   noop: async () => {
@@ -214,8 +212,8 @@ const reverseCommandImpls: {
 // --- INTERNALS -----------------------------------------------------------
 
 async function readAll(path: string): Promise<InstallStep[]> {
-  const content = await readFile(path, 'utf8');
-  const lines = content.split('\n').filter((l) => l.length > 0);
+  const content = await readFile(path, "utf8");
+  const lines = content.split("\n").filter((l) => l.length > 0);
   const out: InstallStep[] = [];
   for (const line of lines) {
     let parsed: InstallStep;
@@ -224,8 +222,8 @@ async function readAll(path: string): Promise<InstallStep[]> {
     } catch {
       throw new ProxyError(
         `Install journal corruption: un-parseable line`,
-        'journal_corrupt',
-        'Manual recovery: see docs/PROXY-RECOVERY.md',
+        "journal_corrupt",
+        "Manual recovery: see docs/PROXY-RECOVERY.md",
       );
     }
     const payload = JSON.stringify({
@@ -238,8 +236,8 @@ async function readAll(path: string): Promise<InstallStep[]> {
     if (expected !== parsed.checksum) {
       throw new ProxyError(
         `Install journal corruption: checksum mismatch at step ${parsed.step}`,
-        'journal_checksum_mismatch',
-        'Manual recovery: see docs/PROXY-RECOVERY.md',
+        "journal_checksum_mismatch",
+        "Manual recovery: see docs/PROXY-RECOVERY.md",
       );
     }
     out.push(parsed);
@@ -248,5 +246,5 @@ async function readAll(path: string): Promise<InstallStep[]> {
 }
 
 function sha256(s: string): string {
-  return createHash('sha256').update(s, 'utf8').digest('hex');
+  return createHash("sha256").update(s, "utf8").digest("hex");
 }

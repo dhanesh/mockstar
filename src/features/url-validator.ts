@@ -10,20 +10,23 @@ export interface UrlValidationOptions {
 }
 
 export class UrlValidationError extends Error {
-  constructor(public readonly url: string, public readonly reason: string) {
+  constructor(
+    public readonly url: string,
+    public readonly reason: string,
+  ) {
     super(`URL validation failed for '${url}': ${reason}`);
-    this.name = 'UrlValidationError';
+    this.name = "UrlValidationError";
   }
 }
 
 const PRIVATE_IPV4_RANGES: Array<[number, number, number, number]> = [
-  [10, 0, 0, 8],         // 10.0.0.0/8
-  [172, 16, 0, 12],      // 172.16.0.0/12
-  [192, 168, 0, 16],     // 192.168.0.0/16
-  [127, 0, 0, 8],        // 127.0.0.0/8 (loopback)
-  [169, 254, 0, 16],     // 169.254.0.0/16 (link-local / cloud metadata)
-  [100, 64, 0, 10],      // 100.64.0.0/10 (CGNAT)
-  [0, 0, 0, 8],          // 0.0.0.0/8
+  [10, 0, 0, 8], // 10.0.0.0/8
+  [172, 16, 0, 12], // 172.16.0.0/12
+  [192, 168, 0, 16], // 192.168.0.0/16
+  [127, 0, 0, 8], // 127.0.0.0/8 (loopback)
+  [169, 254, 0, 16], // 169.254.0.0/16 (link-local / cloud metadata)
+  [100, 64, 0, 10], // 100.64.0.0/10 (CGNAT)
+  [0, 0, 0, 8], // 0.0.0.0/8
 ];
 
 /**
@@ -33,28 +36,31 @@ const PRIVATE_IPV4_RANGES: Array<[number, number, number, number]> = [
  * Throws `UrlValidationError` on failure. Returns the parsed URL on success.
  */
 export function validateUpstreamUrl(raw: string, opts: UrlValidationOptions = {}): URL {
-  const allowedSchemes = opts.allowedSchemes ?? ['https'];
+  const allowedSchemes = opts.allowedSchemes ?? ["https"];
 
   let parsed: URL;
   try {
     parsed = new URL(raw);
   } catch {
-    throw new UrlValidationError(raw, 'not a valid URL');
+    throw new UrlValidationError(raw, "not a valid URL");
   }
 
-  const scheme = parsed.protocol.replace(/:$/, '');
+  const scheme = parsed.protocol.replace(/:$/, "");
   if (!allowedSchemes.includes(scheme)) {
-    throw new UrlValidationError(raw, `scheme '${scheme}' not in allowlist (${allowedSchemes.join(', ')})`);
+    throw new UrlValidationError(raw, `scheme '${scheme}' not in allowlist (${allowedSchemes.join(", ")})`);
   }
 
   // file:// is always rejected even if someone monkeys with the allowlist.
-  if (scheme === 'file') {
+  if (scheme === "file") {
     throw new UrlValidationError(raw, "scheme 'file' is never allowed");
   }
 
   if (!opts.allowPrivateUpstreams) {
     if (isPrivateHost(parsed.hostname)) {
-      throw new UrlValidationError(raw, `host '${parsed.hostname}' is in a private/loopback/link-local range`);
+      throw new UrlValidationError(
+        raw,
+        `host '${parsed.hostname}' is in a private/loopback/link-local range`,
+      );
     }
   }
 
@@ -63,12 +69,17 @@ export function validateUpstreamUrl(raw: string, opts: UrlValidationOptions = {}
 
 export function isPrivateHost(hostname: string): boolean {
   // Strip IPv6 brackets (some platforms keep them on URL.hostname for [::1] form).
-  const stripped = hostname.replace(/^\[/, '').replace(/\]$/, '');
+  const stripped = hostname.replace(/^\[/, "").replace(/\]$/, "");
   const lowered = stripped.toLowerCase();
-  if (lowered === 'localhost' || lowered === 'ip6-localhost' || lowered === 'ip6-loopback') return true;
+  if (lowered === "localhost" || lowered === "ip6-localhost" || lowered === "ip6-loopback") return true;
 
   // IPv6 loopback and link-local
-  if (lowered === '::1' || lowered.startsWith('fe80:') || lowered.startsWith('fc') || lowered.startsWith('fd')) {
+  if (
+    lowered === "::1" ||
+    lowered.startsWith("fe80:") ||
+    lowered.startsWith("fc") ||
+    lowered.startsWith("fd")
+  ) {
     return true;
   }
 
@@ -100,7 +111,7 @@ export function isPrivateHost(hostname: string): boolean {
 }
 
 function isPrivateIpv4(ip: string): boolean {
-  const parts = ip.split('.').map((p) => Number.parseInt(p, 10));
+  const parts = ip.split(".").map((p) => Number.parseInt(p, 10));
   if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return true;
   const [a = 0, b = 0, c = 0, d = 0] = parts;
   for (const [ra, rb, rc, mask] of PRIVATE_IPV4_RANGES) {
@@ -110,8 +121,14 @@ function isPrivateIpv4(ip: string): boolean {
 }
 
 function matchesIpv4(
-  a: number, _b: number, _c: number, _d: number,
-  ra: number, _rb: number, _rc: number, mask: number,
+  a: number,
+  _b: number,
+  _c: number,
+  _d: number,
+  ra: number,
+  _rb: number,
+  _rc: number,
+  mask: number,
 ): boolean {
   // Simple first-octet check for /8 networks; expand as needed.
   if (mask === 8) return a === ra;

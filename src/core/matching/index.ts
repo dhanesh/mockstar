@@ -2,9 +2,9 @@
 // Satisfies: T2 (rich matching), U1 (diagnostic 404 requires nearestMatch)
 // Priority: binding — central to RT-6 hot path
 
-import type { Entry } from '../config/schema.ts';
-import { evaluateDiscriminators, type PredicateFailure, type RequestView } from './discriminators.ts';
-import { createNode, findPath, insertPattern, type PathMatchHit, type PathPatternNode } from './path-trie.ts';
+import type { Entry } from "../config/schema.ts";
+import { evaluateDiscriminators, type PredicateFailure, type RequestView } from "./discriminators.ts";
+import { createNode, findPath, insertPattern, type PathMatchHit, type PathPatternNode } from "./path-trie.ts";
 
 export interface IndexedEntry {
   entry: Entry;
@@ -37,7 +37,7 @@ export function buildMatchIndex(entries: readonly Entry[]): MatchIndex {
 
   entries.forEach((e, i) => {
     const indexed: IndexedEntry = { entry: e, order: i };
-    if (e.match.method === '*') {
+    if (e.match.method === "*") {
       insertPattern(wildcardMethodRoot, e.match.path, indexed);
       return;
     }

@@ -4,28 +4,30 @@
 // Satisfies: T1 (single Tier 2 walker pass — merged result goes through walker exactly once)
 // Satisfies: T5 (Tier 2 tokens supported in scenario bodies — rendered via same walker pass)
 
-import type { Context } from 'hono';
-import type { Entry } from '../config/schema.ts';
-import type { CompiledResponse, TemplateContext } from '../templating/compiler.ts';
-import { renderCompiledJson } from '../templating/compiler.ts';
-import type { FakerInstance } from '../templating/faker.ts';
-import type { Clock } from '../templating/tier2/now.ts';
-import { createIdHelpers, fnv1a } from '../templating/tier2/id.ts';
-import { RenderBudget, Tier2RenderError } from '../templating/tier2/walker.ts';
-import type { CompiledScenario, CompiledScenarioResponse } from './evaluator.ts';
+import type { Context } from "hono";
+import type { Entry } from "../config/schema.ts";
+import type { CompiledResponse, TemplateContext } from "../templating/compiler.ts";
+import { renderCompiledJson } from "../templating/compiler.ts";
+import type { FakerInstance } from "../templating/faker.ts";
+import type { Clock } from "../templating/tier2/now.ts";
+import { createIdHelpers, fnv1a } from "../templating/tier2/id.ts";
+import { RenderBudget, Tier2RenderError } from "../templating/tier2/walker.ts";
+import type { CompiledScenario, CompiledScenarioResponse } from "./evaluator.ts";
 
 export interface ScenarioRenderInput {
   status: number;
-  headers: ReadonlyMap<string, import('../templating/compiler.ts').CompiledTemplate>;
-  bodyTemplate: import('../templating/compiler.ts').CompiledTemplate | null;
-  bodyJson: import('../templating/compiler.ts').CompiledJsonValue | null;
+  headers: ReadonlyMap<string, import("../templating/compiler.ts").CompiledTemplate>;
+  bodyTemplate: import("../templating/compiler.ts").CompiledTemplate | null;
+  bodyJson: import("../templating/compiler.ts").CompiledJsonValue | null;
   delay?: number | { min: number; max: number };
 }
 
 // Merge a matched scenario over the compiled default response for static entries (U2).
 // Scenario fields override; absent fields inherit from the default.
 export function mergeStaticResponse(
-  defaultEntry: Entry & { response: { kind: 'static'; status: number; delay?: number | { min: number; max: number } } },
+  defaultEntry: Entry & {
+    response: { kind: "static"; status: number; delay?: number | { min: number; max: number } };
+  },
   defaultCompiled: CompiledResponse,
   scenario: CompiledScenario,
 ): ScenarioRenderInput {
@@ -35,7 +37,8 @@ export function mergeStaticResponse(
   return {
     status: resp.status ?? defaultEntry.response.status,
     headers,
-    bodyTemplate: resp.bodyTemplate !== undefined ? (resp.bodyTemplate ?? null) : defaultCompiled.bodyTemplate,
+    bodyTemplate:
+      resp.bodyTemplate !== undefined ? (resp.bodyTemplate ?? null) : defaultCompiled.bodyTemplate,
     bodyJson: resp.bodyJson !== undefined ? (resp.bodyJson ?? null) : defaultCompiled.bodyJson,
     delay: resp.delay ?? defaultEntry.response.delay,
   };
@@ -46,7 +49,9 @@ export function mergeStaticResponse(
 export function scenarioResponseForNonStatic(scenario: CompiledScenario): ScenarioRenderInput {
   const resp: CompiledScenarioResponse = scenario.response;
   if (resp.status === undefined) {
-    throw new Error(`scenario '${scenario.id}': non-static scenario response missing status (should have been caught by schema validation)`);
+    throw new Error(
+      `scenario '${scenario.id}': non-static scenario response missing status (should have been caught by schema validation)`,
+    );
   }
   return {
     status: resp.status,
@@ -71,7 +76,8 @@ export interface ScenarioRenderOpts {
 }
 
 async function applyDelay(spec: number | { min: number; max: number }): Promise<void> {
-  const ms = typeof spec === 'number' ? spec : spec.min + Math.floor(Math.random() * (spec.max - spec.min + 1));
+  const ms =
+    typeof spec === "number" ? spec : spec.min + Math.floor(Math.random() * (spec.max - spec.min + 1));
   if (ms > 0) await new Promise((r) => setTimeout(r, ms));
 }
 
@@ -122,15 +128,15 @@ export async function renderScenario(
     } else if (merged.bodyJson !== null) {
       const budget = new RenderBudget({ maxBytes: opts.maxResponseBytes });
       bodyOut = JSON.stringify(renderCompiledJson(merged.bodyJson, templateCtx, budget));
-      if (!headers.has('content-type')) headers.set('content-type', 'application/json');
+      if (!headers.has("content-type")) headers.set("content-type", "application/json");
     } else {
-      bodyOut = '';
+      bodyOut = "";
     }
   } catch (err) {
     if (err instanceof Tier2RenderError) {
       return new Response(
         JSON.stringify({ error: err.code.toLowerCase(), message: err.message, mockId: opts.entryId }),
-        { status: err.httpStatus, headers: { 'content-type': 'application/json' } },
+        { status: err.httpStatus, headers: { "content-type": "application/json" } },
       );
     }
     throw err;

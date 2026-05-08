@@ -28,7 +28,7 @@ export class RingBuffer<T> {
   #size = 0;
 
   constructor(public readonly capacity: number) {
-    if (capacity <= 0) throw new Error('RingBuffer capacity must be positive');
+    if (capacity <= 0) throw new Error("RingBuffer capacity must be positive");
     this.#buffer = new Array<T | undefined>(capacity);
   }
 

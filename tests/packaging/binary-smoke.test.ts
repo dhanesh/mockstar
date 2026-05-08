@@ -4,20 +4,20 @@
 // execution needs qemu/emulation which is not wired here — CI matrix runs
 // this test on each native runner).
 
-import { describe, expect, it } from 'bun:test';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { $ } from 'bun';
+import { describe, expect, it } from "bun:test";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { $ } from "bun";
 
-const distDir = resolve(import.meta.dir, '..', '..', 'dist');
+const distDir = resolve(import.meta.dir, "..", "..", "dist");
 
 function currentTarget(): string {
-  const os = process.platform === 'darwin' ? 'darwin' : 'linux';
-  const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const os = process.platform === "darwin" ? "darwin" : "linux";
+  const arch = process.arch === "arm64" ? "arm64" : "x64";
   return `bun-${os}-${arch}`;
 }
 
-describe('RT-9: binary smoke', () => {
+describe("RT-9: binary smoke", () => {
   const target = currentTarget();
   const binPath = resolve(distDir, `mockstar-${target}`);
 

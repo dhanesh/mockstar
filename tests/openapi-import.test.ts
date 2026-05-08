@@ -2,23 +2,23 @@
 // @constraint RT-8.3 — external $ref disabled (addresses CVE-2026-39885)
 // @constraint RT-8.4 — URL-encoded path params (addresses CVE-2026-32871)
 
-import { describe, it, expect } from 'bun:test';
-import { convertOpenApi, encodePathTemplate, OpenApiImportError } from '../src/features/openapi/index.ts';
+import { describe, it, expect } from "bun:test";
+import { convertOpenApi, encodePathTemplate, OpenApiImportError } from "../src/features/openapi/index.ts";
 
-describe('OpenAPI converter', () => {
-  it('converts operations to mock entries using response examples', () => {
+describe("OpenAPI converter", () => {
+  it("converts operations to mock entries using response examples", () => {
     const doc = {
-      openapi: '3.1.0',
-      servers: [{ url: 'https://api.example.com' }],
+      openapi: "3.1.0",
+      servers: [{ url: "https://api.example.com" }],
       paths: {
-        '/users/{id}': {
+        "/users/{id}": {
           get: {
-            operationId: 'getUser',
+            operationId: "getUser",
             responses: {
-              '200': {
-                description: 'ok',
+              "200": {
+                description: "ok",
                 content: {
-                  'application/json': { example: { id: 1, name: 'Alice' } },
+                  "application/json": { example: { id: 1, name: "Alice" } },
                 },
               },
             },
@@ -30,21 +30,21 @@ describe('OpenAPI converter', () => {
     expect(entries).toHaveLength(1);
     const entry = entries[0];
     expect(entry).toBeDefined();
-    expect(entry?.id).toBe('getUser');
-    expect((entry?.match as { method: string }).method).toBe('GET');
-    expect((entry?.match as { path: string }).path).toBe('/users/:id');
+    expect(entry?.id).toBe("getUser");
+    expect((entry?.match as { method: string }).method).toBe("GET");
+    expect((entry?.match as { path: string }).path).toBe("/users/:id");
   });
 
-  it('rejects external http:// $ref (CVE-2026-39885 class)', () => {
+  it("rejects external http:// $ref (CVE-2026-39885 class)", () => {
     const doc = {
-      openapi: '3.1.0',
+      openapi: "3.1.0",
       paths: {
-        '/foo': {
+        "/foo": {
           get: {
             responses: {
-              '200': {
-                $ref: 'http://169.254.169.254/metadata', // would SSRF
-                description: 'leaks',
+              "200": {
+                $ref: "http://169.254.169.254/metadata", // would SSRF
+                description: "leaks",
               },
             },
           },
@@ -54,12 +54,12 @@ describe('OpenAPI converter', () => {
     expect(() => convertOpenApi(doc)).toThrow(OpenApiImportError);
   });
 
-  it('rejects file:// $ref', () => {
+  it("rejects file:// $ref", () => {
     const doc = {
       paths: {
-        '/foo': {
+        "/foo": {
           get: {
-            responses: { '200': { $ref: 'file:///etc/passwd', description: 'local read' } },
+            responses: { "200": { $ref: "file:///etc/passwd", description: "local read" } },
           },
         },
       },
@@ -67,15 +67,15 @@ describe('OpenAPI converter', () => {
     expect(() => convertOpenApi(doc)).toThrow(OpenApiImportError);
   });
 
-  it('accepts in-document (#/...) $ref without fetching anything', () => {
+  it("accepts in-document (#/...) $ref without fetching anything", () => {
     const doc = {
       paths: {
-        '/foo': {
+        "/foo": {
           get: {
             responses: {
-              '200': {
-                description: 'ok',
-                $ref: '#/components/responses/Foo',
+              "200": {
+                description: "ok",
+                $ref: "#/components/responses/Foo",
               },
             },
           },
@@ -85,32 +85,32 @@ describe('OpenAPI converter', () => {
     expect(() => convertOpenApi(doc)).not.toThrow();
   });
 
-  it('rejects server URLs in private ranges by default', () => {
+  it("rejects server URLs in private ranges by default", () => {
     const doc = {
-      servers: [{ url: 'http://10.0.0.1/' }],
+      servers: [{ url: "http://10.0.0.1/" }],
       paths: {},
     };
     expect(() => convertOpenApi(doc)).toThrow(OpenApiImportError);
   });
 });
 
-describe('encodePathTemplate', () => {
-  it('rewrites {name} to :name', () => {
-    expect(encodePathTemplate('/users/{userId}/orders/{orderId}')).toBe('/users/:userId/orders/:orderId');
+describe("encodePathTemplate", () => {
+  it("rewrites {name} to :name", () => {
+    expect(encodePathTemplate("/users/{userId}/orders/{orderId}")).toBe("/users/:userId/orders/:orderId");
   });
 
-  it('URL-encodes literal segments that contain traversal characters', () => {
+  it("URL-encodes literal segments that contain traversal characters", () => {
     // Defence-in-depth: `encodeURIComponent` escapes the `%` of any existing percent-encoded
     // sequence, so smuggled `%2f` becomes `%252f` — a slash cannot sneak through the path.
     // Note: `encodeURIComponent` intentionally does not encode `.` (RFC 3986 unreserved),
     // so `..` remains literal. Path traversal is still prevented because the `/` it would
     // need to escape the segment is double-encoded.
-    const encoded = encodePathTemplate('/users/..%2fadmin');
-    expect(encoded).toContain('%252f');   // percent is escaped
+    const encoded = encodePathTemplate("/users/..%2fadmin");
+    expect(encoded).toContain("%252f"); // percent is escaped
     expect(encoded).not.toMatch(/%2f[^0-9a-fA-F%]/); // no raw %2f slash
   });
 
-  it('sanitises param names to [a-zA-Z0-9_]', () => {
-    expect(encodePathTemplate('/things/{id-with-dash}')).toBe('/things/:id_with_dash');
+  it("sanitises param names to [a-zA-Z0-9_]", () => {
+    expect(encodePathTemplate("/things/{id-with-dash}")).toBe("/things/:id_with_dash");
   });
 });

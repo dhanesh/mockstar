@@ -8,8 +8,8 @@ export {
   type CompiledJsonValue,
   type TemplateContext,
   type TemplateOp,
-} from './compiler.ts';
-export { createFaker, type FakerInstance } from './faker.ts';
+} from "./compiler.ts";
+export { createFaker, type FakerInstance } from "./faker.ts";
 export {
   createClock,
   createIdHelpers,
@@ -26,4 +26,4 @@ export {
   type IdSeed,
   type Tier2ErrorCode,
   type RenderBudgetOptions,
-} from './tier2/index.ts';
+} from "./tier2/index.ts";
