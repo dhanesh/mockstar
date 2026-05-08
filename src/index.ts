@@ -1,12 +1,12 @@
 // Public library API.
 // Satisfies: U2 (library embed distribution channel)
 
-import { resolve } from 'node:path';
-import { buildHandlerRegistry } from './core/handlers/index.ts';
-import { loadSnapshot, parseServerConfig, SnapshotHolder, startWatcher } from './core/config/index.ts';
-import { createServer, type CreateServerOptions, type RunningServer } from './server.ts';
-import { createLogger, type StructuredLogger } from './core/observability/index.ts';
-import { preflight } from './core/preflight.ts';
+import { resolve } from "node:path";
+import { buildHandlerRegistry } from "./core/handlers/index.ts";
+import { loadSnapshot, parseServerConfig, SnapshotHolder, startWatcher } from "./core/config/index.ts";
+import { createServer, type CreateServerOptions, type RunningServer } from "./server.ts";
+import { createLogger, type StructuredLogger } from "./core/observability/index.ts";
+import { preflight } from "./core/preflight.ts";
 
 export interface LaunchOptions {
   configRoot: string;
@@ -17,6 +17,10 @@ export interface LaunchOptions {
   installCrashHandlers?: boolean;
   watch?: boolean;
   handlerTimeoutMs?: number;
+  /** B5/TN5: honour X-Mockstar-Webhook-Url request header. Default false. */
+  allowWebhookUrlHeader?: boolean;
+  /** INT-1: optional JSONL append-only log of webhook deliveries (post-restart forensic replay). */
+  webhookJournalFile?: string;
 }
 
 export interface Launched {
@@ -34,14 +38,15 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
 
   // O6 preflight — warn (don't fail) library embedders on old Bun or non-Bun runtimes.
   const pf = preflight();
-  if (pf.warning) logger.warn({ event: 'preflight_warning', detected: pf.detected, min: pf.min, message: pf.warning });
+  if (pf.warning)
+    logger.warn({ event: "preflight_warning", detected: pf.detected, min: pf.min, message: pf.warning });
 
   const configRoot = resolve(opts.configRoot);
-  const handlersDir = resolve(opts.handlersDir ?? resolve(configRoot, '..', 'handlers'));
+  const handlersDir = resolve(opts.handlersDir ?? resolve(configRoot, "..", "handlers"));
 
   // RT-1 FIRST — handler registry is the structural prerequisite.
   const handlers = await buildHandlerRegistry(handlersDir);
-  logger.info({ event: 'handlers_loaded', count: handlers.size, dir: handlersDir });
+  logger.info({ event: "handlers_loaded", count: handlers.size, dir: handlersDir });
 
   const serverConfig = parseServerConfig({ ...(opts.server ?? {}), deterministic: opts.deterministic });
   const initial = await loadSnapshot({ configRoot, server: serverConfig, handlers });
@@ -54,19 +59,22 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
     deterministic: opts.deterministic,
     installCrashHandlers: opts.installCrashHandlers,
     handlerTimeoutMs: opts.handlerTimeoutMs,
+    allowWebhookUrlHeader: opts.allowWebhookUrlHeader,
+    webhookJournalFile: opts.webhookJournalFile,
   });
 
-  const watcher = opts.watch !== false && !opts.deterministic
-    ? startWatcher({
-        configRoot,
-        holder,
-        handlers,
-        onReload: (tenant, result, details): void => {
-          if (result === 'ok') logger.info({ event: 'config_reload_ok', tenant });
-          else logger.warn({ event: 'config_reload_rejected', tenant, details });
-        },
-      })
-    : null;
+  const watcher =
+    opts.watch !== false && !opts.deterministic
+      ? startWatcher({
+          configRoot,
+          holder,
+          handlers,
+          onReload: (tenant, result, details): void => {
+            if (result === "ok") logger.info({ event: "config_reload_ok", tenant });
+            else logger.warn({ event: "config_reload_rejected", tenant, details });
+          },
+        })
+      : null;
 
   return {
     server,
@@ -78,6 +86,6 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
   };
 }
 
-export type { RunningServer, CreateServerOptions } from './server.ts';
+export type { RunningServer, CreateServerOptions } from "./server.ts";
 export type { LaunchOptions };
-export { SnapshotHolder } from './core/config/index.ts';
+export { SnapshotHolder } from "./core/config/index.ts";

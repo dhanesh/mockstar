@@ -6,17 +6,12 @@
 // Satisfies: TN3 (dual context: JSON-body = type-preserving, header/URL/query = string-mode)
 // Priority: binding — on hot path
 
-import type { Entry } from '../config/schema.ts';
-import type { FakerInstance } from './faker.ts';
-import type { Clock } from './tier2/now.ts';
-import type { IdHelpers } from './tier2/id.ts';
-import {
-  BASE62,
-} from './tier2/id.ts';
-import {
-  RenderBudget,
-  estimateJsonSize,
-} from './tier2/walker.ts';
+import type { Entry } from "../config/schema.ts";
+import type { FakerInstance } from "./faker.ts";
+import type { Clock } from "./tier2/now.ts";
+import type { IdHelpers } from "./tier2/id.ts";
+import { BASE62 } from "./tier2/id.ts";
+import { RenderBudget, estimateJsonSize } from "./tier2/walker.ts";
 
 export interface TemplateContext {
   faker: FakerInstance;
@@ -35,13 +30,15 @@ export interface TemplateContext {
 }
 
 export type TemplateOp =
-  | { kind: 'literal'; value: string }
-  | { kind: 'faker'; method: keyof FakerInstance; args: readonly unknown[] }
-  | { kind: 'request'; path: readonly string[] }
-  | { kind: 'var'; name: 'tenant' | 'requestId' }
-  | { kind: 'id'; prefix: string; length: number; alphabet: string }
-  | { kind: 'id_named'; name: string; prefix: string; length: number; alphabet: string }
-  | { kind: 'now'; field: 'unix' | 'millis' | 'iso' };
+  | { kind: "literal"; value: string }
+  | { kind: "faker"; method: keyof FakerInstance; args: readonly unknown[] }
+  | { kind: "request"; path: readonly string[] }
+  | { kind: "var"; name: "tenant" | "requestId" }
+  | { kind: "id"; prefix: string; length: number; alphabet: string }
+  | { kind: "id_named"; name: string; prefix: string; length: number; alphabet: string }
+  | { kind: "now"; field: "unix" | "millis" | "iso" }
+  // RT-9: env namespace for webhook URL/secret-ref interpolation. Read at render time, never logged with resolved value (S3).
+  | { kind: "env"; name: string };
 
 export interface CompiledTemplate {
   render(ctx: TemplateContext): string;
@@ -66,11 +63,11 @@ export interface CompiledResponse {
  * - `array` / `object` — recursive structural nodes.
  */
 export type CompiledJsonValue =
-  | { kind: 'template'; template: CompiledTemplate }
-  | { kind: 'type_placeholder'; op: TemplateOp }
-  | { kind: 'literal'; value: string | number | boolean | null }
-  | { kind: 'array'; items: CompiledJsonValue[] }
-  | { kind: 'object'; entries: Record<string, CompiledJsonValue> };
+  | { kind: "template"; template: CompiledTemplate }
+  | { kind: "type_placeholder"; op: TemplateOp }
+  | { kind: "literal"; value: string | number | boolean | null }
+  | { kind: "array"; items: CompiledJsonValue[] }
+  | { kind: "object"; entries: Record<string, CompiledJsonValue> };
 
 const TOKEN_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;
 /** Matches a whole string that is exactly ONE placeholder (pure-placeholder for type preservation). */
@@ -85,17 +82,17 @@ export function compileTemplate(template: string): CompiledTemplate {
   for (const match of template.matchAll(TOKEN_RE)) {
     const start = match.index ?? 0;
     if (start > lastIndex) {
-      ops.push({ kind: 'literal', value: template.slice(lastIndex, start) });
+      ops.push({ kind: "literal", value: template.slice(lastIndex, start) });
     }
-    ops.push(parseToken(match[1] ?? ''));
+    ops.push(parseToken(match[1] ?? ""));
     lastIndex = start + match[0].length;
   }
   if (lastIndex < template.length) {
-    ops.push({ kind: 'literal', value: template.slice(lastIndex) });
+    ops.push({ kind: "literal", value: template.slice(lastIndex) });
   }
   return {
     render(ctx: TemplateContext): string {
-      return ops.map((op) => executeOp(op, ctx)).join('');
+      return ops.map((op) => executeOp(op, ctx)).join("");
     },
   };
 }
@@ -109,48 +106,55 @@ function parseToken(expr: string): TemplateOp {
   //   id.named("order_id", "", 17, "0123456789ABC...") — memoised per-request per-name
   //   now.unix | now.millis | now.iso
   const trimmed = expr.trim();
-  if (trimmed === 'tenant' || trimmed === 'requestId') {
-    return { kind: 'var', name: trimmed };
+  if (trimmed === "tenant" || trimmed === "requestId") {
+    return { kind: "var", name: trimmed };
   }
-  if (trimmed === 'now.unix' || trimmed === 'now.millis' || trimmed === 'now.iso') {
-    return { kind: 'now', field: trimmed.slice('now.'.length) as 'unix' | 'millis' | 'iso' };
+  if (trimmed === "now.unix" || trimmed === "now.millis" || trimmed === "now.iso") {
+    return { kind: "now", field: trimmed.slice("now.".length) as "unix" | "millis" | "iso" };
   }
-  if (trimmed.startsWith('id.named(')) {
-    const argsSource = trimmed.slice('id.named('.length, trimmed.lastIndexOf(')'));
+  if (trimmed.startsWith("id.named(")) {
+    const argsSource = trimmed.slice("id.named(".length, trimmed.lastIndexOf(")"));
     const args = JSON.parse(`[${argsSource}]`) as unknown[];
-    const name = typeof args[0] === 'string' ? args[0] : '';
+    const name = typeof args[0] === "string" ? args[0] : "";
     if (!name) throw new Error(`id.named(): first argument must be a non-empty string name`);
-    const prefix = typeof args[1] === 'string' ? args[1] : '';
-    const length = typeof args[2] === 'number' ? args[2] : 14;
-    const alphabet = typeof args[3] === 'string' ? args[3] : BASE62;
-    return { kind: 'id_named', name, prefix, length, alphabet };
+    const prefix = typeof args[1] === "string" ? args[1] : "";
+    const length = typeof args[2] === "number" ? args[2] : 14;
+    const alphabet = typeof args[3] === "string" ? args[3] : BASE62;
+    return { kind: "id_named", name, prefix, length, alphabet };
   }
-  if (trimmed.startsWith('id(')) {
-    const argsSource = trimmed.slice('id('.length, trimmed.lastIndexOf(')'));
+  if (trimmed.startsWith("id(")) {
+    const argsSource = trimmed.slice("id(".length, trimmed.lastIndexOf(")"));
     const args = JSON.parse(`[${argsSource}]`) as unknown[];
-    const prefix = typeof args[0] === 'string' ? args[0] : '';
-    const length = typeof args[1] === 'number' ? args[1] : 14;
-    const alphabet = typeof args[2] === 'string' ? args[2] : BASE62;
-    return { kind: 'id', prefix, length, alphabet };
+    const prefix = typeof args[0] === "string" ? args[0] : "";
+    const length = typeof args[1] === "number" ? args[1] : 14;
+    const alphabet = typeof args[2] === "string" ? args[2] : BASE62;
+    return { kind: "id", prefix, length, alphabet };
   }
-  if (trimmed.startsWith('request.')) {
-    return { kind: 'request', path: trimmed.slice('request.'.length).split('.') };
+  if (trimmed.startsWith("request.")) {
+    return { kind: "request", path: trimmed.slice("request.".length).split(".") };
   }
-  if (trimmed.startsWith('faker.')) {
-    const rest = trimmed.slice('faker.'.length);
-    const parenIdx = rest.indexOf('(');
+  if (trimmed.startsWith("env.")) {
+    // Validate name shape: A-Z, 0-9, underscore, leading non-digit. Reject anything else
+    // so `{{ env.foo.bar }}` doesn't silently land in 'literal'.
+    const name = trimmed.slice("env.".length);
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(name)) {
+      return { kind: "literal", value: `{{${expr}}}` };
+    }
+    return { kind: "env", name };
+  }
+  if (trimmed.startsWith("faker.")) {
+    const rest = trimmed.slice("faker.".length);
+    const parenIdx = rest.indexOf("(");
     if (parenIdx === -1) {
-      return { kind: 'faker', method: rest as keyof FakerInstance, args: [] };
+      return { kind: "faker", method: rest as keyof FakerInstance, args: [] };
     }
     const method = rest.slice(0, parenIdx) as keyof FakerInstance;
-    const argsSource = rest.slice(parenIdx + 1, rest.lastIndexOf(')'));
-    const args = argsSource.trim() === ''
-      ? []
-      : (JSON.parse(`[${argsSource}]`) as readonly unknown[]);
-    return { kind: 'faker', method, args };
+    const argsSource = rest.slice(parenIdx + 1, rest.lastIndexOf(")"));
+    const args = argsSource.trim() === "" ? [] : (JSON.parse(`[${argsSource}]`) as readonly unknown[]);
+    return { kind: "faker", method, args };
   }
   // Unknown token — render it literally so config errors are visible.
-  return { kind: 'literal', value: `{{${expr}}}` };
+  return { kind: "literal", value: `{{${expr}}}` };
 }
 
 /**
@@ -160,24 +164,29 @@ function parseToken(expr: string): TemplateOp {
  */
 function executeOp(op: TemplateOp, ctx: TemplateContext): string {
   switch (op.kind) {
-    case 'literal':
+    case "literal":
       return op.value;
-    case 'var':
-      return op.name === 'tenant' ? ctx.tenant : ctx.requestId;
-    case 'request': {
+    case "var":
+      return op.name === "tenant" ? ctx.tenant : ctx.requestId;
+    case "request": {
       const v = walkRequestPath(op.path, ctx);
-      return v === undefined || v === null ? '' : typeof v === 'string' ? v : JSON.stringify(v);
+      return v === undefined || v === null ? "" : typeof v === "string" ? v : JSON.stringify(v);
     }
-    case 'faker': {
+    case "faker": {
       const fn = ctx.faker[op.method] as (...args: unknown[]) => unknown;
       return String(fn.apply(ctx.faker, op.args as unknown[]));
     }
-    case 'id':
+    case "id":
       return ctx.idHelpers.id(op.prefix, op.length, op.alphabet);
-    case 'id_named':
+    case "id_named":
       return ctx.idHelpers.namedId(op.name, op.prefix, op.length, op.alphabet);
-    case 'now':
-      return op.field === 'iso' ? ctx.clock.iso() : String(op.field === 'unix' ? ctx.clock.unix() : ctx.clock.millis());
+    case "now":
+      return op.field === "iso"
+        ? ctx.clock.iso()
+        : String(op.field === "unix" ? ctx.clock.unix() : ctx.clock.millis());
+    case "env":
+      // Read at render time — env rotations between deliveries are picked up. Missing env -> empty string.
+      return process.env[op.name] ?? "";
   }
 }
 
@@ -188,29 +197,35 @@ function executeOp(op: TemplateOp, ctx: TemplateContext): string {
  */
 function executeOpTyped(op: TemplateOp, ctx: TemplateContext): unknown {
   switch (op.kind) {
-    case 'literal':
+    case "literal":
       return op.value;
-    case 'var':
-      return op.name === 'tenant' ? ctx.tenant : ctx.requestId;
-    case 'request':
+    case "var":
+      return op.name === "tenant" ? ctx.tenant : ctx.requestId;
+    case "request":
       return walkRequestPath(op.path, ctx);
-    case 'faker': {
+    case "faker": {
       const fn = ctx.faker[op.method] as (...args: unknown[]) => unknown;
       return fn.apply(ctx.faker, op.args as unknown[]);
     }
-    case 'id':
+    case "id":
       return ctx.idHelpers.id(op.prefix, op.length, op.alphabet);
-    case 'id_named':
+    case "id_named":
       return ctx.idHelpers.namedId(op.name, op.prefix, op.length, op.alphabet);
-    case 'now':
-      return op.field === 'iso' ? ctx.clock.iso() : op.field === 'unix' ? ctx.clock.unix() : ctx.clock.millis();
+    case "now":
+      return op.field === "iso"
+        ? ctx.clock.iso()
+        : op.field === "unix"
+          ? ctx.clock.unix()
+          : ctx.clock.millis();
+    case "env":
+      return process.env[op.name] ?? "";
   }
 }
 
 function walkRequestPath(path: readonly string[], ctx: TemplateContext): unknown {
   let cursor: unknown = ctx.request;
   for (const seg of path) {
-    if (cursor !== null && typeof cursor === 'object' && seg in (cursor as object)) {
+    if (cursor !== null && typeof cursor === "object" && seg in (cursor as object)) {
       cursor = (cursor as Record<string, unknown>)[seg];
     } else {
       return undefined;
@@ -230,8 +245,8 @@ export function compileEntryResponses(entries: readonly Entry[]): Map<string, Co
       bodyJson: null,
       headers: compileHeaderTemplates(e),
     };
-    if (e.response.kind === 'static') {
-      if (typeof e.response.body === 'string') {
+    if (e.response.kind === "static") {
+      if (typeof e.response.body === "string") {
         compiled.bodyTemplate = compileTemplate(e.response.body);
       } else if (e.response.body !== undefined) {
         compiled.bodyJson = compileJsonValue(e.response.body);
@@ -252,32 +267,32 @@ export function compileEntryResponses(entries: readonly Entry[]): Map<string, Co
  * remain `template` nodes and render as strings.
  */
 export function compileJsonValue(value: unknown): CompiledJsonValue {
-  if (value === null || value === undefined) return { kind: 'literal', value: null };
-  if (typeof value === 'string') {
-    if (value.includes('{{')) {
+  if (value === null || value === undefined) return { kind: "literal", value: null };
+  if (typeof value === "string") {
+    if (value.includes("{{")) {
       const pure = value.match(PURE_PLACEHOLDER_RE);
       if (pure) {
-        return { kind: 'type_placeholder', op: parseToken(pure[1] ?? '') };
+        return { kind: "type_placeholder", op: parseToken(pure[1] ?? "") };
       }
-      return { kind: 'template', template: compileTemplate(value) };
+      return { kind: "template", template: compileTemplate(value) };
     }
-    return { kind: 'literal', value };
+    return { kind: "literal", value };
   }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return { kind: 'literal', value };
+  if (typeof value === "number" || typeof value === "boolean") {
+    return { kind: "literal", value };
   }
   if (Array.isArray(value)) {
-    return { kind: 'array', items: value.map((item) => compileJsonValue(item)) };
+    return { kind: "array", items: value.map((item) => compileJsonValue(item)) };
   }
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     const entries: Record<string, CompiledJsonValue> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       entries[k] = compileJsonValue(v);
     }
-    return { kind: 'object', entries };
+    return { kind: "object", entries };
   }
   // Unknown type (function, symbol, etc.) — coerce to string literal for safety.
-  return { kind: 'literal', value: String(value) };
+  return { kind: "literal", value: String(value) };
 }
 
 /**
@@ -294,23 +309,23 @@ export function compileJsonValue(value: unknown): CompiledJsonValue {
 export function renderCompiledJson(
   node: CompiledJsonValue,
   ctx: TemplateContext,
-  budget: RenderBudget = new RenderBudget()
+  budget: RenderBudget = new RenderBudget(),
 ): unknown {
   switch (node.kind) {
-    case 'template': {
+    case "template": {
       const s = node.template.render(ctx);
       budget.consume(s.length + 2);
       return s;
     }
-    case 'type_placeholder': {
+    case "type_placeholder": {
       const raw = executeOpTyped(node.op, ctx);
       budget.consume(estimateJsonSize(raw, budget));
       return raw;
     }
-    case 'literal':
+    case "literal":
       budget.consume(estimateJsonSize(node.value, budget));
       return node.value;
-    case 'array': {
+    case "array": {
       budget.enterDepth();
       budget.consume(2); // []
       const out = node.items.map((item, i) => {
@@ -320,7 +335,7 @@ export function renderCompiledJson(
       budget.exitDepth();
       return out;
     }
-    case 'object': {
+    case "object": {
       budget.enterDepth();
       budget.consume(2); // {}
       const out: Record<string, unknown> = {};
@@ -339,7 +354,7 @@ export function renderCompiledJson(
 
 function compileHeaderTemplates(entry: Entry): ReadonlyMap<string, CompiledTemplate> {
   const m = new Map<string, CompiledTemplate>();
-  if (entry.response.kind === 'static' && entry.response.headers) {
+  if (entry.response.kind === "static" && entry.response.headers) {
     for (const [k, v] of Object.entries(entry.response.headers)) {
       m.set(k, compileTemplate(v));
     }

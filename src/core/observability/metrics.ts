@@ -16,16 +16,25 @@ export class Metrics implements MetricsSnapshot {
   readonly #latencyBuckets: readonly number[];
   readonly #latencyCounts: Map<string, number[]> = new Map();
   readonly #latencySum: Map<string, number> = new Map();
+  // RT-12: gauge support (webhook_queue_depth, webhook_circuit_state). Map<labelKey, value>.
+  readonly #gauges = new Map<string, number>();
 
-  constructor(
-    bucketsMicros: readonly number[] = [50, 100, 250, 500, 1000, 2500, 5000, 10_000, 50_000],
-  ) {
+  constructor(bucketsMicros: readonly number[] = [50, 100, 250, 500, 1000, 2500, 5000, 10_000, 50_000]) {
     this.#latencyBuckets = bucketsMicros;
   }
 
   incCounter(metric: string, labels: Record<string, string>): void {
     const key = keyOf(metric, labels);
     this.#counters.set(key, (this.#counters.get(key) ?? 0) + 1);
+  }
+
+  /**
+   * Set a gauge value (RT-12). Idempotent — last write wins.
+   * Used for webhook_queue_depth (per-tenant) and webhook_circuit_state (per-tenant,webhook).
+   */
+  setGauge(metric: string, labels: Record<string, string>, value: number): void {
+    const key = keyOf(metric, labels);
+    this.#gauges.set(key, value);
   }
 
   observeLatencyUs(metric: string, labels: Record<string, string>, value: number): void {
@@ -59,6 +68,11 @@ export class Metrics implements MetricsSnapshot {
       const { metric, labels } = unkey(key);
       lines.push(`${metric}${labelString(labels)} ${value}`);
     }
+    // Gauges (RT-12). Emitted as plain `metric{labels} value` lines, like counters.
+    for (const [key, value] of this.#gauges) {
+      const { metric, labels } = unkey(key);
+      lines.push(`${metric}${labelString(labels)} ${value}`);
+    }
     for (const [key, counts] of this.#latencyCounts) {
       const { metric, labels } = unkey(key);
       let cumulative = 0;
@@ -68,32 +82,37 @@ export class Metrics implements MetricsSnapshot {
         lines.push(`${metric}_bucket${labelString(labelsWithLe)} ${cumulative}`);
       }
       cumulative += counts[counts.length - 1] ?? 0;
-      lines.push(`${metric}_bucket${labelString({ ...labels, le: '+Inf' })} ${cumulative}`);
-      lines.push(`${metric}_sum${labelString(labels)} ${((this.#latencySum.get(key) ?? 0) / 1_000_000).toFixed(6)}`);
+      lines.push(`${metric}_bucket${labelString({ ...labels, le: "+Inf" })} ${cumulative}`);
+      lines.push(
+        `${metric}_sum${labelString(labels)} ${((this.#latencySum.get(key) ?? 0) / 1_000_000).toFixed(6)}`,
+      );
       lines.push(`${metric}_count${labelString(labels)} ${cumulative}`);
     }
-    return lines.join('\n') + '\n';
+    return lines.join("\n") + "\n";
   }
 }
 
 function keyOf(metric: string, labels: Record<string, string>): string {
-  return `${metric}\0${Object.entries(labels).sort().map(([k, v]) => `${k}=${v}`).join(',')}`;
+  return `${metric}\0${Object.entries(labels)
+    .sort()
+    .map(([k, v]) => `${k}=${v}`)
+    .join(",")}`;
 }
 
 function unkey(key: string): { metric: string; labels: Record<string, string> } {
-  const [metric, labelString] = key.split('\0');
+  const [metric, labelString] = key.split("\0");
   const labels: Record<string, string> = {};
   if (labelString) {
-    for (const pair of labelString.split(',')) {
-      const [k, v] = pair.split('=');
-      if (k) labels[k] = v ?? '';
+    for (const pair of labelString.split(",")) {
+      const [k, v] = pair.split("=");
+      if (k) labels[k] = v ?? "";
     }
   }
-  return { metric: metric ?? '', labels };
+  return { metric: metric ?? "", labels };
 }
 
 function labelString(labels: Record<string, string>): string {
   const entries = Object.entries(labels);
-  if (entries.length === 0) return '';
-  return `{${entries.map(([k, v]) => `${k}="${v.replace(/"/g, '\\"')}"`).join(',')}}`;
+  if (entries.length === 0) return "";
+  return `{${entries.map(([k, v]) => `${k}="${v.replace(/"/g, '\\"')}"`).join(",")}}`;
 }

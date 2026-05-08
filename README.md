@@ -109,9 +109,42 @@ In `--deterministic` mode (`MOCKSTAR_DETERMINISTIC=1`) all faker and `now.*` tok
 
 Full reference including type-preservation rules and worked examples: [docs/TIER2.md](./docs/TIER2.md).
 
+## Outbound webhooks
+
+Attach `webhooks: [...]` to any mock entry to fire HTTP deliveries **after** the matched response flushes — useful for verifying receiver-side webhook handlers in integration tests, dogfooding partner integrations, and modeling provider behavior in fixtures.
+
+```jsonc
+{
+  "id": "orders-create",
+  "match": { "method": "POST", "path": "/orders" },
+  "response": { "kind": "static", "status": 201, "body": { "id": "{{id(\"ord_\", 12)}}" } },
+  "webhooks": [{
+    "id": "order-created",
+    "url": "https://api.partner.example/hooks/order-created",
+    "method": "POST",
+    "headers": { "content-type": "application/json" },
+    "body": { "orderId": "{{request.body.orderId}}", "tenant": "{{tenant}}" }
+  }]
+}
+```
+
+Capabilities at a glance:
+
+| | |
+|---|---|
+| **Configuration channels** | Per-route `url`, `{{ env.NAME }}` interpolation, admin API, opt-in `X-Mockstar-Webhook-Url` request header (gated by `--allow-webhook-url-header`) |
+| **Delivery contract** | At-least-once within queue + circuit bounds, exponential backoff with jitter (default `[1s, 2s, 4s, 8s, 16s]`), idempotent `X-Mockstar-Delivery-Id` header |
+| **Signing** | Opt-in HMAC-SHA256, Stripe-style `${ts}.${rawBody}` payload, secrets via `{{ env.X }}` or `file:/path` (inline rejected at config-load) |
+| **Reliability** | Per-webhook circuit breaker, drop-oldest queue cap, per-attempt `AbortSignal.timeout`, optional `expectResponse: { status, body }` body assertion |
+| **Observability** | `/__admin/tenants/:t/webhooks` list (secrets redacted), `/webhooks/journal` history, `POST /webhooks/await?id=…` for sync test assertions, `POST /webhooks/:id/replay` for recovery |
+| **Metrics** | `webhook_delivery_total{outcome}`, `webhook_delivery_latency_us`, `webhook_queue_depth`, `webhook_queue_dropped_total`, `webhook_circuit_state` |
+| **Distribution** | In-process (no Redis); single-binary and SDET-embed friendly |
+
+Full guide, decisions log, and security model: [docs/webhooks/README.md](./docs/webhooks/README.md), [docs/webhooks/DECISIONS.md](./docs/webhooks/DECISIONS.md), [docs/webhooks/SECURITY.md](./docs/webhooks/SECURITY.md). Worked example loadable via `bun run dev`: [examples/mocks/default/webhooks-example.json](./examples/mocks/default/webhooks-example.json).
+
 ## What's in v1, what's deferred
 
-See [CHANGELOG.md](./CHANGELOG.md). TL;DR: static + dynamic + pass-through + OpenAPI import + admin read endpoints + multi-tenancy ship in v1. Stateful mocks, scenarios, GraphQL, gRPC, fault injection, and a config-mutation admin API are explicitly deferred to v1.1.
+See [CHANGELOG.md](./CHANGELOG.md). TL;DR: static + dynamic + pass-through + scenarios + outbound webhooks + OpenAPI import + admin read endpoints + multi-tenancy ship in v1. Stateful mocks, GraphQL, gRPC, fault injection, and a config-mutation admin API are explicitly deferred to v1.1.
 
 ## HTTPS transparent upstream (`mockstar proxy`)
 

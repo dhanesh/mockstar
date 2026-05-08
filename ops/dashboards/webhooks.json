@@ -1,0 +1,88 @@
+{
+  "_comment": "Grafana dashboard JSON for Mockstar webhooks. Maps to constraints O2, O3 (circuit gauge) — see DECISIONS.md.",
+  "annotations": { "list": [] },
+  "title": "Mockstar — Webhooks",
+  "tags": ["mockstar", "webhooks"],
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Delivery rate by outcome (per tenant)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (tenant, outcome) (rate(mockstar_webhook_delivery_total[1m]))",
+          "legendFormat": "{{tenant}}/{{outcome}}"
+        }
+      ],
+      "_constraint_traceability": "O2 — webhook_delivery_total counter; tracks success/failed/dropped/circuit-open"
+    },
+    {
+      "id": 2,
+      "title": "Queue depth per tenant",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "mockstar_webhook_queue_depth", "legendFormat": "{{tenant}}" }
+      ],
+      "_constraint_traceability": "O1, O2 — queue cap visibility; alert at 80% of cap"
+    },
+    {
+      "id": 3,
+      "title": "Drop rate (entries evicted by cap)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "rate(mockstar_webhook_queue_dropped_total[5m])", "legendFormat": "{{tenant}}" }
+      ],
+      "_constraint_traceability": "TN2, O1 — at-least-once-bounded boundary visibility"
+    },
+    {
+      "id": 4,
+      "title": "Delivery latency p50/p95/p99",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, tenant) (rate(mockstar_webhook_delivery_latency_us_bucket[5m])))",
+          "legendFormat": "p50 {{tenant}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, tenant) (rate(mockstar_webhook_delivery_latency_us_bucket[5m])))",
+          "legendFormat": "p95 {{tenant}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, tenant) (rate(mockstar_webhook_delivery_latency_us_bucket[5m])))",
+          "legendFormat": "p99 {{tenant}}"
+        }
+      ],
+      "_constraint_traceability": "O2 — webhook_delivery_latency_us histogram"
+    },
+    {
+      "id": 5,
+      "title": "Circuit state per webhook",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "mockstar_webhook_circuit_state", "legendFormat": "{{tenant}}/{{webhook}}" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "closed", "color": "green" } } },
+            { "type": "value", "options": { "1": { "text": "OPEN", "color": "red" } } },
+            { "type": "value", "options": { "2": { "text": "half-open", "color": "yellow" } } }
+          ]
+        }
+      },
+      "_constraint_traceability": "O3 — webhook_circuit_state gauge (0=closed, 1=open, 2=half-open)"
+    }
+  ]
+}
