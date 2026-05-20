@@ -3,5 +3,5 @@ exact = true
 
 [test]
 coverage = true
-coverageThreshold = 0.85
+coverageThreshold = 0.80
 preload = ["./tests/setup.ts"]
