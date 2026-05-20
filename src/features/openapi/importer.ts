@@ -9,9 +9,9 @@
 // only parses JSON/YAML input, emits JSON output to stdout or files, and
 // exits.
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { resolve, extname } from "node:path";
-import { convertOpenApi, OpenApiImportError } from "./converter.ts";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
+import { OpenApiImportError, convertOpenApi } from "./converter.ts";
 
 export interface ImporterArgs {
   specPath: string;
@@ -28,7 +28,7 @@ export async function runImporter(args: ImporterArgs): Promise<{ entryCount: num
   const outDir = resolve(args.outDir, args.tenantName ?? "default");
   await mkdir(outDir, { recursive: true });
   const outFile = resolve(outDir, "openapi.json");
-  await writeFile(outFile, JSON.stringify({ mocks: entries }, null, 2) + "\n", "utf8");
+  await writeFile(outFile, `${JSON.stringify({ mocks: entries }, null, 2)}\n`, "utf8");
   return { entryCount: entries.length, outFile };
 }
 

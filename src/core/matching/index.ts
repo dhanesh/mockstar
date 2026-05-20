@@ -3,8 +3,8 @@
 // Priority: binding — central to RT-6 hot path
 
 import type { Entry } from "../config/schema.ts";
-import { evaluateDiscriminators, type PredicateFailure, type RequestView } from "./discriminators.ts";
-import { createNode, findPath, insertPattern, type PathMatchHit, type PathPatternNode } from "./path-trie.ts";
+import { type PredicateFailure, type RequestView, evaluateDiscriminators } from "./discriminators.ts";
+import { type PathMatchHit, type PathPatternNode, createNode, findPath, insertPattern } from "./path-trie.ts";
 
 export interface IndexedEntry {
   entry: Entry;

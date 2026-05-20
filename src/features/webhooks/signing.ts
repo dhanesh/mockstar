@@ -78,7 +78,6 @@ export function resolveSecret(secretRef: string): string {
     // Synchronous file read at delivery time — the secret rarely changes; reading once
     // per delivery is acceptable and avoids stale-cache hazards.
     const path = secretRef.slice("file:".length);
-    // biome-ignore lint/correctness/noNodejsModules: node:fs is intentional for secret-from-file pattern
     const { readFileSync } = require("node:fs");
     const content = (readFileSync(path, "utf8") as string).trim();
     if (!content) throw new Error(`webhook signing: secret file '${path}' is empty`);

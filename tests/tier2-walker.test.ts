@@ -4,16 +4,16 @@
 //            RT-1.5 (incremental size bound), RT-1.6 (string-mode dual path)
 // Validates: S4 (bounded echo response), T14 (cycle detection + max-depth)
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
+  type TemplateContext,
   compileJsonValue,
   compileTemplate,
   renderCompiledJson,
-  type TemplateContext,
 } from "../src/core/templating/compiler.ts";
 import { createFaker } from "../src/core/templating/faker.ts";
-import { createClock } from "../src/core/templating/tier2/now.ts";
 import { createIdHelpers } from "../src/core/templating/tier2/id.ts";
+import { createClock } from "../src/core/templating/tier2/now.ts";
 import { RenderBudget, Tier2RenderError } from "../src/core/templating/tier2/walker.ts";
 
 function mkCtx(overrides: Partial<TemplateContext["request"]> = {}): TemplateContext {

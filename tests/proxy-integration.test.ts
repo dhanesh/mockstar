@@ -7,17 +7,17 @@
 // handshake + handler dispatch. No sudo, no mkcert, no external dependencies
 // beyond openssl (present on macOS + Linux by default).
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
-import {
-  startTlsServer,
-  leavesFromSnapshot,
-  type TlsServerHandle,
-} from "../src/features/proxy/tls-adapter.ts";
 import { SnapshotHolder } from "../src/features/proxy/cert-cache.ts";
+import {
+  type TlsServerHandle,
+  leavesFromSnapshot,
+  startTlsServer,
+} from "../src/features/proxy/tls-adapter.ts";
 import type { HostConfig, LeafCert, ProxySnapshot } from "../src/features/proxy/types.ts";
 
 // --- Helpers -------------------------------------------------------------

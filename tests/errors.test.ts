@@ -3,8 +3,8 @@
 // @constraint RT-2.2 — 500 with safe diagnostic body
 // @constraint RT-3.2 — /ready flips to 503 on unhandledRejection
 
-import { describe, it, expect } from "bun:test";
-import { invokeWithBoundary, HandlerTimeoutError, installProcessHandlers } from "../src/core/errors/index.ts";
+import { describe, expect, it } from "bun:test";
+import { HandlerTimeoutError, installProcessHandlers, invokeWithBoundary } from "../src/core/errors/index.ts";
 import { createLogger } from "../src/core/observability/index.ts";
 
 const captureLogger = (): { logger: ReturnType<typeof createLogger>; lines: string[] } => {

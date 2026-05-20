@@ -7,9 +7,9 @@
 // src/core/templating/** or src/features/static-mock.ts.
 
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { launch, type Launched } from "../src/index.ts";
+import { join } from "node:path";
+import { type Launched, launch } from "../src/index.ts";
 
 const ITERATIONS = Number(process.env.TIER2_BENCH_N ?? 5000);
 const P95_BUDGET_US = Number(process.env.TIER2_BENCH_P95_US ?? 500); // 0.5 ms

@@ -2,9 +2,9 @@
 // @constraint S2 — three configurable tenant-identification modes
 // @constraint RT-4 — tenant routing first, atomic, immutable
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { Hono } from "hono";
-import { tenantMiddleware, effectivePath } from "../src/core/tenancy/index.ts";
+import { effectivePath, tenantMiddleware } from "../src/core/tenancy/index.ts";
 
 function app(modes: Array<"path" | "subdomain" | "header">): Hono {
   const a = new Hono();

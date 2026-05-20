@@ -4,7 +4,7 @@
 import type { Context } from "hono";
 import type { Entry } from "../core/config/schema.ts";
 import type { StructuredLogger } from "../core/observability/logger.ts";
-import { validateUpstreamUrl, UrlValidationError } from "./url-validator.ts";
+import { UrlValidationError, validateUpstreamUrl } from "./url-validator.ts";
 
 export interface PassThroughOptions {
   allowPrivateUpstreams: boolean;

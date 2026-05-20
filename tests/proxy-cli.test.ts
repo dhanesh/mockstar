@@ -6,7 +6,7 @@
 // sudo/mkcert/filesystem writes. Side-effecting subcommands (install, start) are
 // validated by the integration test (G3) and CI workflow (G1/G2).
 
-import { describe, it, expect, afterEach } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { dispatchProxyCommand } from "../src/features/proxy/cli.ts";
 
 type Sink = { stdout: string[]; stderr: string[]; restore: () => void };

@@ -18,7 +18,7 @@ describe("mockstar migrate --schema", () => {
     const file = join(dir, "mocks.json");
     await writeFile(
       file,
-      JSON.stringify({ $schema: `${SCHEMA_HOST}/v0.1/mock.json`, entries: [] }, null, 2) + "\n",
+      `${JSON.stringify({ $schema: `${SCHEMA_HOST}/v0.1/mock.json`, entries: [] }, null, 2)}\n`,
     );
 
     const result = await runMigrateSchema({ dir, from: "v0.1", to: "v0.2", dryRun: false });

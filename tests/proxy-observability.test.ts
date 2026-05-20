@@ -3,8 +3,8 @@
 // @constraint RT-9 — Observability reuses mockstar's Logger + Metrics primitives
 // (closes G8)
 
-import { describe, it, expect } from "bun:test";
-import { createLogger, Metrics } from "../src/core/observability/index.ts";
+import { describe, expect, it } from "bun:test";
+import { Metrics, createLogger } from "../src/core/observability/index.ts";
 import type { HostConfig, ProxyConfig } from "../src/features/proxy/types.ts";
 import { forwardToMockstar } from "../src/features/proxy/upstream.ts";
 

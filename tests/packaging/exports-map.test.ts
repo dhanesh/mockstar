@@ -46,7 +46,7 @@ describe("RT-7: ESM-only package shape", () => {
   });
 
   it('root export "." import target is ESM (.js)', () => {
-    const imp = (pkg.exports?.["."] as Conditions)?.["import"];
+    const imp = (pkg.exports?.["."] as Conditions)?.import;
     expect(typeof imp).toBe("string");
     expect(imp).toMatch(/\.js$/);
   });

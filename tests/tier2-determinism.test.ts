@@ -7,11 +7,11 @@
 // server A has the same seed as request N against server B, modulo the tenant+endpoint+req
 // hash that feeds createIdHelpers.
 
-import { describe, it, expect, afterEach } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { launch, type Launched } from "../src/index.ts";
+import { join } from "node:path";
+import { type Launched, launch } from "../src/index.ts";
 
 async function setup(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "tier2-determ-"));

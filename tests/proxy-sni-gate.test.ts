@@ -1,9 +1,9 @@
 // @constraint RT-3 — SNI allowlist exclusive
 // @constraint T3, T4
 
-import { describe, it, expect } from "bun:test";
-import { sniGate, explainSni } from "../src/features/proxy/sni-gate.ts";
+import { describe, expect, it } from "bun:test";
 import { SnapshotHolder } from "../src/features/proxy/cert-cache.ts";
+import { explainSni, sniGate } from "../src/features/proxy/sni-gate.ts";
 import type { ProxySnapshot } from "../src/features/proxy/types.ts";
 
 function snapshot(hosts: string[]): ProxySnapshot {

@@ -2,7 +2,7 @@
 // @constraint G16 — metrics exposition test coverage
 // @constraint RT-6.3 — atomic counters, no allocation on hot path
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { Metrics } from "../src/core/observability/metrics.ts";
 
 describe("Metrics.format() (O2)", () => {

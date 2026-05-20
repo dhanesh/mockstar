@@ -7,17 +7,17 @@
 // Validates: U4 (admin endpoint exposes scenario metadata)
 // Validates: O1 (journal records scenario ID and miss reason)
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import type { RunningServer } from "../src/server.ts";
-import { createServer } from "../src/server.ts";
-import type { SnapshotHolder } from "../src/core/config/snapshot.ts";
-import { SnapshotHolder as SnapshotHolderClass } from "../src/core/config/snapshot.ts";
-import { buildMatchIndex } from "../src/core/matching/index.ts";
-import { compileEntryResponses } from "../src/core/templating/compiler.ts";
-import { compileScenarioRules } from "../src/core/scenarios/evaluator.ts";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { Entry } from "../src/core/config/schema.ts";
 import { TenantLimits } from "../src/core/config/schema.ts";
+import type { SnapshotHolder } from "../src/core/config/snapshot.ts";
+import { SnapshotHolder as SnapshotHolderClass } from "../src/core/config/snapshot.ts";
 import type { HandlerRegistry } from "../src/core/handlers/index.ts";
+import { buildMatchIndex } from "../src/core/matching/index.ts";
+import { compileScenarioRules } from "../src/core/scenarios/evaluator.ts";
+import { compileEntryResponses } from "../src/core/templating/compiler.ts";
+import type { RunningServer } from "../src/server.ts";
+import { createServer } from "../src/server.ts";
 
 const ADMIN_TOKEN = "test-admin-token-32-chars-xxxxxxxx";
 

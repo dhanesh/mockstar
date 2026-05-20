@@ -2,11 +2,11 @@
 // @constraint RT-8.2 — URL validation at request time
 // @constraint G10 — pass-through test coverage
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { launch, type Launched } from "../src/index.ts";
+import { join } from "node:path";
+import { type Launched, launch } from "../src/index.ts";
 
 describe("pass-through handler (T9)", () => {
   let upstream: { stop: () => void; url: string } | null = null;

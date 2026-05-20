@@ -6,9 +6,9 @@
 // Corruption detection: each line includes a SHA-256 checksum of the {step,
 // timestamp, action, reverseCommand} payload; readback verifies.
 
+import { randomBytes as _randomBytes, createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, rm, stat } from "node:fs/promises";
 import { dirname } from "node:path";
-import { createHash, randomBytes as _randomBytes } from "node:crypto";
 import type { InstallStep, ReverseCommand } from "./types.ts";
 import { ProxyError } from "./types.ts";
 
@@ -49,7 +49,7 @@ export async function appendStep(
   });
   const withChecksum: InstallStep = { ...full, checksum: sha256(payload) };
 
-  const line = JSON.stringify(withChecksum) + "\n";
+  const line = `${JSON.stringify(withChecksum)}\n`;
   await appendFile(path, line, { encoding: "utf8" });
   return withChecksum;
 }
@@ -221,7 +221,7 @@ async function readAll(path: string): Promise<InstallStep[]> {
       parsed = JSON.parse(line) as InstallStep;
     } catch {
       throw new ProxyError(
-        `Install journal corruption: un-parseable line`,
+        "Install journal corruption: un-parseable line",
         "journal_corrupt",
         "Manual recovery: see docs/PROXY-RECOVERY.md",
       );

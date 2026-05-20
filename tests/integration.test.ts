@@ -3,11 +3,11 @@
 // @constraint U1 — diagnostic 404
 // @constraint T11 — atomic config hot-swap
 
-import { describe, it, expect, afterEach } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { launch, type Launched } from "../src/index.ts";
+import { join } from "node:path";
+import { type Launched, launch } from "../src/index.ts";
 
 async function setupMocks(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "mockstar-int-"));

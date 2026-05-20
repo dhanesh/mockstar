@@ -2,12 +2,12 @@
 // Satisfies: O4 (webhook list/journal/replay/await endpoints), U1 (sync await), U3 (secret redaction)
 // Satisfies: RT-13 (admin router hosts /webhooks/*), TN3 (await on separate request lifecycle), TN7 (replay scope = ring-buffer-resident)
 
-import { Hono, type Context } from "hono";
+import { type Context, Hono } from "hono";
+import type { SnapshotHolder } from "../../core/config/snapshot.ts";
 import type { JournalRegistry } from "../../core/journal/index.ts";
 import type { Metrics } from "../../core/observability/index.ts";
-import type { SnapshotHolder } from "../../core/config/snapshot.ts";
-import type { DeliveryEventRegistry, WebhookJournalRegistry } from "../webhooks/index.ts";
 import type { ReplayResult } from "../../server.ts";
+import type { DeliveryEventRegistry, WebhookJournalRegistry } from "../webhooks/index.ts";
 import { adminAuthMiddleware } from "./auth.ts";
 
 export interface AdminDeps {

@@ -2,33 +2,33 @@
 // Satisfies: T1 (Hono on Bun), RT-5 (config snapshot reads)
 // Satisfies: O1 (request logging), O2 (metrics), O3 (journal)
 
-import { Hono, type Context } from "hono";
+import { type Context, Hono } from "hono";
 import type { ConfigSnapshot, SnapshotHolder } from "./core/config/snapshot.ts";
-import type { HandlerRegistry } from "./core/handlers/index.ts";
-import { JournalRegistry, type JournalEntry } from "./core/journal/index.ts";
-import { Metrics, createLogger, type StructuredLogger } from "./core/observability/index.ts";
 import { installProcessHandlers } from "./core/errors/index.ts";
-import { effectivePath, tenantMiddleware } from "./core/tenancy/index.ts";
-import { renderStatic } from "./features/static-mock.ts";
-import { renderDynamic } from "./features/dynamic-mock.ts";
-import { renderPassThrough } from "./features/pass-through.ts";
-import { adminRouter } from "./features/admin/index.ts";
-import { createFaker, type FakerInstance } from "./core/templating/faker.ts";
-import { createClock, type Clock } from "./core/templating/tier2/now.ts";
-import { createIdHelpers } from "./core/templating/tier2/id.ts";
-import { evaluateScenarios, type ScenarioAttrs } from "./core/scenarios/evaluator.ts";
+import type { HandlerRegistry } from "./core/handlers/index.ts";
+import { type JournalEntry, JournalRegistry } from "./core/journal/index.ts";
+import { Metrics, type StructuredLogger, createLogger } from "./core/observability/index.ts";
+import { type ScenarioAttrs, evaluateScenarios } from "./core/scenarios/evaluator.ts";
 import {
   mergeStaticResponse,
-  scenarioResponseForNonStatic,
   renderScenario,
+  scenarioResponseForNonStatic,
 } from "./core/scenarios/merger.ts";
+import { type FakerInstance, createFaker } from "./core/templating/faker.ts";
+import { createIdHelpers } from "./core/templating/tier2/id.ts";
+import { type Clock, createClock } from "./core/templating/tier2/now.ts";
+import { effectivePath, tenantMiddleware } from "./core/tenancy/index.ts";
+import { adminRouter } from "./features/admin/index.ts";
+import { renderDynamic } from "./features/dynamic-mock.ts";
+import { renderPassThrough } from "./features/pass-through.ts";
+import { renderStatic } from "./features/static-mock.ts";
 import {
   BoundedRetryQueue,
   CircuitBreaker,
+  type CompiledWebhookSpec,
   DeliveryEventRegistry,
   WebhookJournalRegistry,
   dispatchWebhooks,
-  type CompiledWebhookSpec,
 } from "./features/webhooks/index.ts";
 
 // Hono variable augmentation — all middleware reads typed `ctx.var.*`.

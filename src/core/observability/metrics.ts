@@ -49,7 +49,6 @@ export class Metrics implements MetricsSnapshot {
     for (let i = 0; i < this.#latencyBuckets.length; i++) {
       const bound = this.#latencyBuckets[i];
       if (bound !== undefined && value <= bound) {
-        // biome-ignore lint/style/noNonNullAssertion: length is fixed at construction
         buckets[i] = (buckets[i] ?? 0) + 1;
         placed = true;
         break;
@@ -88,7 +87,7 @@ export class Metrics implements MetricsSnapshot {
       );
       lines.push(`${metric}_count${labelString(labels)} ${cumulative}`);
     }
-    return lines.join("\n") + "\n";
+    return `${lines.join("\n")}\n`;
   }
 }
 

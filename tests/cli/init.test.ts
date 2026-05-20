@@ -6,8 +6,8 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MocksFile } from "../../src/core/config/schema.ts";
 import { minorTagFromVersion, runInit } from "../../src/cli/commands/init.ts";
+import { MocksFile } from "../../src/core/config/schema.ts";
 
 async function scratch(): Promise<string> {
   return mkdtemp(join(tmpdir(), "mockstar-init-"));

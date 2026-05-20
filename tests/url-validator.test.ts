@@ -2,8 +2,8 @@
 // @constraint RT-8.1 — validator rejects local, loopback, link-local, CGNAT
 // @constraint RT-8.3 — external $ref handled by OpenAPI importer (separate test)
 
-import { describe, it, expect } from "bun:test";
-import { validateUpstreamUrl, UrlValidationError, isPrivateHost } from "../src/features/url-validator.ts";
+import { describe, expect, it } from "bun:test";
+import { UrlValidationError, isPrivateHost, validateUpstreamUrl } from "../src/features/url-validator.ts";
 
 describe("validateUpstreamUrl", () => {
   it("accepts https public URLs by default", () => {

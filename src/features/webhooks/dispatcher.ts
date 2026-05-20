@@ -151,7 +151,7 @@ async function performAttempt(
   const rawBody = spec.body ? spec.body.render(input.templateContext) : "";
 
   // Sign if enabled (S1 opt-in).
-  if (spec.signing && spec.signing.enabled) {
+  if (spec.signing?.enabled) {
     const secret = resolveSecret(spec.signing.secretRef);
     const timestampMs = Date.now();
     const signature = signPayload(rawBody, secret, timestampMs);
@@ -189,7 +189,7 @@ async function performAttempt(
   if (spec.expectResponse?.body !== undefined) {
     const text = await response.text();
     if (!matchesExpectedBody(text, spec.expectResponse.body)) {
-      throw new Error(`webhook delivery body assertion failed`);
+      throw new Error("webhook delivery body assertion failed");
     }
   }
 

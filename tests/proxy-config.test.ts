@@ -2,8 +2,8 @@
 // @constraint RT-3 — SNI allowlist exclusive
 // @constraint S2 — listenHost constrained to 127.0.0.1 in recommended path
 
-import { describe, it, expect } from "bun:test";
-import { parseConfig, ProxyConfigSchema } from "../src/features/proxy/config.ts";
+import { describe, expect, it } from "bun:test";
+import { ProxyConfigSchema, parseConfig } from "../src/features/proxy/config.ts";
 
 describe("ProxyConfigSchema", () => {
   it("parses a minimal valid config with defaults", () => {

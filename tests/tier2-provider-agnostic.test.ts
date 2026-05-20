@@ -6,8 +6,8 @@
 // this test fails and CI blocks the merge. Fixtures under `examples/mocks/<provider>/` are the
 // ONLY place provider names are allowed to appear.
 
-import { describe, it, expect } from "bun:test";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { describe, expect, it } from "bun:test";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join, relative } from "node:path";
 
 const REPO_ROOT = join(import.meta.dir, "..");
@@ -73,8 +73,7 @@ describe("RT-9 — core source contains no hard-coded provider-name conditionals
     if (hits.length > 0) {
       const report = hits.map((h) => `  ${h.file}:${h.line}  [${h.match}]  ${h.text}`).join("\n");
       throw new Error(
-        `RT-9 violation — provider name(s) found in runtime source:\n${report}\n\n` +
-          `Provider names must only appear inside comments, tests, or examples/mocks/<provider>/*.`,
+        `RT-9 violation — provider name(s) found in runtime source:\n${report}\n\nProvider names must only appear inside comments, tests, or examples/mocks/<provider>/*.`,
       );
     }
     expect(hits).toHaveLength(0);
