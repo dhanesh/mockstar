@@ -1,7 +1,7 @@
 // Satisfies: O6 (Bun version policy runtime check)
 // Minimum Bun version must have reliable unhandledRejection/uncaughtException hooks (TN2 tier 2/3).
 
-export const MIN_BUN_VERSION = "1.1.8";
+export const MIN_BUN_VERSION = "1.3.0";
 
 export interface PreflightResult {
   ok: boolean;

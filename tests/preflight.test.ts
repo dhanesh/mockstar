@@ -6,10 +6,10 @@ import { MIN_BUN_VERSION, compareVersion, preflight } from "../src/core/prefligh
 
 describe("preflight", () => {
   it("compares versions correctly", () => {
-    expect(compareVersion("1.1.8", "1.1.8")).toBe(0);
-    expect(compareVersion("1.2.0", "1.1.8")).toBeGreaterThan(0);
-    expect(compareVersion("1.1.7", "1.1.8")).toBeLessThan(0);
-    expect(compareVersion("2.0.0", "1.1.8")).toBeGreaterThan(0);
+    expect(compareVersion("1.3.0", "1.3.0")).toBe(0);
+    expect(compareVersion("1.4.0", "1.3.0")).toBeGreaterThan(0);
+    expect(compareVersion("1.2.9", "1.3.0")).toBeLessThan(0);
+    expect(compareVersion("2.0.0", "1.3.0")).toBeGreaterThan(0);
   });
 
   it("flags below-minimum versions", () => {

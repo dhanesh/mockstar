@@ -20,7 +20,7 @@ Everything below covers option (1); option (2) just wraps it with a port.
 | Jest 30   | Node 20+ | [`examples/sdet-jest30`](../examples/sdet-jest30) | Native ESM via `"type": "module"` + `--experimental-vm-modules` |
 | Jest 29   | Node 18+ | [`examples/sdet-jest29`](../examples/sdet-jest29) | ESM via `babel-jest` for the transform edge |
 | Vitest 2  | Node 20+ | [`examples/sdet-vitest`](../examples/sdet-vitest) | ESM-native; recommended for green-field projects |
-| bun test  | Bun 1.1.8+ | [`examples/sdet-bun-test`](../examples/sdet-bun-test) | Fastest; no transform layer |
+| bun test  | Bun 1.3.0+ | [`examples/sdet-bun-test`](../examples/sdet-bun-test) | Fastest; no transform layer |
 
 ## The 20-line test pattern
 
