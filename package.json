@@ -24,7 +24,7 @@
   "scripts": {
     "dev": "bun run src/cli.ts ./examples/mocks",
     "build": "bun build src/index.ts src/cli.ts --outdir dist --target bun --format esm && bun run build:types",
-    "build:types": "tsc -p tsconfig.build.json",
+    "build:types": "tsc -p tsconfig.build.json && bun run scripts/fix-dts-extensions.ts",
     "build:binary": "bun run scripts/build-binaries.ts",
     "test": "bun test tests/",
     "test:watch": "bun test tests/ --watch",
