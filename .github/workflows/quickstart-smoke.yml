@@ -76,8 +76,12 @@ jobs:
           mkdir -p "$SCRATCH"
           cp -r examples/sdet-jest30/. "$SCRATCH/"
           cd "$SCRATCH"
-          npm install --no-audit --no-fund
+          # Install the packed @dhanesh/mockstar tarball FIRST so the example's
+          # dependency is satisfied from the file — the scoped package isn't on the
+          # npm registry yet, so a bare `npm install` first would 404 on
+          # `@dhanesh/mockstar@*`. Then install the remaining devDeps.
           npm install --no-audit --no-fund "${GITHUB_WORKSPACE}/mockstar.tgz"
+          npm install --no-audit --no-fund
           # Use the example's own test script — it sets NODE_OPTIONS=--experimental-vm-modules
           # (via cross-env) so Jest can parse the ESM example. Calling `npx jest` directly
           # bypasses that and fails with "Cannot use import statement outside a module".
