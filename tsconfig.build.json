@@ -7,7 +7,12 @@
     "declarationMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "allowImportingTsExtensions": false,
+    // The codebase imports with explicit `.ts` extensions (Bun convention). Allow that
+    // here and have tsc rewrite `.ts` -> `.js` in the emitted .d.ts (TS 5.7+), so the
+    // published declarations reference the bundled `.js` outputs. Without this the
+    // declaration build fails with TS5097 (pre-existing packaging bug).
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "moduleResolution": "node16",
     "module": "node16"
   },
