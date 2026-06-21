@@ -1,5 +1,11 @@
-// Satisfies: RT-6.1 (radix-trie on method + path-pattern; O(log n) first-level dispatch)
+// Satisfies: RT-6.1 (segment prefix-trie on method + path-pattern; O(1)-avg per-segment dispatch)
 // Priority: binding (RT-6 — hot-path latency)
+//
+// NOTE: this is a per-segment prefix trie, NOT a radix/PATRICIA tree — single-child
+// chains are not compressed. Each node keys its literal children by whole path segment
+// via a Map (O(1) average lookup), plus at most one `:param` child and one `*` wildcard.
+// `findPath` does a multi-branch backtracking walk (literal + param + wildcard), so the
+// cost is bounded by path depth × branch factor, not log(n) of the registered-route count.
 
 export interface PathPatternNode<T> {
   /** Literal child segments. Map<segment, node>. */
