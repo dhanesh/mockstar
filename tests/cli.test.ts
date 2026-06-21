@@ -2,10 +2,10 @@
 // @constraint U5 — `mockstar import` subcommand
 // @constraint G12 — CLI test coverage
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 

@@ -2,17 +2,17 @@
 //            TN6 (spec-aware + heuristic fallback), TN7 (_mockstarGenerated boundary)
 // Priority: binding — enhancer's idempotency is load-bearing
 
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { loadSpec, type ParsedSpec } from "../spec/index.ts";
-import { decideRewrite, type EnhanceHint } from "./field-mapping.ts";
+import { type ParsedSpec, loadSpec } from "../spec/index.ts";
 import {
   GENERATED_VERSION,
+  type GeneratedEntry,
   clearManifest,
   readManifest,
   writeManifest,
-  type GeneratedEntry,
 } from "./boundary.ts";
+import { type EnhanceHint, decideRewrite } from "./field-mapping.ts";
 
 export interface EnhanceOptions {
   /** Directory containing Mockstar mock files (JSON). Walked non-recursively. */

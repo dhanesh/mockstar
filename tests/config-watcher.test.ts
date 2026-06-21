@@ -1,12 +1,12 @@
 // @constraint T8 — per-tenant file-watch hot reload
 // @constraint G9 — watcher test coverage
 
-import { describe, it, expect, afterEach, beforeEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { SnapshotHolder, loadSnapshot, parseServerConfig, startWatcher } from "../src/core/config/index.ts";
 import { buildHandlerRegistry } from "../src/core/handlers/index.ts";
-import { loadSnapshot, parseServerConfig, SnapshotHolder, startWatcher } from "../src/core/config/index.ts";
 
 async function setup(): Promise<{ configRoot: string; handlersDir: string; cleanup: () => void }> {
   const root = await mkdtemp(join(tmpdir(), "mockstar-watcher-"));

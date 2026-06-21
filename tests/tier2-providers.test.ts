@@ -6,9 +6,9 @@
 // The test knows provider-shape regexes ONLY for comparison — the runtime never learns them.
 // Per RT-9, this test file (`tests/`) is exempt from the grep gate.
 
-import { describe, it, expect, afterEach } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { resolve } from "node:path";
-import { launch, type Launched } from "../src/index.ts";
+import { type Launched, launch } from "../src/index.ts";
 
 const CONFIG_ROOT = resolve(import.meta.dir, "../examples/mocks");
 

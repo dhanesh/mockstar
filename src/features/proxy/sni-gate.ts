@@ -4,8 +4,8 @@
 // Paired with tls-adapter's SniResolver. Given the current snapshot and an incoming
 // SNI hostname, return the leaf to present OR null to reject the handshake.
 
-import { snapshotResolver, type SniResolver } from "./tls-adapter.ts";
 import type { SnapshotHolder } from "./cert-cache.ts";
+import { type SniResolver, snapshotResolver } from "./tls-adapter.ts";
 
 /**
  * Build an SniResolver that ALWAYS reads the current snapshot (captured per-call,
@@ -13,7 +13,7 @@ import type { SnapshotHolder } from "./cert-cache.ts";
  * it reflect reloads.
  */
 export function sniGate(holder: SnapshotHolder): SniResolver {
-  return (servername) => {
+  return (servername: string) => {
     const resolver = snapshotResolver(holder.get());
     return resolver(servername.toLowerCase());
   };

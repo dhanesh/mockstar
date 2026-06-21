@@ -88,7 +88,7 @@ export class Metrics implements MetricsSnapshot {
       );
       lines.push(`${metric}_count${labelString(labels)} ${cumulative}`);
     }
-    return lines.join("\n") + "\n";
+    return `${lines.join("\n")}\n`;
   }
 }
 

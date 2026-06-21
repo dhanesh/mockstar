@@ -24,12 +24,12 @@ export function createLogger(opts: LoggerOptions = {}): StructuredLogger {
   const stdout =
     opts.stdout ??
     ((line): void => {
-      process.stdout.write(line + "\n");
+      process.stdout.write(`${line}\n`);
     });
   const stderr =
     opts.stderr ??
     ((line): void => {
-      process.stderr.write(line + "\n");
+      process.stderr.write(`${line}\n`);
     });
   let counter = 0;
   const now = opts.deterministic

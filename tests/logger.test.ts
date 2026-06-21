@@ -2,7 +2,7 @@
 // @constraint G15 — logger format test coverage
 // @constraint RT-12.4 — deterministic timestamp in deterministic mode
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { createLogger } from "../src/core/observability/logger.ts";
 
 function capture(): { logger: ReturnType<typeof createLogger>; stdout: string[]; stderr: string[] } {

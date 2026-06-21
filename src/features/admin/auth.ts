@@ -1,8 +1,8 @@
 // Satisfies: RT-7 (two-tier admin auth)
 // Satisfies: S3 (admin token w/ constant-time compare), S1 (tenant scope enforced)
 
-import type { MiddlewareHandler } from "hono";
 import { timingSafeEqual } from "node:crypto";
+import type { MiddlewareHandler } from "hono";
 import type { ConfigSnapshot } from "../../core/config/snapshot.ts";
 
 export type AdminScope = "tenant" | "root";

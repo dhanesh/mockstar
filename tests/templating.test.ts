@@ -2,16 +2,16 @@
 // @constraint RT-6.2 — compiled at config-load, not per-request
 // @constraint F3 — JSON-body templating must compile string leaves at config-load (regression)
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
-  compileTemplate,
-  compileJsonValue,
-  renderCompiledJson,
   type TemplateContext,
+  compileJsonValue,
+  compileTemplate,
+  renderCompiledJson,
 } from "../src/core/templating/compiler.ts";
 import { createFaker } from "../src/core/templating/faker.ts";
-import { createClock } from "../src/core/templating/tier2/now.ts";
 import { createIdHelpers } from "../src/core/templating/tier2/id.ts";
+import { createClock } from "../src/core/templating/tier2/now.ts";
 
 const ctx: TemplateContext = {
   faker: createFaker({ deterministic: true, seed: 42 }),

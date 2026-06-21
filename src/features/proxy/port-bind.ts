@@ -9,8 +9,8 @@
 // is explicit and user-visible (the user sees their OS's password prompt).
 
 import { spawn } from "node:child_process";
-import { platform } from "node:os";
 import { writeFile } from "node:fs/promises";
+import { platform } from "node:os";
 import { ProxyError, type ReverseCommand } from "./types.ts";
 
 // --- PUBLIC API ----------------------------------------------------------

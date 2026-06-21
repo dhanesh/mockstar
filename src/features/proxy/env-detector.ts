@@ -41,31 +41,13 @@ export function remediationMessage(h: EnvHostility): string {
     case "clean":
       return "Environment looks clean. Proceeding with install.";
     case "containerized-or-ci":
-      return (
-        `Detected CI or container environment (${h.detail}). ` +
-        `mockstar proxy is a developer-laptop tool; installing a dev CA in CI is explicitly ` +
-        `disallowed (S4). If you're running tests that need HTTPS mocks, consider using the ` +
-        `library-embed API (createServer) with mockstar's HTTP interface directly instead.`
-      );
+      return `Detected CI or container environment (${h.detail}). mockstar proxy is a developer-laptop tool; installing a dev CA in CI is explicitly disallowed (S4). If you're running tests that need HTTPS mocks, consider using the library-embed API (createServer) with mockstar's HTTP interface directly instead.`;
     case "port-443-bound":
-      return (
-        `Port 443 is already bound on 127.0.0.1 (${h.detail}). ` +
-        `Stop the conflicting process (commonly nginx, Apache, another proxy, or Docker) and retry. ` +
-        `Run 'sudo lsof -i :443' to see the culprit.`
-      );
+      return `Port 443 is already bound on 127.0.0.1 (${h.detail}). Stop the conflicting process (commonly nginx, Apache, another proxy, or Docker) and retry. Run 'sudo lsof -i :443' to see the culprit.`;
     case "mdm-managed":
-      return (
-        `Managed MDM profile detected (${h.detail}). ` +
-        `Installing a dev CA may conflict with corporate policy and trigger a profile revert. ` +
-        `Options: (a) coordinate with IT to allowlist 'mockstar-dev-ca'; (b) use /etc/hosts fallback mode; ` +
-        `(c) re-run with --force (not recommended on managed fleets).`
-      );
+      return `Managed MDM profile detected (${h.detail}). Installing a dev CA may conflict with corporate policy and trigger a profile revert. Options: (a) coordinate with IT to allowlist 'mockstar-dev-ca'; (b) use /etc/hosts fallback mode; (c) re-run with --force (not recommended on managed fleets).`;
     case "vpn-resolver-override":
-      return (
-        `Your DNS resolver is being rewritten by a VPN or privacy tool (${h.detail}). ` +
-        `dnsmasq install may work but silently fail on reconnect. Recommended: use /etc/hosts ` +
-        `fallback mode via 'mockstar proxy install --dns-mode=hosts'.`
-      );
+      return `Your DNS resolver is being rewritten by a VPN or privacy tool (${h.detail}). dnsmasq install may work but silently fail on reconnect. Recommended: use /etc/hosts fallback mode via 'mockstar proxy install --dns-mode=hosts'.`;
   }
 }
 

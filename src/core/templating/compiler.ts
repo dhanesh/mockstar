@@ -8,9 +8,9 @@
 
 import type { Entry } from "../config/schema.ts";
 import type { FakerInstance } from "./faker.ts";
-import type { Clock } from "./tier2/now.ts";
 import type { IdHelpers } from "./tier2/id.ts";
 import { BASE62 } from "./tier2/id.ts";
+import type { Clock } from "./tier2/now.ts";
 import { RenderBudget, estimateJsonSize } from "./tier2/walker.ts";
 
 export interface TemplateContext {
@@ -116,7 +116,7 @@ function parseToken(expr: string): TemplateOp {
     const argsSource = trimmed.slice("id.named(".length, trimmed.lastIndexOf(")"));
     const args = JSON.parse(`[${argsSource}]`) as unknown[];
     const name = typeof args[0] === "string" ? args[0] : "";
-    if (!name) throw new Error(`id.named(): first argument must be a non-empty string name`);
+    if (!name) throw new Error("id.named(): first argument must be a non-empty string name");
     const prefix = typeof args[1] === "string" ? args[1] : "";
     const length = typeof args[2] === "number" ? args[2] : 14;
     const alphabet = typeof args[3] === "string" ? args[3] : BASE62;

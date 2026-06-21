@@ -2,11 +2,11 @@
 // Satisfies: U2 (library embed distribution channel)
 
 import { resolve } from "node:path";
+import { SnapshotHolder, loadSnapshot, parseServerConfig, startWatcher } from "./core/config/index.ts";
 import { buildHandlerRegistry } from "./core/handlers/index.ts";
-import { loadSnapshot, parseServerConfig, SnapshotHolder, startWatcher } from "./core/config/index.ts";
-import { createServer, type CreateServerOptions, type RunningServer } from "./server.ts";
-import { createLogger, type StructuredLogger } from "./core/observability/index.ts";
+import { type StructuredLogger, createLogger } from "./core/observability/index.ts";
 import { preflight } from "./core/preflight.ts";
+import { type CreateServerOptions, type RunningServer, createServer } from "./server.ts";
 
 export interface LaunchOptions {
   configRoot: string;
@@ -87,5 +87,4 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
 }
 
 export type { RunningServer, CreateServerOptions } from "./server.ts";
-export type { LaunchOptions };
 export { SnapshotHolder } from "./core/config/index.ts";

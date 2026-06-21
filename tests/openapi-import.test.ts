@@ -2,8 +2,8 @@
 // @constraint RT-8.3 — external $ref disabled (addresses CVE-2026-39885)
 // @constraint RT-8.4 — URL-encoded path params (addresses CVE-2026-32871)
 
-import { describe, it, expect } from "bun:test";
-import { convertOpenApi, encodePathTemplate, OpenApiImportError } from "../src/features/openapi/index.ts";
+import { describe, expect, it } from "bun:test";
+import { OpenApiImportError, convertOpenApi, encodePathTemplate } from "../src/features/openapi/index.ts";
 
 describe("OpenAPI converter", () => {
   it("converts operations to mock entries using response examples", () => {

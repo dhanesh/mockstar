@@ -115,7 +115,7 @@ describe("T7 / RT-9 — templating in webhook URL, body, and headers", () => {
     await tick(200);
 
     expect(receiver.hits.length).toBeGreaterThan(0);
-    expect(receiver.hits[0]?.headers["authorization"]).toBe("Bearer abc-secret");
+    expect(receiver.hits[0]?.headers.authorization).toBe("Bearer abc-secret");
     delete process.env.MOCKSTAR_TEST_AUTH;
   });
 });

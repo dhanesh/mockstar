@@ -1,7 +1,7 @@
 // @constraint RT-10 — Env hostility detection with remediation messages
 // @constraint U5, S4
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { detectEnvHostility, remediationMessage } from "../src/features/proxy/env-detector.ts";
 
 describe("detectEnvHostility (CI detection)", () => {

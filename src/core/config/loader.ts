@@ -2,17 +2,17 @@
 // Contributes to: RT-1.3 (handler-reference cross-check)
 // Satisfies: RT-4 (snapshot builder compiles scenario rules into compiledScenarios map)
 
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
+import { compileWebhookSpecs } from "../../features/webhooks/compile.ts";
 import type { HandlerRegistry } from "../handlers/index.ts";
 import { verifyHandlerReferences } from "../handlers/index.ts";
-import { compileEntryResponses, type CompiledResponse } from "../templating/compiler.ts";
-import { compileWebhookSpecs } from "../../features/webhooks/compile.ts";
 import { buildMatchIndex } from "../matching/index.ts";
 import { compileScenarioRules } from "../scenarios/evaluator.ts";
 import type { CompiledScenario } from "../scenarios/evaluator.ts";
-import { type ConfigSnapshot, type TenantSnapshot } from "./snapshot.ts";
-import { MockEntry, ServerConfig, TenantConfig, TenantLimits, type Entry, type Server } from "./schema.ts";
+import { type CompiledResponse, compileEntryResponses } from "../templating/compiler.ts";
+import { type Entry, MockEntry, type Server, ServerConfig, TenantConfig, TenantLimits } from "./schema.ts";
+import type { ConfigSnapshot, TenantSnapshot } from "./snapshot.ts";
 
 export interface LoadOptions {
   configRoot: string; // directory containing per-tenant subdirs

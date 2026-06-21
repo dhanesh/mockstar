@@ -4,7 +4,7 @@
 // Usage:
 //   bun run bench/harness.ts [--rps=1000] [--duration=60] [--scenario=static-mock]
 
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { runStaticMockBench } from "./static-mock.bench.ts";
 
@@ -56,7 +56,7 @@ export async function runBench(opts: BenchOptions): Promise<BenchResult> {
   await mkdir(resultsDir, { recursive: true });
   await writeFile(
     resolve(resultsDir, `${out.scenario}-${out.channel}-${Date.now()}.json`),
-    JSON.stringify(out, null, 2) + "\n",
+    `${JSON.stringify(out, null, 2)}\n`,
   );
 
   if (opts.baselinePath) {
@@ -77,14 +77,14 @@ async function checkRegression(current: BenchResult, baselinePath: string): Prom
   } catch {
     process.stdout.write(`No baseline at ${baselinePath} — recording current run as baseline.\n`);
     baseline[`${current.scenario}:${current.channel}`] = current;
-    await writeFile(baselinePath, JSON.stringify(baseline, null, 2) + "\n");
+    await writeFile(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
     return;
   }
   const key = `${current.scenario}:${current.channel}`;
   const prev = baseline[key];
   if (!prev) {
     baseline[key] = current;
-    await writeFile(baselinePath, JSON.stringify(baseline, null, 2) + "\n");
+    await writeFile(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
     return;
   }
   // Thresholds are empirical: p99 on short benches has ~10-15% run-to-run variance on commodity
@@ -116,7 +116,7 @@ if (isMain) {
   const channel = (getFlag("--channel") ?? "library") as BenchOptions["channel"];
   const baselinePath = getFlag("--baseline") ?? resolve("bench", "baselines.json");
   void runBench({ rps, durationSec, scenario: "static-mock", channel, baselinePath }).then((r) => {
-    process.stdout.write(JSON.stringify(r, null, 2) + "\n");
+    process.stdout.write(`${JSON.stringify(r, null, 2)}\n`);
   });
 }
 

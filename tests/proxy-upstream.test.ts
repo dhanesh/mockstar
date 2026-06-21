@@ -2,9 +2,9 @@
 // @constraint T9 — header passthrough
 // @constraint T10 — 502 + structured body on upstream failure
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import type { HostConfig, ProxyConfig } from "../src/features/proxy/types.ts";
 import { forwardToMockstar, probeMockstarHealth } from "../src/features/proxy/upstream.ts";
-import type { ProxyConfig, HostConfig } from "../src/features/proxy/types.ts";
 
 interface UpstreamStub {
   stop: () => void;

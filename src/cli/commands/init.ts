@@ -8,8 +8,8 @@
 // bunx mockstar ./mocks` in under 5 minutes (RT-13). Keeping init synchronous
 // and I/O-light is load-bearing for that budget.
 
-import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 const SCHEMA_HOST = "https://schemas.mockstar.dev";
@@ -26,7 +26,7 @@ export interface InitResult {
 }
 
 const STARTER_MOCKS = (minor: string) =>
-  JSON.stringify(
+  `${JSON.stringify(
     {
       $schema: `${SCHEMA_HOST}/${minor}/mock.json`,
       mocks: [
@@ -58,17 +58,16 @@ const STARTER_MOCKS = (minor: string) =>
     },
     null,
     2,
-  ) + "\n";
+  )}\n`;
 
-const STARTER_CONFIG =
-  JSON.stringify(
-    {
-      server: { host: "127.0.0.1", port: 3000 },
-      tenancy: { mode: "path" },
-    },
-    null,
-    2,
-  ) + "\n";
+const STARTER_CONFIG = `${JSON.stringify(
+  {
+    server: { host: "127.0.0.1", port: 3000 },
+    tenancy: { mode: "path" },
+  },
+  null,
+  2,
+)}\n`;
 
 export async function runInit(options: InitOptions): Promise<InitResult> {
   const root = resolve(options.dir);

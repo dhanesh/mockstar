@@ -5,6 +5,7 @@
 // header (X-Mockstar-Tenant) so mockstar's existing tenancy middleware (RT-4 of
 // mockstar manifold) routes without URL rewriting.
 
+import type { LogFields } from "../../core/observability/index.ts";
 import type { HostConfig, ProxyConfig } from "./types.ts";
 
 export interface ForwardContext {
@@ -12,8 +13,8 @@ export interface ForwardContext {
   readonly host: HostConfig;
   readonly requestId: string;
   readonly logger: {
-    info: (fields: Record<string, unknown>) => void;
-    error: (fields: Record<string, unknown>) => void;
+    info: (fields: LogFields) => void;
+    error: (fields: LogFields) => void;
   };
 }
 

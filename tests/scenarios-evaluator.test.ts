@@ -5,13 +5,13 @@
 // Validates: U1 (no-match is silent — returns null, no error)
 // Validates: O1 (missReason for absent attribute keys)
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
+import type { ScenarioRuleT } from "../src/core/config/schema.ts";
 import {
+  type ScenarioAttrs,
   compileScenarioRules,
   evaluateScenarios,
-  type ScenarioAttrs,
 } from "../src/core/scenarios/evaluator.ts";
-import type { ScenarioRuleT } from "../src/core/config/schema.ts";
 
 function makeAttrs(overrides?: Partial<ScenarioAttrs>): ScenarioAttrs {
   return {

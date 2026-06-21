@@ -3,10 +3,10 @@
 // Satisfies: T6 (handler-reference integrity)
 // Priority: structural (blocks T6; must be loaded before config cross-check in RT-1.3)
 
-import { resolve, isAbsolute, relative } from "node:path";
 import { readdir, stat } from "node:fs/promises";
+import { isAbsolute, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { HandlerLoadError, MissingHandlerError, type HandlerRegistry, type MockHandler } from "./types.ts";
+import { HandlerLoadError, type HandlerRegistry, MissingHandlerError, type MockHandler } from "./types.ts";
 
 const SUPPORTED_EXTENSIONS = [".ts", ".js", ".mjs", ".mts"];
 

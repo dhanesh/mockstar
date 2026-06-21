@@ -1,8 +1,8 @@
 // Validates: RT-3 (dual-mode ID generator), T4 (deterministic + authentic),
 //            T6 (0 collisions in 100-ID burst), O6 (0 collisions in 1M draws at L=14)
 
-import { describe, it, expect } from "bun:test";
-import { createIdHelpers, fnv1a, mulberry32, BASE62 } from "../src/core/templating/tier2/id.ts";
+import { describe, expect, it } from "bun:test";
+import { BASE62, createIdHelpers, fnv1a, mulberry32 } from "../src/core/templating/tier2/id.ts";
 
 describe("createIdHelpers — non-deterministic mode (T4, T9)", () => {
   const helpers = createIdHelpers({ deterministic: false, tenant: "t", endpoint: "e", requestCounter: 1 });

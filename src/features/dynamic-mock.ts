@@ -3,9 +3,9 @@
 
 import type { Context } from "hono";
 import type { Entry } from "../core/config/schema.ts";
+import { type BoundaryOptions, invokeWithBoundary } from "../core/errors/index.ts";
 import type { HandlerRegistry } from "../core/handlers/index.ts";
 import type { FakerInstance } from "../core/templating/faker.ts";
-import { invokeWithBoundary, type BoundaryOptions } from "../core/errors/index.ts";
 
 export interface DynamicInput {
   entry: Entry;

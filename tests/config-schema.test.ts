@@ -1,8 +1,8 @@
 // @constraint T7 — Zod-validated config with fail-fast boot
 // @constraint G8 — config schema test coverage
 
-import { describe, it, expect } from "bun:test";
-import { MockEntry, TenantConfig, ServerConfig, MatchPredicate } from "../src/core/config/schema.ts";
+import { describe, expect, it } from "bun:test";
+import { MatchPredicate, MockEntry, ServerConfig, TenantConfig } from "../src/core/config/schema.ts";
 
 describe("MockEntry schema (T7)", () => {
   it("accepts a minimal valid static entry", () => {

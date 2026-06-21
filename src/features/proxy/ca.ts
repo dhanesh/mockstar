@@ -13,8 +13,8 @@
 // a specific remediation message.
 
 import { spawn } from "node:child_process";
-import { access, chmod, stat } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
+import { access, chmod, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { ProxyError } from "./types.ts";
 
@@ -144,14 +144,7 @@ export async function generateLeaf(
 
 /** The user-facing string for the install output (U4). */
 export function nodeExtraCaCertsMessage(paths: CaPaths): string {
-  return (
-    `Node.js does not use the system trust store. For Node-based SDKs (e.g., the Razorpay Node SDK)\n` +
-    `to accept mockstar's dev CA, export NODE_EXTRA_CA_CERTS in your shell rc:\n\n` +
-    `  echo 'export NODE_EXTRA_CA_CERTS="${paths.rootCertPem}"' >> ~/.zshrc\n` +
-    `  # (or ~/.bashrc / ~/.config/fish/config.fish as appropriate)\n\n` +
-    `Then reload your shell. Without this, SDKs using Node's built-in TLS client will reject\n` +
-    `the mockstar cert with CERT_UNKNOWN_AUTHORITY or similar.`
-  );
+  return `Node.js does not use the system trust store. For Node-based SDKs (e.g., the Razorpay Node SDK)\nto accept mockstar's dev CA, export NODE_EXTRA_CA_CERTS in your shell rc:\n\n  echo 'export NODE_EXTRA_CA_CERTS="${paths.rootCertPem}"' >> ~/.zshrc\n  # (or ~/.bashrc / ~/.config/fish/config.fish as appropriate)\n\nThen reload your shell. Without this, SDKs using Node's built-in TLS client will reject\nthe mockstar cert with CERT_UNKNOWN_AUTHORITY or similar.`;
 }
 
 /** Return a CaFacts summary suitable for `mockstar proxy status`. */

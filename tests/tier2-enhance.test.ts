@@ -3,17 +3,17 @@
 // Validates: B1, O3 — re-enhance is a no-op on unchanged input, and user edits outside the
 //            _mockstarGenerated block survive re-runs.
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { runEnhance } from "../src/features/enhance/index.ts";
+import { join } from "node:path";
 import { GENERATED_KEY } from "../src/features/enhance/boundary.ts";
+import { runEnhance } from "../src/features/enhance/index.ts";
 
 async function setup(content: unknown): Promise<{ dir: string; file: string }> {
   const dir = await mkdtemp(join(tmpdir(), "tier2-enhance-"));
   const file = join(dir, "fixture.json");
-  await writeFile(file, JSON.stringify(content, null, 2) + "\n", "utf-8");
+  await writeFile(file, `${JSON.stringify(content, null, 2)}\n`, "utf-8");
   return { dir, file };
 }
 
@@ -87,7 +87,7 @@ describe("runEnhance — idempotency and boundary", () => {
       match: { method: "GET", path: "/hand" },
       response: { kind: "static", status: 200, body: { note: "user added this" } },
     });
-    await writeFile(file, JSON.stringify(edited, null, 2) + "\n", "utf-8");
+    await writeFile(file, `${JSON.stringify(edited, null, 2)}\n`, "utf-8");
 
     await runEnhance({ inputDir: dir, now: FIXED_NOW });
     const final = await readJson(file);
@@ -189,7 +189,7 @@ describe("runEnhance — idempotency and boundary", () => {
     const bodyRef = (edited.mocks as Array<{ response: { body: Record<string, unknown> } }>)[0]!.response
       .body;
     bodyRef.id = "order_HAND_WRITTEN_99";
-    await writeFile(file, JSON.stringify(edited, null, 2) + "\n", "utf-8");
+    await writeFile(file, `${JSON.stringify(edited, null, 2)}\n`, "utf-8");
 
     const result = await runEnhance({ inputDir: dir, now: FIXED_NOW });
     expect(result.warnings.some((w) => w.includes("user-drift") && w.includes("create-order.body.id"))).toBe(

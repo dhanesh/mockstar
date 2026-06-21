@@ -5,12 +5,12 @@
 // This file is the glue. It imports from every other proxy module, wires them together,
 // and exposes `startProxyServer` as the single entry point used by the CLI.
 
-import { createLogger, Metrics, type StructuredLogger } from "../../core/observability/index.ts";
-import { buildSnapshot, evictedHostnames, SnapshotHolder } from "./cert-cache.ts";
-import { startTlsServer, leavesFromSnapshot, type RequestMeta, type TlsServerHandle } from "./tls-adapter.ts";
-import { forwardToMockstar, probeMockstarHealth } from "./upstream.ts";
+import { Metrics, type StructuredLogger, createLogger } from "../../core/observability/index.ts";
+import { SnapshotHolder, buildSnapshot, evictedHostnames } from "./cert-cache.ts";
 import { watchConfig } from "./config.ts";
+import { type RequestMeta, type TlsServerHandle, leavesFromSnapshot, startTlsServer } from "./tls-adapter.ts";
 import type { Hostname, ProxyConfig } from "./types.ts";
+import { forwardToMockstar, probeMockstarHealth } from "./upstream.ts";
 
 export interface ProxyRuntime {
   readonly server: TlsServerHandle;

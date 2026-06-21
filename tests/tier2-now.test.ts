@@ -1,6 +1,6 @@
 // Validates: U4 (timestamp helpers), T4 (deterministic mode: fixed epoch yields byte-identity)
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { createClock } from "../src/core/templating/tier2/now.ts";
 
 describe("createClock — wall mode", () => {

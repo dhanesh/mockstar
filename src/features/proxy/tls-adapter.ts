@@ -39,6 +39,13 @@ export interface TlsServerOptions {
   readonly onWarn?: (event: string, details: Record<string, unknown>) => void;
 }
 
+/**
+ * A leaf-resolution closure: maps an SNI servername to the cert/key pair to present,
+ * or null to reject. NOT consumed by Bun (Bun does its own SNI); used by sni-gate's
+ * diagnostics and the gate closure that reads the current snapshot per-call.
+ */
+export type SniResolver = (servername: string) => { certPem: string; keyPem: string } | null;
+
 export interface RequestMeta {
   /** Hostname from the request URL (already validated by SNI match). */
   readonly servername: string;
@@ -161,9 +168,7 @@ export function leavesFromSnapshot(snapshot: ProxySnapshot): TlsLeaf[] {
 }
 
 /** Resolver closure used by sni-gate's diagnostics (NOT by Bun — Bun does its own SNI). */
-export function snapshotResolver(
-  snapshot: ProxySnapshot,
-): (servername: string) => { certPem: string; keyPem: string } | null {
+export function snapshotResolver(snapshot: ProxySnapshot): SniResolver {
   return (servername) => {
     const leaf = snapshot.leaves.get(servername.toLowerCase());
     if (!leaf) return null;

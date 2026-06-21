@@ -7,6 +7,12 @@
       "recommended": true,
       "suspicious": {
         "noExplicitAny": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "warn"
+      },
+      "performance": {
+        "noDelete": "off"
       }
     }
   },

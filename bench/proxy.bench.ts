@@ -17,12 +17,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SnapshotHolder } from "../src/features/proxy/cert-cache.ts";
 import {
-  startTlsServer,
-  leavesFromSnapshot,
   type TlsServerHandle,
+  leavesFromSnapshot,
+  startTlsServer,
 } from "../src/features/proxy/tls-adapter.ts";
-import { computePercentiles } from "./harness.ts";
 import type { ProxyConfig } from "../src/features/proxy/types.ts";
+import { computePercentiles } from "./harness.ts";
 
 export interface ProxyBenchResult {
   readonly scenario: string;
@@ -121,7 +121,7 @@ async function runBenchLoop(
     await warmFetch(server.url);
     for (let i = 0; i < 5; i++) {
       const start = performance.now();
-      await fetchWithoutKeepAlive(server.url + "/ping");
+      await fetchWithoutKeepAlive(`${server.url}/ping`);
       firstHandshakeSamples.push((performance.now() - start) * 1000);
     }
   } catch {
@@ -137,7 +137,7 @@ async function runBenchLoop(
   const endAt = performance.now() + opts.durationSec * 1000;
   while (performance.now() < endAt && warmSamples.length < targetSamples) {
     const start = performance.now();
-    const res = await fetchWithKeepAlive(server.url + "/ping");
+    const res = await fetchWithKeepAlive(`${server.url}/ping`);
     const elapsed = performance.now() - start;
     if (res.status !== 200) throw new Error(`bench got status ${res.status}`);
     warmSamples.push(elapsed * 1000);
@@ -258,7 +258,7 @@ if (isMain) {
   const rps = Number.parseInt(getFlag("--rps") ?? "100", 10);
   runProxyBench({ durationSec, rps })
     .then((r) => {
-      process.stdout.write(JSON.stringify(r, null, 2) + "\n");
+      process.stdout.write(`${JSON.stringify(r, null, 2)}\n`);
       if (r.skipped) return;
       if (!r.sla.bootUnderBudget || !r.sla.warmOverheadUnderBudget) {
         process.stderr.write("Bench: one or more SLAs NOT met\n");

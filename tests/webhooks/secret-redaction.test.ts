@@ -139,7 +139,7 @@ describe("U3 — admin /webhooks list redacts signing secrets", () => {
     const wh = body.webhooks[0];
     expect(wh?.signing).toBeDefined();
     // Shape-only: only `enabled` and `algorithm` keys.
-    expect(Object.keys(wh!.signing!).sort()).toEqual(["algorithm", "enabled"]);
+    expect(Object.keys(wh?.signing!).sort()).toEqual(["algorithm", "enabled"]);
     expect(wh?.signing?.algorithm).toBe("sha256");
     expect(wh?.signing?.enabled).toBe(true);
   });

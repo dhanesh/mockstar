@@ -41,8 +41,8 @@ export interface RenderBudgetOptions {
 export class RenderBudget {
   readonly maxBytes: number;
   readonly maxDepth: number;
-  bytes: number = 0;
-  depth: number = 0;
+  bytes = 0;
+  depth = 0;
   /** Visit set for cycle detection. Keyed by object identity (objects/arrays only). */
   private readonly seen: WeakSet<object> = new WeakSet();
 

@@ -9,8 +9,8 @@
 
 import type { ScenarioRuleT } from "../config/schema.ts";
 import type { StringMatch } from "../matching/discriminators.ts";
-import type { CompiledTemplate, CompiledJsonValue } from "../templating/compiler.ts";
-import { compileTemplate, compileJsonValue } from "../templating/compiler.ts";
+import type { CompiledJsonValue, CompiledTemplate } from "../templating/compiler.ts";
+import { compileJsonValue, compileTemplate } from "../templating/compiler.ts";
 
 // -- Compiled predicate types (pre-processed at snapshot build) --
 

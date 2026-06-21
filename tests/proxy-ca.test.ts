@@ -4,14 +4,14 @@
 // @constraint S5 — CA common name is self-identifying
 // @constraint S1 — rootCA-key.pem enforced 0600 (closes G7)
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { chmod, mkdtemp, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   enforceKeyPermissions,
-  scopedCommonName,
   nodeExtraCaCertsMessage,
+  scopedCommonName,
 } from "../src/features/proxy/ca.ts";
 
 describe("scopedCommonName (S5)", () => {

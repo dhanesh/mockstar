@@ -5,7 +5,7 @@
 // pattern is non-trivial (i.e. won't match any tag that happens to appear anywhere).
 
 import { describe, expect, it } from "bun:test";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dir, "..", "..");

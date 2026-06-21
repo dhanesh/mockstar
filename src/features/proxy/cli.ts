@@ -4,14 +4,17 @@
 // Dispatched from src/cli.ts when the user invokes `mockstar proxy ...`.
 
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { homedir, platform, userInfo, hostname as osHostname } from "node:os";
+import { homedir, hostname as osHostname, platform, userInfo } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  type Mutation,
+  type ProxyConfig,
   appendStep,
   atomicInstall,
   buildDnsMutations,
   buildSnapshot,
   caFacts,
+  clearJournal,
   detectEnvHostility,
   enforceKeyPermissions,
   executeReverse,
@@ -25,10 +28,7 @@ import {
   probeMockstarHealth,
   remediationMessage,
   reverseSteps,
-  clearJournal,
   startProxyServer,
-  type Mutation,
-  type ProxyConfig,
 } from "./index.ts";
 import { ProxyError } from "./types.ts";
 
@@ -80,7 +80,7 @@ async function install(argv: readonly string[]): Promise<number> {
       return 3; // S4 refusal
     }
     if (!force) {
-      process.stderr.write(`Re-run with --force to proceed anyway.\n`);
+      process.stderr.write("Re-run with --force to proceed anyway.\n");
       return 3;
     }
   }
@@ -163,7 +163,7 @@ async function uninstall(_argv: readonly string[]): Promise<number> {
       process.stderr.write(
         `  [reverse ${step.step}] FAILED: ${err instanceof Error ? err.message : String(err)}\n`,
       );
-      process.stderr.write(`Aborting uninstall; run again after resolving the failed step.\n`);
+      process.stderr.write("Aborting uninstall; run again after resolving the failed step.\n");
       return 5;
     }
   }
@@ -180,8 +180,7 @@ async function start(argv: readonly string[]): Promise<number> {
   const facts = await caFacts({ user: userInfo().username, hostname: osHostname() });
   if (!facts.installed) {
     process.stderr.write(
-      `Local CA not installed. Run 'mockstar proxy install' first.\n` +
-        `Looked for ${facts.paths.rootCertPem} + ${facts.paths.rootKeyPem}.\n`,
+      `Local CA not installed. Run 'mockstar proxy install' first.\nLooked for ${facts.paths.rootCertPem} + ${facts.paths.rootKeyPem}.\n`,
     );
     return 6;
   }
@@ -201,8 +200,8 @@ async function start(argv: readonly string[]): Promise<number> {
 
 async function reload(_argv: readonly string[]): Promise<number> {
   process.stdout.write(
-    `Proxy reloads automatically on config file changes (file-watch). ` +
-      `To force a reload, touch the config file.\n`,
+    "Proxy reloads automatically on config file changes (file-watch). " +
+      "To force a reload, touch the config file.\n",
   );
   return 0;
 }
@@ -219,7 +218,7 @@ async function status(argv: readonly string[]): Promise<number> {
       .catch(() => false),
   ]);
 
-  process.stdout.write(`mockstar-proxy status\n`);
+  process.stdout.write("mockstar-proxy status\n");
   process.stdout.write(`  CA installed:     ${caF?.installed ? "yes" : "no"}\n`);
   process.stdout.write(`  CA common name:   ${caF?.commonName ?? "(unknown)"}\n`);
   process.stdout.write(`  CAROOT:           ${caF?.paths.caRoot ?? "(unknown)"}\n`);
@@ -278,7 +277,7 @@ async function writeExampleConfig(path: string, dnsModeOverride: string | undefi
     mockstarUrl: "http://127.0.0.1:3000",
     dnsMode: dnsModeOverride === "hosts" ? "hosts-fallback" : "dnsmasq",
   });
-  await writeFile(path, JSON.stringify(example, null, 2) + "\n", "utf8");
+  await writeFile(path, `${JSON.stringify(example, null, 2)}\n`, "utf8");
 }
 
 function proxyHelp(): string {

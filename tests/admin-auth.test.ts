@@ -3,7 +3,7 @@
 // @constraint RT-7.2 — root token grants aggregate only
 // @constraint RT-7.4 — cross-tenant access denied
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { constantTimeEquals } from "../src/features/admin/auth.ts";
 
 describe("constantTimeEquals", () => {

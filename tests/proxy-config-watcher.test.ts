@@ -2,11 +2,11 @@
 // @constraint RT-5.4 — per-tenant reload atomicity (approximated: per-file)
 // @constraint RT-5 warn-and-keep-previous on invalid JSON (closes G4)
 
-import { describe, it, expect, afterEach } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { watchConfig, loadConfigFile } from "../src/features/proxy/config.ts";
+import { loadConfigFile, watchConfig } from "../src/features/proxy/config.ts";
 
 async function makeConfigFile(initial: Record<string, unknown>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "mockstar-proxy-cfg-"));
