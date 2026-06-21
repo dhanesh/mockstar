@@ -31,9 +31,14 @@ jobs:
       - name: Dev 5-minute path
         run: |
           set -euo pipefail
+          # Register the freshly-built package globally, then link it by NAME into a
+          # scratch project so `bunx mockstar` resolves to the local build. (Passing a
+          # path directly to `bun link` is rejected as an unrecognised dependency format.)
+          (cd "${GITHUB_WORKSPACE}" && bun link)
           WORK=$(mktemp -d)
           cd "$WORK"
-          bun link "${GITHUB_WORKSPACE}"
+          echo '{"name":"smoke","version":"0.0.0","private":true}' > package.json
+          bun link mockstar
           bunx mockstar init .
           test -f ./mocks/default/example.json
           test -f ./mockstar.config.json
@@ -45,7 +50,8 @@ jobs:
             sleep 1
           done
           curl -sf http://127.0.0.1:4017/hello | tee /dev/stderr | grep -q "Hello from mockstar"
-          curl -sf http://127.0.0.1:4017/users/42 | tee /dev/stderr | grep -q '"id": "42"'
+          # Response bodies are compact JSON (no space after the colon).
+          curl -sf http://127.0.0.1:4017/users/42 | tee /dev/stderr | grep -q '"id":"42"'
 
   sdet-persona:
     name: SDET — npm i + jest test via launch()
@@ -72,7 +78,10 @@ jobs:
           cd "$SCRATCH"
           npm install --no-audit --no-fund
           npm install --no-audit --no-fund "${GITHUB_WORKSPACE}/mockstar.tgz"
-          npx jest --colors=false
+          # Use the example's own test script — it sets NODE_OPTIONS=--experimental-vm-modules
+          # (via cross-env) so Jest can parse the ESM example. Calling `npx jest` directly
+          # bypasses that and fails with "Cannot use import statement outside a module".
+          npm test
 
   devops-persona:
     name: DevOps — docker run + /health
@@ -85,7 +94,13 @@ jobs:
       - name: Run + probe /health
         run: |
           set -euo pipefail
-          CID=$(docker run -d -p 4018:3000 mockstar:smoke)
+          # The hardened image is lean (examples are not baked in); mount mock content at
+          # runtime, mirroring the Helm chart's ConfigMap volume pattern. Default CMD serves
+          # /config/mocks; named handlers resolve from /config/handlers.
+          CID=$(docker run -d -p 4018:3000 \
+            -v "${GITHUB_WORKSPACE}/examples/mocks:/config/mocks:ro" \
+            -v "${GITHUB_WORKSPACE}/examples/handlers:/config/handlers:ro" \
+            mockstar:smoke)
           trap "docker rm -f ${CID} > /dev/null || true" EXIT
           for _ in $(seq 1 30); do
             if curl -sf http://127.0.0.1:4018/health > /dev/null; then break; fi
