@@ -23,7 +23,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 image:
-  repository: ghcr.io/your-org/mockstar
+  repository: ghcr.io/dhanesh/mockstar
   # digest overrides tag when set. CI sets this at publish time (RT-4 — sign
   # the image by digest, pull by digest).
   tag: ""

@@ -61,8 +61,10 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           # SemVer versions in CHANGELOG are written without the leading `v`
           # (e.g. `## [0.1.0-rc.1]`), matching Keep a Changelog convention.
+          # Accept one OR two leading '#': semantic-release emits `# [x.y.z]` for
+          # minor/major releases and `## [x.y.z]` for patches.
           VERSION="${TAG#v}"
-          if ! grep -qE "^## \[${VERSION}\]" CHANGELOG.md; then
+          if ! grep -qE "^#{1,2} \[${VERSION}\]" CHANGELOG.md; then
             echo "::error::CHANGELOG.md is missing an entry for ${VERSION}"
             echo "Add a section with header:  ## [${VERSION}] — YYYY-MM-DD"
             exit 1

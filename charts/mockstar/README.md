@@ -13,7 +13,7 @@ resource limits).
 Install from OCI:
 
 ```bash
-helm install mockstar oci://ghcr.io/your-org/charts/mockstar \
+helm install mockstar oci://ghcr.io/dhanesh/charts/mockstar \
   --version 0.1.0 \
   --namespace mockstar --create-namespace
 ```
@@ -143,9 +143,9 @@ ConfigMap and `kubectl rollout restart deploy/mockstar` to pick up changes.
 ```bash
 # verify chart signature (RT-4)
 cosign verify \
-  --certificate-identity-regexp "^https://github.com/your-org/mockstar/" \
+  --certificate-identity-regexp "^https://github.com/dhanesh/mockstar/" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  oci://ghcr.io/your-org/charts/mockstar
+  oci://ghcr.io/dhanesh/charts/mockstar
 ```
 
 ## Values

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/semantic-release.json",
+  "branches": ["main"],
+  "tagFormat": "v${version}",
+  "_comment": "semantic-release ONLY computes the version, updates CHANGELOG + package.json, and pushes the git tag. The existing release.yml workflow (triggered by the pushed v*.*.* tag) does ALL publishing: npm, 4 binaries, multi-arch container -> ghcr.io, helm OCI, GitHub Release, cosign, SLSA. No @semantic-release/npm publish and no @semantic-release/github here, by design — release.yml owns those.",
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/changelog",
+      { "changelogFile": "CHANGELOG.md" }
+    ],
+    [
+      "@semantic-release/npm",
+      { "npmPublish": false }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["package.json", "CHANGELOG.md"],
+        "message": "chore(release): v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ]
+  ]
+}
