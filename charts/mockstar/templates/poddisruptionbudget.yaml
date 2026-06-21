@@ -1,0 +1,24 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{/*
+PDB is OFF by default. WARNING: with replicaCount=1, a PDB of minAvailable: 1 (or
+maxUnavailable: 0) BLOCKS voluntary node drains — `kubectl drain` will hang because
+evicting the single pod would violate the budget. Only enable if you accept that.
+*/}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "mockstar.fullname" . }}
+  labels:
+    {{- include "mockstar.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "mockstar.selectorLabels" . | nindent 6 }}
+  {{- if ne (toString .Values.podDisruptionBudget.minAvailable) "" }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- else if ne (toString .Values.podDisruptionBudget.maxUnavailable) "" }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- else }}
+  minAvailable: 1
+  {{- end }}
+{{- end }}

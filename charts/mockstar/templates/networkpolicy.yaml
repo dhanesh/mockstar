@@ -1,0 +1,44 @@
+{{- if .Values.networkPolicy.enabled }}
+{{/*
+NetworkPolicy is OFF by default. mockstar needs EGRESS for pass-through routing
+and webhook delivery, so a deny-all here would silently break both. When enabled,
+DNS egress is always allowed; you MUST add your upstream/webhook destinations.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "mockstar.fullname" . }}
+  labels:
+    {{- include "mockstar.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "mockstar.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    {{- if .Values.networkPolicy.allowSameNamespace }}
+    # Allow any pod in the same namespace to reach the mock port.
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+    {{- end }}
+    {{- with .Values.networkPolicy.ingress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    # DNS — always allowed so name resolution for upstreams/webhooks works.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- with .Values.networkPolicy.egress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

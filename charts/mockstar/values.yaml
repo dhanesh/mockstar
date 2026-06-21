@@ -6,6 +6,21 @@
 # ConfigMap carrying `mockstar.dev/tenant=<name>` into the pod under
 # /config/mocks/<name>/. Teams apply their labeled ConfigMaps separately —
 # do NOT template them in values.yaml.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# SINGLE-REPLICA BY DESIGN — READ THIS BEFORE SCALING
+# ─────────────────────────────────────────────────────────────────────────────
+# mockstar keeps three things IN-MEMORY and PER-POD:
+#   1. the request/response journal (replay + assertions)
+#   2. the active-scenario state machine (per tenant)
+#   3. the webhook retry queue
+# None of these are shared across replicas. Running replicaCount > 1 SPLITS this
+# state: a scenario switch hits one pod, journal reads hit another, and webhook
+# retries scatter. The deployment therefore defaults to ONE replica and uses the
+# `Recreate` strategy (no rolling surge — we never want two stateful pods live at
+# once). If you genuinely need HA, you must front it with sticky sessions AND
+# accept that scenario/journal/queue state is not consistent. Don't.
+# ─────────────────────────────────────────────────────────────────────────────
 
 image:
   repository: ghcr.io/your-org/mockstar
@@ -17,13 +32,35 @@ image:
 
 imagePullSecrets: []
 
+nameOverride: ""
+fullnameOverride: ""
+
+# SINGLE-REPLICA BY DEFAULT — see the banner at the top of this file. Scaling
+# beyond 1 splits in-memory scenario/journal/webhook-queue state across pods.
 replicaCount: 1
+
+# Recreate (not RollingUpdate): mockstar is stateful in-memory, so we must never
+# run two pods simultaneously, not even briefly during a rollout. Recreate tears
+# the old pod down before the new one starts. Trade-off: a brief outage window on
+# every upgrade — acceptable for a non-prod mock server.
+strategy:
+  type: Recreate
 
 service:
   type: ClusterIP
   port: 3000
   # Prometheus metrics are served on the same port under /metrics (RT-12).
   metricsPath: /metrics
+
+serviceAccount:
+  # Create a dedicated ServiceAccount for the pod (recommended).
+  create: true
+  # Override the generated name; empty => "<fullname>".
+  name: ""
+  annotations: {}
+  # The pod does not call the Kubernetes API. Keep the token OUT of the pod by
+  # default (secure-by-default). Set true only if a sidecar/controller needs it.
+  automountServiceAccountToken: false
 
 # RT-11: tenant ConfigMap selection.
 # The deployment uses a projected-volume over all ConfigMaps that match this
@@ -36,9 +73,27 @@ tenants:
   # Mount path prefix (final path: <mountPathPrefix>/<tenant-name>/)
   mountPathPrefix: /config/mocks
 
-# RT-12: probes.
-# liveness: /health — crashes fast-fail if the mock server process is wedged.
-# readiness: /health — blocks traffic until config is loaded.
+# ─── Named dynamic-mock handlers (OPTIONAL, default OFF) ──────────────────────
+# Named JS/TS handlers (response.kind: "dynamic") live in a `handlers/` dir that
+# the CLI resolves relative to the mocks dir — with mocks at /config/mocks the
+# default handlers path is /config/handlers. Most deployments mock statically and
+# need NOTHING here. If your tenants use named dynamic handlers, ship them as a
+# single ConfigMap and reference it below; the chart mounts it read-only at
+# /config/handlers so the default resolution finds it.
+#
+# Build the ConfigMap out-of-chart, e.g.:
+#   kubectl create configmap mockstar-handlers --from-file=./handlers/ -n mockstar
+# then: --set handlers.configMap=mockstar-handlers
+handlers:
+  # Name of an existing ConfigMap holding the handler files. Empty => not mounted.
+  configMap: ""
+  # Mount path. Keep this at /config/handlers (the CLI's default ../handlers
+  # relative to /config/mocks) unless you also override the serve args.
+  mountPath: /config/handlers
+
+# RT-12: probes. The server exposes TWO distinct endpoints:
+#   liveness  -> /health  (200 until process exit; restarts a wedged process)
+#   readiness -> /ready   (flips to 503 on fatal error / before drain)
 probes:
   liveness:
     enabled: true
@@ -49,7 +104,7 @@ probes:
     failureThreshold: 3
   readiness:
     enabled: true
-    path: /health
+    path: /ready
     initialDelaySeconds: 2
     periodSeconds: 5
     timeoutSeconds: 2
@@ -71,11 +126,105 @@ resources:
     cpu: 50m
     memory: 64Mi
 
-# Admin token enables /metrics (S3 in the core mockstar manifold).
-# Generate with: kubectl create secret generic mockstar-admin --from-literal=token=$(openssl rand -hex 24)
+# ─── Security context (secure-by-default) ────────────────────────────────────
+# Pod-level securityContext. runAsNonRoot + a non-zero UID/GID + RuntimeDefault
+# seccomp. The image must run as this UID.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level securityContext. readOnlyRootFilesystem is true — every
+# writable path the process needs is backed by an emptyDir (see writableVolumes
+# below). Privilege escalation is off and ALL capabilities are dropped.
+containerSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+# Writable scratch paths mounted as emptyDir because the root FS is read-only.
+# /tmp is needed by the runtime; the journal scratch dir is where the optional
+# --webhook-journal-file lives (in-memory journal otherwise needs no disk).
+writableVolumes:
+  tmp:
+    mountPath: /tmp
+    sizeLimit: 64Mi
+  journal:
+    mountPath: /var/run/mockstar
+    sizeLimit: 64Mi
+
+# ─── Admin API token (secure-by-default) ─────────────────────────────────────
+# The admin API (/_mockstar/...) and /metrics require a token. We inject it ONLY
+# from an existing Secret — never as a plaintext value in this file. With no
+# Secret set, the admin API + metrics stay disabled (the server only enables them
+# when MOCKSTAR_ADMIN_TOKEN is present).
+# Generate with:
+#   kubectl create secret generic mockstar-admin \
+#     --from-literal=token=$(openssl rand -hex 24)
 admin:
   existingSecret: ""
   existingSecretKey: "token"
+
+# ─── Upstreams / webhooks ────────────────────────────────────────────────────
+# The TLS-intercepting pass-through PROXY is intentionally NOT part of this chart
+# (no MITM CA, no tier1-proxy). This chart deploys the mock + webhook server only.
+#
+# allowPrivateUpstreams: OFF by default (SSRF guard). Pass-through and webhook
+# egress to RFC-1918 / link-local targets is blocked unless you opt in here.
+# Enabling this lets mockstar reach in-cluster / private addresses — only do so
+# when you trust every configured upstream.
+allowPrivateUpstreams: false
+
+# allowWebhookUrlHeader: OFF by default. When on, the X-Mockstar-Webhook-Url
+# request header can redirect webhook delivery — an SSRF amplifier. Keep off
+# unless a test explicitly needs per-request webhook targets.
+allowWebhookUrlHeader: false
+
+# ─── NetworkPolicy (default OFF) ─────────────────────────────────────────────
+# Disabled by default because pass-through routing AND webhook delivery need
+# EGRESS to your upstreams — a naive deny-all policy would silently break both.
+# When you enable this, you MUST list the egress destinations your mocks call
+# (and DNS). Ingress defaults to same-namespace; widen as needed.
+networkPolicy:
+  enabled: false
+  # Ingress sources allowed to reach the mock port. Empty list with
+  # `allowSameNamespace: true` permits the whole namespace.
+  allowSameNamespace: true
+  ingress: []
+  #  - from:
+  #      - podSelector:
+  #          matchLabels:
+  #            app: my-test-runner
+  # Egress rules. DNS (UDP/TCP 53) is added automatically so name resolution
+  # works. Add every upstream / webhook destination your mocks talk to.
+  egress: []
+  #  - to:
+  #      - ipBlock:
+  #          cidr: 0.0.0.0/0
+  #    ports:
+  #      - protocol: TCP
+  #        port: 443
+
+# ─── PodDisruptionBudget (default OFF) ───────────────────────────────────────
+# Default OFF, deliberately. With replicaCount=1 a PDB with minAvailable: 1 (or
+# maxUnavailable: 0) BLOCKS voluntary node drains — `kubectl drain` will hang
+# forever because evicting the single pod would violate the budget. Only enable
+# this if you understand that trade-off (e.g. you accept blocked drains to keep
+# the single pod pinned during cluster maintenance).
+podDisruptionBudget:
+  enabled: false
+  # Set exactly one of minAvailable / maxUnavailable.
+  minAvailable: ""
+  maxUnavailable: ""
 
 env: []
 #  - name: MOCKSTAR_LOG_LEVEL
