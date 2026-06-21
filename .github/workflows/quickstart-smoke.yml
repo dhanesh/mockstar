@@ -32,17 +32,17 @@ jobs:
         run: |
           set -euo pipefail
           # Register the freshly-built package globally, then link it by NAME into a
-          # scratch project so `bunx mockstar` resolves to the local build. (Passing a
+          # scratch project so `bunx @dhanesh/mockstar` resolves to the local build. (Passing a
           # path directly to `bun link` is rejected as an unrecognised dependency format.)
           (cd "${GITHUB_WORKSPACE}" && bun link)
           WORK=$(mktemp -d)
           cd "$WORK"
           echo '{"name":"smoke","version":"0.0.0","private":true}' > package.json
-          bun link mockstar
-          bunx mockstar init .
+          bun link @dhanesh/mockstar
+          bunx @dhanesh/mockstar init .
           test -f ./mocks/default/example.json
           test -f ./mockstar.config.json
-          bunx mockstar ./mocks --port 4017 &
+          bunx @dhanesh/mockstar ./mocks --port 4017 &
           SERVER_PID=$!
           trap "kill ${SERVER_PID} 2>/dev/null || true" EXIT
           for _ in $(seq 1 30); do

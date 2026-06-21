@@ -2,7 +2,7 @@
 
 > **Satisfies:** RT-15 (test-runner support matrix spans the three frameworks test teams still use in 2026, on both npm and Bun)
 
-Mockstar ships an ESM-only library entry (`import { launch } from 'mockstar'`)
+Mockstar ships an ESM-only library entry (`import { launch } from '@dhanesh/mockstar'`)
 that boots a mock server in-process. You can either:
 
 1. **Call `server.hono.fetch` directly** — fastest, zero network. Good for
@@ -25,7 +25,7 @@ Everything below covers option (1); option (2) just wraps it with a port.
 ## The 20-line test pattern
 
 ```ts
-import { launch } from 'mockstar';
+import { launch } from '@dhanesh/mockstar';
 import { resolve } from 'node:path';
 
 let stop: (() => Promise<void>) | undefined;
@@ -79,7 +79,7 @@ matters (TDD, mutation testing) and the suite is Bun-native.
 ## When NOT to use the library embed
 
 - You need multi-tenant tests with subdomain tenancy — easier to run
-  `bunx mockstar` in a separate process and point `fetch` at it.
+  `bunx @dhanesh/mockstar` in a separate process and point `fetch` at it.
 - You want to verify the full CLI contract — use the `mockstar` binary
   directly and assert on its network surface.
 

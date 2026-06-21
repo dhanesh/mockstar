@@ -1,7 +1,7 @@
 # Mockstar
 
-[![quickstart-smoke](https://github.com/your-org/mockstar/actions/workflows/quickstart-smoke.yml/badge.svg)](https://github.com/your-org/mockstar/actions/workflows/quickstart-smoke.yml)
-[![release](https://github.com/your-org/mockstar/actions/workflows/release.yml/badge.svg)](https://github.com/your-org/mockstar/actions/workflows/release.yml)
+[![quickstart-smoke](https://github.com/dhanesh/mockstar/actions/workflows/quickstart-smoke.yml/badge.svg)](https://github.com/dhanesh/mockstar/actions/workflows/quickstart-smoke.yml)
+[![release](https://github.com/dhanesh/mockstar/actions/workflows/release.yml/badge.svg)](https://github.com/dhanesh/mockstar/actions/workflows/release.yml)
 
 > **Status:** pre-1.0. Minors may break mocks-file shape — see [docs/VERSIONING.md](./docs/VERSIONING.md). Pin `$schema` to `https://schemas.mockstar.dev/v0.<N>/mock.json` for stability.
 
@@ -15,7 +15,7 @@
 
 ## For SDETs
 
-Mockstar ships a library embed (`import { launch } from 'mockstar'`) supported
+Mockstar ships a library embed (`import { launch } from '@dhanesh/mockstar'`) supported
 across Jest 30, Jest 29, Vitest, and `bun test`. See [docs/SDET.md](./docs/SDET.md)
 + the [`examples/sdet-*`](./examples) directories.
 
@@ -27,7 +27,7 @@ Read [CONTRIBUTING.md](./CONTRIBUTING.md). Maintainers: [docs/TEAM-WORKFLOW.md](
 Mockstar targets three personas equally:
 
 - **SDETs** — library-embed in test suites, ephemeral instances per CI run, deterministic mode
-- **Developers** — `bunx mockstar ./mocks` with file-watch hot reload
+- **Developers** — `bunx @dhanesh/mockstar ./mocks` with file-watch hot reload
 - **DevOps** — Docker image in shared staging with per-tenant ConfigMap mounts
 
 > Built on [Hono](https://hono.dev/) on [Bun](https://bun.sh/). Targets p99 < 5ms for static mock responses. See [DECISIONS.md](./docs/DECISIONS.md) for the constraint-first design record.
@@ -162,7 +162,7 @@ See [docs/PROXY.md](./docs/PROXY.md) for the full guide and [docs/PROXY-RECOVERY
 Deploy the mock + webhook server with the chart in [`charts/mockstar`](./charts/mockstar) — secure-by-default (read-only root FS, non-root uid 10001, dropped caps, admin token via Secret).
 
 ```bash
-helm install mockstar oci://ghcr.io/your-org/charts/mockstar \
+helm install mockstar oci://ghcr.io/dhanesh/charts/mockstar \
   --version 0.1.0 --namespace mockstar --create-namespace
 ```
 
