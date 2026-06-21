@@ -2,7 +2,7 @@
 
 Bun-based mock server — static + dynamic mocking, JSON config, named JS handlers, pass-through routing, multi-tenancy, test-data utilities. Pre-1.0: minors may break mock-file shape; pin `$schema` in each mock config for stability.
 
-**Stack**: TypeScript, Bun 1.1.8+, Hono (HTTP), Zod (validation), Faker.js (test data), Biome (lint/format)
+**Stack**: TypeScript, Bun 1.1.38+, Hono (HTTP), Zod (validation), Faker.js (test data), Biome (lint/format)
 
 **Three personas**: SDETs (library embed in test suites), Developers (CLI + hot reload), DevOps (Docker + per-tenant ConfigMap mounts)
 

@@ -4,7 +4,7 @@
 
 # RT-1: the default matches .bun-version; CI overrides via --build-arg to keep
 # the container image and the binary build on the same pinned toolchain.
-# Pinned to a concrete patch tag (>=1.1.8 per engines) for reproducible builds.
+# Pinned to a concrete patch tag (>=1.1.38 per engines) for reproducible builds.
 ARG BUN_VERSION=1.1.38
 
 # ---------------------------------------------------------------------------

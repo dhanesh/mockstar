@@ -17,7 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         # O6: CI matrix covers minimum supported + latest stable Bun.
-        bun: ['1.1.8', 'latest']
+        # Minimum aligns with the pinned toolchain (.bun-version); older 1.1.x
+        # patch releases have a fetch request-body delivery bug.
+        bun: ['1.1.38', 'latest']
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
