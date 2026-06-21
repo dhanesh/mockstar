@@ -7,16 +7,16 @@ type: application
 version: 0.1.0
 appVersion: "0.1.0"
 kubeVersion: ">=1.24.0"
-home: https://github.com/your-org/mockstar
+home: https://github.com/dhanesh/mockstar
 sources:
-  - https://github.com/your-org/mockstar
+  - https://github.com/dhanesh/mockstar
 keywords:
   - mock
   - testing
   - api
 maintainers:
   - name: mockstar maintainers
-    url: https://github.com/your-org/mockstar
+    url: https://github.com/dhanesh/mockstar
 # RT-11: tenant content is OUT-OF-CHART by design (TN5). This chart ships the
 # deployment + a label-selector pattern for labeled tenant ConfigMaps. Teams
 # apply their own `mockstar.dev/tenant=<name>`-labeled ConfigMaps separately.

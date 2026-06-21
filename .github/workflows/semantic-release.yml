@@ -1,0 +1,60 @@
+name: semantic-release
+
+# Automated versioning. On every push to main, semantic-release reads the
+# conventional-commit history, decides the next SemVer, updates CHANGELOG.md +
+# package.json, commits them back, and pushes a `vX.Y.Z` tag. That tag push then
+# triggers release.yml, which performs the actual publish (npm, binaries,
+# multi-arch container -> ghcr.io, helm OCI, GitHub Release, cosign, SLSA).
+#
+# REQUIRED SECRET: RELEASE_PAT — a fine-grained PAT (or GitHub App token) with
+# `contents: write`. The default GITHUB_TOKEN CANNOT be used here, because a tag
+# pushed with GITHUB_TOKEN does NOT trigger release.yml (GitHub blocks workflow
+# chaining via the Actions token). Until RELEASE_PAT is set, this job no-ops with
+# a warning (it stays green). See docs/releasing.md.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: semantic-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: gate on RELEASE_PAT
+        id: gate
+        run: |
+          if [ -n "${{ secrets.RELEASE_PAT }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::RELEASE_PAT not set — automated release skipped. See docs/releasing.md to enable."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: '20'
+
+      - name: semantic-release
+        if: steps.gate.outputs.ready == 'true'
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          semantic_version: 24
+          extra_plugins: |
+            @semantic-release/changelog@6
+            @semantic-release/git@10
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
