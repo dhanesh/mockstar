@@ -87,19 +87,40 @@ async function checkRegression(current: BenchResult, baselinePath: string): Prom
     await writeFile(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
     return;
   }
-  // Thresholds are empirical: p99 on short benches has ~10-15% run-to-run variance on commodity
-  // hardware (Bun JIT warm-up, OS scheduling). 25% flags genuine regressions without flapping.
-  // Boot time is more stable, so 15% is appropriate.
+  // Thresholds are empirical: p99 on short benches has ~10-25% run-to-run variance on commodity
+  // hardware (Bun JIT warm-up, OS scheduling). A pure RELATIVE gate flaps on tiny absolute values
+  // — boot is only ~20-40ms on CI, so a few ms of scheduling jitter trivially exceeds 15%. We
+  // therefore require BOTH a relative breach AND a meaningful absolute delta before flagging a
+  // regression, and additionally enforce the documented absolute ceilings (_targets) as a hard
+  // backstop for genuine perf cliffs regardless of the rolling baseline.
   const P99_REGRESSION_THRESHOLD = 1.25;
   const BOOT_REGRESSION_THRESHOLD = 1.15;
-  const regressedP99 = current.p99 > prev.p99 * P99_REGRESSION_THRESHOLD;
+  const P99_ABS_FLOOR_US = 250; // ignore sub-0.25ms p99 wobble
+  const BOOT_ABS_FLOOR_MS = 25; // ignore sub-25ms boot jitter (boot is ~20-40ms on CI)
+
+  const regressedP99 =
+    current.p99 > prev.p99 * P99_REGRESSION_THRESHOLD && current.p99 - prev.p99 > P99_ABS_FLOOR_US;
   const regressedBoot =
-    current.bootMs !== null && prev.bootMs !== null
-      ? current.bootMs > prev.bootMs * BOOT_REGRESSION_THRESHOLD
-      : false;
-  if (regressedP99 || regressedBoot) {
+    current.bootMs !== null &&
+    prev.bootMs !== null &&
+    current.bootMs > prev.bootMs * BOOT_REGRESSION_THRESHOLD &&
+    current.bootMs - prev.bootMs > BOOT_ABS_FLOOR_MS;
+
+  // Hard absolute ceilings from baselines.json `_targets` — catch real cliffs even if the rolling
+  // baseline drifted. Absent targets (older baseline files) simply skip this backstop.
+  const targets = (
+    baseline as unknown as {
+      _targets?: Record<string, { p99_us_max?: number; boot_ms_max?: number }>;
+    }
+  )._targets?.[key];
+  const exceededP99Ceiling = targets?.p99_us_max != null && current.p99 > targets.p99_us_max;
+  const exceededBootCeiling =
+    targets?.boot_ms_max != null && current.bootMs !== null && current.bootMs > targets.boot_ms_max;
+
+  if (regressedP99 || regressedBoot || exceededP99Ceiling || exceededBootCeiling) {
+    const ceilingNote = exceededP99Ceiling || exceededBootCeiling ? " (exceeded absolute target)" : "";
     process.stderr.write(
-      `REGRESSION in ${key}: p99 ${prev.p99.toFixed(2)}us → ${current.p99.toFixed(2)}us; boot ${prev.bootMs}ms → ${current.bootMs}ms\n`,
+      `REGRESSION in ${key}: p99 ${prev.p99.toFixed(2)}us → ${current.p99.toFixed(2)}us; boot ${prev.bootMs}ms → ${current.bootMs}ms${ceilingNote}\n`,
     );
     process.exit(1);
   }
