@@ -28,8 +28,8 @@ describe("RT-13: quickstart-smoke workflow shape", () => {
 
   it("Dev job actually exercises `mockstar init` + `mockstar ./mocks` + curl", async () => {
     const text = await workflowText();
-    expect(text).toMatch(/bunx mockstar init/);
-    expect(text).toMatch(/bunx mockstar \.\/mocks/);
+    expect(text).toMatch(/bunx @dhanesh\/mockstar init/);
+    expect(text).toMatch(/bunx @dhanesh\/mockstar \.\/mocks/);
     expect(text).toMatch(/curl .*?\/hello/);
   });
 

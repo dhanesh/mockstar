@@ -30,7 +30,7 @@ private upstreams off, webhook-URL header off).
 
 ```bash
 # From the OCI registry (CI publishes the chart by digest):
-helm install mockstar oci://ghcr.io/your-org/charts/mockstar \
+helm install mockstar oci://ghcr.io/dhanesh/charts/mockstar \
   --version 0.1.0 \
   --namespace mockstar --create-namespace
 
@@ -186,7 +186,7 @@ precedence over `image.tag`:
 
 ```bash
 helm upgrade mockstar ./charts/mockstar -n mockstar \
-  --set image.repository=ghcr.io/your-org/mockstar \
+  --set image.repository=ghcr.io/dhanesh/mockstar \
   --set image.digest=sha256:<digest>
 ```
 
@@ -199,7 +199,7 @@ emptyDir volumes.
 ```yaml
 # values.prod.yaml
 image:
-  repository: ghcr.io/your-org/mockstar
+  repository: ghcr.io/dhanesh/mockstar
   digest: sha256:<digest>          # pin by digest
 
 admin:

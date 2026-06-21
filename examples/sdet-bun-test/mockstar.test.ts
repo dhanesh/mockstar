@@ -1,7 +1,7 @@
 // Satisfies: RT-15 (bun test — the fast path, no transform layer)
 
 import { afterAll, beforeAll, expect, test } from 'bun:test';
-import { launch } from 'mockstar';
+import { launch } from '@dhanesh/mockstar';
 import { resolve } from 'node:path';
 
 let stop: (() => Promise<void>) | undefined;

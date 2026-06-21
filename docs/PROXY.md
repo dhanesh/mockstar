@@ -17,7 +17,7 @@ mockstar proxy install
 # Edit the config, then re-run install
 
 # 3. Start mockstar on :3000 (separately)
-bunx mockstar ./mocks --port 3000
+bunx @dhanesh/mockstar ./mocks --port 3000
 
 # 4. Start the proxy on :443
 mockstar proxy start

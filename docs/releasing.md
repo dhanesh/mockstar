@@ -39,7 +39,7 @@ Conventional-commit → version bump: `fix:` → patch, `feat:` → minor,
    Until it's set, `semantic-release.yml` no-ops (stays green) with a warning.
 
 2. **npm Trusted Publishing** — `publish-npm` uses OIDC (no `NPM_TOKEN`). Register
-   this repo + workflow as a Trusted Publisher for the `mockstar` package on
+   this repo + workflow as a Trusted Publisher for the `@dhanesh/mockstar` package on
    npmjs.com. If npm isn't a target yet, see "Container-only releases" below — an
    unconfigured npm publish will fail the whole release (halt-clean then deletes the
    pushed container tag).

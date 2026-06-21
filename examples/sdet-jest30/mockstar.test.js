@@ -1,6 +1,6 @@
 // Satisfies: RT-15 (Jest 30 ESM support via --experimental-vm-modules)
 
-import { launch } from 'mockstar';
+import { launch } from '@dhanesh/mockstar';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 

@@ -23,18 +23,18 @@ describe("RT-15: SDET example shape", () => {
         expect(existsSync(resolve(root, "mocks", "default", "example.json"))).toBe(true);
       });
 
-      it('package.json depends on mockstar + declares a "test" script', async () => {
+      it('package.json depends on @dhanesh/mockstar + declares a "test" script', async () => {
         const pkg = (await Bun.file(resolve(root, "package.json")).json()) as {
           dependencies?: Record<string, string>;
           scripts?: Record<string, string>;
         };
-        expect(pkg.dependencies?.mockstar).toBeDefined();
+        expect(pkg.dependencies?.["@dhanesh/mockstar"]).toBeDefined();
         expect(pkg.scripts?.test).toBeDefined();
       });
 
-      it("test file imports launch from mockstar and uses deterministic:true", async () => {
+      it("test file imports launch from @dhanesh/mockstar and uses deterministic:true", async () => {
         const text = await Bun.file(resolve(root, fx.testFile)).text();
-        expect(text).toMatch(/import\s+\{\s*launch\s*\}\s+from\s+['"]mockstar['"]/);
+        expect(text).toMatch(/import\s+\{\s*launch\s*\}\s+from\s+['"]@dhanesh\/mockstar['"]/);
         expect(text).toMatch(/deterministic:\s*true/);
       });
     });
