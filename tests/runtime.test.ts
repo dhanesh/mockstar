@@ -1,7 +1,7 @@
 // @constraint T1 — Bun runtime + Hono HTTP framework
 // @constraint G7 — runtime smoke
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { Hono } from "hono";
 
 describe("runtime stack (T1)", () => {

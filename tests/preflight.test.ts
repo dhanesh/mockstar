@@ -1,8 +1,8 @@
 // @constraint O6 — Bun version policy runtime check
 // @constraint G17 — runtime preflight
 
-import { describe, it, expect } from "bun:test";
-import { compareVersion, preflight, MIN_BUN_VERSION } from "../src/core/preflight.ts";
+import { describe, expect, it } from "bun:test";
+import { MIN_BUN_VERSION, compareVersion, preflight } from "../src/core/preflight.ts";
 
 describe("preflight", () => {
   it("compares versions correctly", () => {

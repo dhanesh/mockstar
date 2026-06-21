@@ -3,13 +3,13 @@
 // Satisfies: T4 (boot time target applies to this path)
 
 import { resolve } from "node:path";
-import { launch } from "./index.ts";
-import { runImporter } from "./features/openapi/index.ts";
-import { preflight } from "./core/preflight.ts";
-import { dispatchProxyCommand } from "./features/proxy/cli.ts";
-import { runEnhance } from "./features/enhance/index.ts";
-import { runMigrateSchema } from "./cli/commands/migrate.ts";
 import { minorTagFromVersion, runInit } from "./cli/commands/init.ts";
+import { runMigrateSchema } from "./cli/commands/migrate.ts";
+import { preflight } from "./core/preflight.ts";
+import { runEnhance } from "./features/enhance/index.ts";
+import { runImporter } from "./features/openapi/index.ts";
+import { dispatchProxyCommand } from "./features/proxy/cli.ts";
+import { launch } from "./index.ts";
 
 const MOCKSTAR_VERSION = "0.1.0-alpha.1";
 
@@ -206,9 +206,7 @@ async function main(): Promise<number> {
       dryRun: args.dryRun,
     });
     process.stdout.write(
-      `Enhanced ${result.filesChanged}/${result.filesScanned} files (${result.rewrites} rewrites)` +
-        (result.warnings.length ? `\nWarnings:\n  ${result.warnings.join("\n  ")}` : "") +
-        "\n",
+      `Enhanced ${result.filesChanged}/${result.filesScanned} files (${result.rewrites} rewrites)${result.warnings.length ? `\nWarnings:\n  ${result.warnings.join("\n  ")}` : ""}\n`,
     );
     return 0;
   }
@@ -256,36 +254,34 @@ async function main(): Promise<number> {
 }
 
 function usage(): string {
-  return (
-    [
-      "mockstar <command> [options]",
-      "",
-      "Commands:",
-      "  init [dir]                  Scaffold a starter mocks/ + mockstar.config.json",
-      "  serve [config-root]         Start the mock server (default command)",
-      "  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON",
-      "  enhance <mocks-dir>         Rewrite imported mocks with Tier 2 placeholders",
-      "  migrate --schema <mocks-dir> --from <minor> --to <minor>",
-      "                              Rewrite $schema URLs when bumping a minor",
-      "  proxy <install|start|...>   Run the HTTPS transparent upstream proxy (tier1)",
-      "  help                        Show this help",
-      "  version                     Print version",
-      "",
-      "Serve options:",
-      "  --handlers <path>           Path to handlers directory (default ../handlers)",
-      "  --port <port>               Listen port (default 3000; env: MOCKSTAR_PORT)",
-      "  --host <host>               Bind host (default 127.0.0.1; env: MOCKSTAR_HOST)",
-      "  --deterministic             Enable CI deterministic mode",
-      "  --no-watch                  Disable file-watch hot reload",
-      "  --allow-webhook-url-header  Honour X-Mockstar-Webhook-Url request header (TN5; default off)",
-      "  --webhook-journal-file <p>  Append-only log of webhook deliveries for post-restart replay",
-      "",
-      "Env:",
-      "  MOCKSTAR_ADMIN_TOKEN                Root admin token (enables /metrics)",
-      "  MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER   Set to 1 to honour the header URL channel (B5)",
-      "",
-    ].join("\n") + "\n"
-  );
+  return `${[
+    "mockstar <command> [options]",
+    "",
+    "Commands:",
+    "  init [dir]                  Scaffold a starter mocks/ + mockstar.config.json",
+    "  serve [config-root]         Start the mock server (default command)",
+    "  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON",
+    "  enhance <mocks-dir>         Rewrite imported mocks with Tier 2 placeholders",
+    "  migrate --schema <mocks-dir> --from <minor> --to <minor>",
+    "                              Rewrite $schema URLs when bumping a minor",
+    "  proxy <install|start|...>   Run the HTTPS transparent upstream proxy (tier1)",
+    "  help                        Show this help",
+    "  version                     Print version",
+    "",
+    "Serve options:",
+    "  --handlers <path>           Path to handlers directory (default ../handlers)",
+    "  --port <port>               Listen port (default 3000; env: MOCKSTAR_PORT)",
+    "  --host <host>               Bind host (default 127.0.0.1; env: MOCKSTAR_HOST)",
+    "  --deterministic             Enable CI deterministic mode",
+    "  --no-watch                  Disable file-watch hot reload",
+    "  --allow-webhook-url-header  Honour X-Mockstar-Webhook-Url request header (TN5; default off)",
+    "  --webhook-journal-file <p>  Append-only log of webhook deliveries for post-restart replay",
+    "",
+    "Env:",
+    "  MOCKSTAR_ADMIN_TOKEN                Root admin token (enables /metrics)",
+    "  MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER   Set to 1 to honour the header URL channel (B5)",
+    "",
+  ].join("\n")}\n`;
 }
 
 // Entry point. Bun executes this file directly via bunx.

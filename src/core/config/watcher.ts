@@ -2,7 +2,7 @@
 // Satisfies: RT-5.4 (per-tenant reload isolation)
 // Satisfies: T7 (warn-and-keep-previous on invalid reload)
 
-import { watch, type FSWatcher } from "node:fs";
+import { type FSWatcher, watch } from "node:fs";
 import { resolve } from "node:path";
 import type { HandlerRegistry } from "../handlers/index.ts";
 import { loadTenant } from "./loader.ts";

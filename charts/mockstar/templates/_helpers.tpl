@@ -40,6 +40,17 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+ServiceAccount name to use.
+*/}}
+{{- define "mockstar.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+{{- default (include "mockstar.fullname" .) .Values.serviceAccount.name -}}
+{{- else -}}
+{{- default "default" .Values.serviceAccount.name -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Image reference. Prefers digest (RT-4) over tag when both are set.
 */}}
 {{- define "mockstar.image" -}}

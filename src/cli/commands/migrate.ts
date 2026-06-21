@@ -5,7 +5,7 @@
 // docs/SCHEMA-HOSTING.md, patch-level upgrades never need this command —
 // only minor bumps do.
 
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 const SCHEMA_HOST = "https://schemas.mockstar.dev";

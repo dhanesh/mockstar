@@ -5,7 +5,7 @@
 // test file can live in the default test run without forcing a binary build.
 
 import { describe, expect, it } from "bun:test";
-import { readdirSync, statSync, existsSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 const distDir = resolve(import.meta.dir, "..", "..", "dist");

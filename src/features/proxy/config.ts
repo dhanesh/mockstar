@@ -1,7 +1,7 @@
 // Satisfies: T8 (config file Zod-validated; reload on change)
 // Satisfies: RT-5 (DNS mode setting persisted in config after env detection)
 
-import { readFile, watch as fsWatch } from "node:fs/promises";
+import { watch as fsWatch, readFile } from "node:fs/promises";
 import { z } from "zod";
 import type { ProxyConfig } from "./types.ts";
 

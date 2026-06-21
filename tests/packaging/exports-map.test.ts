@@ -9,7 +9,9 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-type Conditions = Record<string, string | Conditions>;
+interface Conditions {
+  [key: string]: string | Conditions;
+}
 
 const pkg: {
   type?: string;
@@ -42,7 +44,7 @@ describe("RT-7: ESM-only package shape", () => {
   });
 
   it('root export "." import target is ESM (.js)', () => {
-    const imp = (pkg.exports?.["."] as Conditions)?.["import"];
+    const imp = (pkg.exports?.["."] as Conditions)?.import;
     expect(typeof imp).toBe("string");
     expect(imp).toMatch(/\.js$/);
   });

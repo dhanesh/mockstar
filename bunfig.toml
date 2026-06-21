@@ -3,5 +3,13 @@ exact = true
 
 [test]
 coverage = true
-coverageThreshold = 0.85
+# Global thresholds (object form). The bare-number form `coverageThreshold = 0.85`
+# is enforced PER FILE by Bun, which is impractical across optional/experimental
+# tiers; the object form enforces project-wide line + function coverage instead.
+coverageThreshold = { line = 0.85, function = 0.85 }
+# The pass-through TLS proxy is an off-by-default experimental tier with its own
+# integration suite (tier1-integration.yml / Dockerfile.tier1-proxy); example
+# handler files are documentation, not product. Both are excluded from the core
+# unit-coverage gate.
+coveragePathIgnorePatterns = ["**/proxy/**", "**/examples/**"]
 preload = ["./tests/setup.ts"]

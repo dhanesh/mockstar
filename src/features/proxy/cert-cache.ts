@@ -13,7 +13,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateLeaf } from "./ca.ts";
-import type { Hostname, HostConfig, LeafCert, ProxyConfig, ProxySnapshot } from "./types.ts";
+import type { HostConfig, Hostname, LeafCert, ProxyConfig, ProxySnapshot } from "./types.ts";
 
 // --- PUBLIC API ----------------------------------------------------------
 

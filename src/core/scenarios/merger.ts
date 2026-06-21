@@ -9,8 +9,8 @@ import type { Entry } from "../config/schema.ts";
 import type { CompiledResponse, TemplateContext } from "../templating/compiler.ts";
 import { renderCompiledJson } from "../templating/compiler.ts";
 import type { FakerInstance } from "../templating/faker.ts";
-import type { Clock } from "../templating/tier2/now.ts";
 import { createIdHelpers, fnv1a } from "../templating/tier2/id.ts";
+import type { Clock } from "../templating/tier2/now.ts";
 import { RenderBudget, Tier2RenderError } from "../templating/tier2/walker.ts";
 import type { CompiledScenario, CompiledScenarioResponse } from "./evaluator.ts";
 

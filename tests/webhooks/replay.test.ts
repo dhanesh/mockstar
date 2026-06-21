@@ -118,7 +118,7 @@ describe("O4 / INT-2 — admin replay endpoint re-enqueues", () => {
     const journal = server.webhookJournal.snapshot("default");
     const original = journal[0];
     expect(original).toBeDefined();
-    const deliveryId = original!.deliveryId;
+    const deliveryId = original?.deliveryId;
 
     // Swap to a snapshot with no webhooks.
     const ENTRY_NO_WEBHOOK: Entry = { ...ENTRY_WITH_WEBHOOK, webhooks: undefined };
@@ -182,10 +182,10 @@ describe("O4 / INT-2 — admin replay endpoint re-enqueues", () => {
     const replayEntry = journal.find((e) => e.deliveryId === body.newDeliveryId);
     expect(replayEntry).toBeDefined();
     expect(replayEntry?.replay).toBe(true);
-    expect(replayEntry?.entryId).toBe(original!.entryId);
-    expect(replayEntry?.webhookId).toBe(original!.webhookId);
+    expect(replayEntry?.entryId).toBe(original?.entryId);
+    expect(replayEntry?.webhookId).toBe(original?.webhookId);
     // Trigger-request linkage preserved (recovery audit trail).
-    expect(replayEntry?.triggerRequestId).toBe(original!.triggerRequestId);
+    expect(replayEntry?.triggerRequestId).toBe(original?.triggerRequestId);
   });
 
   test("replay endpoint requires tenant-scope auth", async () => {

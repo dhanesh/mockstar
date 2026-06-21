@@ -3,11 +3,11 @@
 // Validates: B1, B2, T2, U1 — every request-scope token resolves at render time
 //            through a live server, not a unit stub.
 
-import { describe, it, expect, afterEach } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { launch, type Launched } from "../src/index.ts";
+import { join } from "node:path";
+import { type Launched, launch } from "../src/index.ts";
 
 async function setupTenant(mocks: unknown): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "mockstar-tier2-echo-"));

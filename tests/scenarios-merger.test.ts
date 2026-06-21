@@ -3,13 +3,13 @@
 // Validates: TN1 (static inherits; dynamic/passthrough self-contained)
 // Validates: T1 (merged result description — correctness of field merging before walker pass)
 
-import { describe, it, expect } from "bun:test";
-import { mergeStaticResponse, scenarioResponseForNonStatic } from "../src/core/scenarios/merger.ts";
-import { compileScenarioRules } from "../src/core/scenarios/evaluator.ts";
+import { describe, expect, it } from "bun:test";
 import type { ScenarioRuleT } from "../src/core/config/schema.ts";
+import type { Entry } from "../src/core/config/schema.ts";
+import { compileScenarioRules } from "../src/core/scenarios/evaluator.ts";
+import { mergeStaticResponse, scenarioResponseForNonStatic } from "../src/core/scenarios/merger.ts";
 import type { CompiledResponse } from "../src/core/templating/compiler.ts";
 import { compileTemplate } from "../src/core/templating/compiler.ts";
-import type { Entry } from "../src/core/config/schema.ts";
 
 function makeStaticEntry(
   overrides?: Partial<Entry["response"] & { id?: string }>,

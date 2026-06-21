@@ -157,9 +157,23 @@ mockstar proxy start             # runs the HTTPS listener on :443
 
 See [docs/PROXY.md](./docs/PROXY.md) for the full guide and [docs/PROXY-RECOVERY.md](./docs/PROXY-RECOVERY.md) for incident recovery.
 
+## Kubernetes / Helm
+
+Deploy the mock + webhook server with the chart in [`charts/mockstar`](./charts/mockstar) — secure-by-default (read-only root FS, non-root uid 10001, dropped caps, admin token via Secret).
+
+```bash
+helm install mockstar oci://ghcr.io/your-org/charts/mockstar \
+  --version 0.1.0 --namespace mockstar --create-namespace
+```
+
+- **Single replica by design** (`replicaCount: 1`, `Recreate`): the journal, scenario state, and webhook queue are in-memory and per-pod — scaling beyond 1 splits that state.
+- The TLS-intercepting `mockstar proxy` is a local-only experimental dev tool and is **not** deployed by the chart.
+
+Full guide — tenant ConfigMaps, handlers, admin token Secret, NetworkPolicy egress, probes/metrics, image-by-digest: [docs/deployment/helm.md](./docs/deployment/helm.md).
+
 ## Security
 
-See [docs/SECURITY.md](./docs/SECURITY.md) for the threat model. Admin endpoints are disabled by default. Pass-through and OpenAPI import share a hardened URL validator that rejects private-range targets by default (addressing CVE-2026-39885-class OpenAPI `$ref` attacks).
+See [docs/SECURITY.md](./docs/SECURITY.md) for the threat model, [SECURITY.md](./SECURITY.md) for the security policy and posture. Admin endpoints are disabled by default. Pass-through and OpenAPI import share a hardened URL validator that rejects private-range targets by default (addressing CVE-2026-39885-class OpenAPI `$ref` attacks).
 
 ## License & governance
 

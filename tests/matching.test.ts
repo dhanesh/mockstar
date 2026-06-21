@@ -2,7 +2,7 @@
 // @constraint U1 — diagnostic 404 builds on nearest-match
 // @constraint RT-6.1 — match index is O(log n)
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { MockEntry } from "../src/core/config/schema.ts";
 import { buildMatchIndex } from "../src/core/matching/index.ts";
 

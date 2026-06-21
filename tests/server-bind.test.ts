@@ -1,7 +1,7 @@
 // @constraint S4 — localhost-bind default
 // @constraint G13 — bind test coverage
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { ServerConfig, parseServerConfig } from "../src/core/config/index.ts";
 
 describe("server bind defaults (S4)", () => {

@@ -4,16 +4,16 @@
 //            RT-1.5 (incremental size bound), RT-1.6 (string-mode dual path)
 // Validates: S4 (bounded echo response), T14 (cycle detection + max-depth)
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
+  type TemplateContext,
   compileJsonValue,
   compileTemplate,
   renderCompiledJson,
-  type TemplateContext,
 } from "../src/core/templating/compiler.ts";
 import { createFaker } from "../src/core/templating/faker.ts";
-import { createClock } from "../src/core/templating/tier2/now.ts";
 import { createIdHelpers } from "../src/core/templating/tier2/id.ts";
+import { createClock } from "../src/core/templating/tier2/now.ts";
 import { RenderBudget, Tier2RenderError } from "../src/core/templating/tier2/walker.ts";
 
 function mkCtx(overrides: Partial<TemplateContext["request"]> = {}): TemplateContext {
@@ -124,8 +124,8 @@ describe("RT-1.2 — type-preserving substitution", () => {
       links: Array<{ href: string; rel: string }>;
       capture_id: string;
     };
-    const selfId = rendered.links[0]!.href.slice("/orders/".length);
-    const captureUrlId = rendered.links[1]!.href.slice("/orders/".length, -"/capture".length);
+    const selfId = rendered.links[0]?.href.slice("/orders/".length);
+    const captureUrlId = rendered.links[1]?.href.slice("/orders/".length, -"/capture".length);
     expect(selfId).toBe(rendered.id);
     expect(captureUrlId).toBe(rendered.id);
     // Different name → different value (no accidental conflation).

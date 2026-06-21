@@ -1,18 +1,18 @@
 // @constraint RT-7 — Install is append-only-journaled and LIFO-reversible
 // @constraint U1, U2, O6
 
-import { describe, it, expect, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  type Mutation,
   appendStep,
-  readJournal,
-  reverseSteps,
+  atomicInstall,
   clearJournal,
   journalFacts,
-  atomicInstall,
-  type Mutation,
+  readJournal,
+  reverseSteps,
 } from "../src/features/proxy/install-journal.ts";
 import type { ReverseCommand } from "../src/features/proxy/types.ts";
 

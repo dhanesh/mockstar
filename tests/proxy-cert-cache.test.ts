@@ -1,7 +1,7 @@
 // @constraint RT-4 — Versioned snapshots + atomic swap + evicted hostname detection (STRUCTURAL)
 // @constraint T5, T8, O5
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { SnapshotHolder, evictedHostnames, needsRefresh } from "../src/features/proxy/cert-cache.ts";
 import type { LeafCert, ProxySnapshot } from "../src/features/proxy/types.ts";
 

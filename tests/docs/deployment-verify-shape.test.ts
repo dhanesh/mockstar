@@ -4,7 +4,7 @@
 // cosign verify as the deploy-to-prod step, with a doc link."
 
 import { describe, expect, it } from "bun:test";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..", "..");

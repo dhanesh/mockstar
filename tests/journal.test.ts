@@ -1,8 +1,8 @@
 // @constraint O3 — per-tenant bounded journal
 // @constraint RT-6.3 — O(1) writes, non-blocking reads
 
-import { describe, it, expect } from "bun:test";
-import { JournalRegistry, RingBuffer, type JournalEntry } from "../src/core/journal/index.ts";
+import { describe, expect, it } from "bun:test";
+import { type JournalEntry, JournalRegistry, RingBuffer } from "../src/core/journal/index.ts";
 
 describe("RingBuffer", () => {
   it("keeps last-N in chronological order when overflowing", () => {

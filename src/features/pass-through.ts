@@ -4,7 +4,7 @@
 import type { Context } from "hono";
 import type { Entry } from "../core/config/schema.ts";
 import type { StructuredLogger } from "../core/observability/logger.ts";
-import { validateUpstreamUrl, UrlValidationError } from "./url-validator.ts";
+import { UrlValidationError, validateUpstreamUrlResolved } from "./url-validator.ts";
 
 export interface PassThroughOptions {
   allowPrivateUpstreams: boolean;
@@ -22,9 +22,10 @@ export async function renderPassThrough(
   const spec = entry.response;
 
   // Re-validate at request time (RT-8.2) in case templating ever rewrites the URL in future.
+  // Resolves DNS and rejects hostnames whose A/AAAA records point at private ranges (F1 SSRF guard).
   let upstreamUrl: URL;
   try {
-    upstreamUrl = validateUpstreamUrl(spec.upstream, {
+    upstreamUrl = await validateUpstreamUrlResolved(spec.upstream, {
       allowedSchemes: ["https", "http"],
       allowPrivateUpstreams: opts.allowPrivateUpstreams,
     });

@@ -1,8 +1,20 @@
+# Keep the build context lean — only manifests + src are needed by the builder.
 node_modules
 dist
 coverage
-bench/results
+bench
 .git
 .github
+.gitignore
 .manifold
 tests
+examples
+docs
+*.md
+Dockerfile
+Dockerfile.*
+.dockerignore
+.vscode
+.idea
+.DS_Store
+*.log

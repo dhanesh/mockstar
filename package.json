@@ -26,8 +26,8 @@
     "build": "bun build src/index.ts src/cli.ts --outdir dist --target bun --format esm && bun run build:types",
     "build:types": "tsc -p tsconfig.build.json",
     "build:binary": "bun run scripts/build-binaries.ts",
-    "test": "bun test",
-    "test:watch": "bun test --watch",
+    "test": "bun test tests",
+    "test:watch": "bun test --watch tests",
     "bench": "bun run bench/harness.ts",
     "bench:proxy": "bun run bench/proxy.bench.ts",
     "typecheck": "tsc --noEmit",
@@ -44,7 +44,7 @@
     "mockoon-alternative"
   ],
   "engines": {
-    "bun": ">=1.1.8"
+    "bun": ">=1.1.38"
   },
   "dependencies": {
     "@faker-js/faker": "^9.0.0",

@@ -66,7 +66,7 @@ function indexPostman(raw: object): ParsedSpec {
   return { format: "postman", fieldsByEndpoint: new Map(), providerTag: detectProviderTag(raw), raw };
 }
 
-function collectFieldNames(node: unknown, out: Set<string> = new Set(), depth: number = 0): Set<string> {
+function collectFieldNames(node: unknown, out: Set<string> = new Set(), depth = 0): Set<string> {
   if (depth > 8 || node === null || typeof node !== "object") return out;
   for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
     if (k === "properties" && typeof v === "object" && v !== null) {

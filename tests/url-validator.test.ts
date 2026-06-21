@@ -2,8 +2,13 @@
 // @constraint RT-8.1 — validator rejects local, loopback, link-local, CGNAT
 // @constraint RT-8.3 — external $ref handled by OpenAPI importer (separate test)
 
-import { describe, it, expect } from "bun:test";
-import { validateUpstreamUrl, UrlValidationError, isPrivateHost } from "../src/features/url-validator.ts";
+import { describe, expect, it } from "bun:test";
+import {
+  UrlValidationError,
+  isPrivateHost,
+  validateUpstreamUrl,
+  validateUpstreamUrlResolved,
+} from "../src/features/url-validator.ts";
 
 describe("validateUpstreamUrl", () => {
   it("accepts https public URLs by default", () => {
@@ -45,6 +50,95 @@ describe("validateUpstreamUrl", () => {
     expect(() =>
       validateUpstreamUrl("https://127.0.0.1:8080/", { allowPrivateUpstreams: true }),
     ).not.toThrow();
+  });
+});
+
+describe("validateUpstreamUrlResolved (S6 — DNS-resolution SSRF guard, F1)", () => {
+  // Inject a fake resolver so tests are deterministic and offline.
+  const resolvesTo = (...addrs: string[]) => ({
+    lookup: async () => addrs,
+  });
+
+  it("accepts a public hostname that resolves to a public IP", async () => {
+    await expect(
+      validateUpstreamUrlResolved("https://api.example.com/v1", resolvesTo("93.184.216.34")),
+    ).resolves.toBeInstanceOf(URL);
+  });
+
+  it("rejects a public hostname that resolves to cloud-metadata 169.254.169.254 (the F1 bypass)", async () => {
+    await expect(
+      validateUpstreamUrlResolved("https://evil.example.com/", resolvesTo("169.254.169.254")),
+    ).rejects.toThrow(UrlValidationError);
+  });
+
+  it("rejects a public hostname that resolves to loopback 127.0.0.1", async () => {
+    await expect(
+      validateUpstreamUrlResolved("https://rebind.example.com/", resolvesTo("127.0.0.1")),
+    ).rejects.toThrow(/private|loopback/);
+  });
+
+  it("rejects when ANY resolved address is private (multi-record A/AAAA)", async () => {
+    await expect(
+      validateUpstreamUrlResolved("https://mixed.example.com/", resolvesTo("8.8.8.8", "10.0.0.5")),
+    ).rejects.toThrow(UrlValidationError);
+  });
+
+  it("rejects an IPv6 private resolution (ULA fd00::)", async () => {
+    await expect(
+      validateUpstreamUrlResolved("https://v6.example.com/", resolvesTo("fd00::1")),
+    ).rejects.toThrow(UrlValidationError);
+  });
+
+  it("fails closed when DNS resolution throws", async () => {
+    await expect(
+      validateUpstreamUrlResolved("https://nxdomain.example.com/", {
+        lookup: async () => {
+          throw new Error("ENOTFOUND");
+        },
+      }),
+    ).rejects.toThrow(UrlValidationError);
+  });
+
+  it("fails closed when DNS returns no addresses", async () => {
+    await expect(validateUpstreamUrlResolved("https://empty.example.com/", resolvesTo())).rejects.toThrow(
+      UrlValidationError,
+    );
+  });
+
+  it("skips DNS resolution when allowPrivateUpstreams is opted in", async () => {
+    let called = false;
+    await expect(
+      validateUpstreamUrlResolved("https://anything.example.com/", {
+        allowPrivateUpstreams: true,
+        lookup: async () => {
+          called = true;
+          return ["10.0.0.1"];
+        },
+      }),
+    ).resolves.toBeInstanceOf(URL);
+    expect(called).toBe(false);
+  });
+
+  it("does not perform a DNS lookup for IP-literal hosts (already checked by the string guard)", async () => {
+    let called = false;
+    await validateUpstreamUrlResolved("https://93.184.216.34/", {
+      lookup: async () => {
+        called = true;
+        return ["93.184.216.34"];
+      },
+    });
+    expect(called).toBe(false);
+  });
+
+  it("still enforces the string-level guard (scheme/IP-literal) before resolving", async () => {
+    // http rejected by scheme allowlist before any DNS work
+    await expect(
+      validateUpstreamUrlResolved("http://api.example.com/", resolvesTo("8.8.8.8")),
+    ).rejects.toThrow(/scheme/);
+    // private IP literal rejected by the synchronous guard
+    await expect(validateUpstreamUrlResolved("https://127.0.0.1/", resolvesTo("8.8.8.8"))).rejects.toThrow(
+      /private/,
+    );
   });
 });
 

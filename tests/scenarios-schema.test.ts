@@ -6,8 +6,8 @@
 // Validates: U3 (config-load validation with actionable errors — mock ID, scenario index)
 // Validates: TN1 (dynamic/passthrough scenario responses require status+headers+body)
 
-import { describe, it, expect } from "bun:test";
-import { MockEntry, ScenarioRule, ScenarioPredicate, ScenarioResponse } from "../src/core/config/schema.ts";
+import { describe, expect, it } from "bun:test";
+import { MockEntry, ScenarioPredicate, ScenarioResponse, ScenarioRule } from "../src/core/config/schema.ts";
 
 // -- B1: backward compatibility --
 

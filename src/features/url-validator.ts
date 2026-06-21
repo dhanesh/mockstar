@@ -9,6 +9,17 @@ export interface UrlValidationOptions {
   allowPrivateUpstreams?: boolean;
 }
 
+/**
+ * Resolve a hostname to its IP addresses (A + AAAA). Returns address strings.
+ * Injectable so the DNS-resolution guard can be tested offline/deterministically.
+ */
+export type DnsLookup = (hostname: string) => Promise<string[]>;
+
+export interface ResolvedValidationOptions extends UrlValidationOptions {
+  /** Override DNS resolution (tests). Default: node:dns/promises lookup, A + AAAA. */
+  lookup?: DnsLookup;
+}
+
 export class UrlValidationError extends Error {
   constructor(
     public readonly url: string,
@@ -64,6 +75,84 @@ export function validateUpstreamUrl(raw: string, opts: UrlValidationOptions = {}
     }
   }
 
+  return parsed;
+}
+
+/** Default resolver: node:dns/promises lookup, both A and AAAA records. */
+async function defaultLookup(hostname: string): Promise<string[]> {
+  const { lookup } = await import("node:dns/promises");
+  const records = await lookup(hostname, { all: true });
+  return records.map((r) => r.address);
+}
+
+/** Is this hostname a bare IP literal (already covered by the synchronous string guard)? */
+function isIpLiteral(hostname: string): boolean {
+  const stripped = hostname.replace(/^\[/, "").replace(/\]$/, "");
+  return stripped.includes(":") || /^(\d{1,3}\.){3}\d{1,3}$/.test(stripped);
+}
+
+/**
+ * Close the DNS-resolution SSRF gap (F1): a public hostname can have an A/AAAA
+ * record pointing at a private/loopback/link-local/metadata IP, which the
+ * synchronous string-level guard cannot see. Resolve the hostname and reject if
+ * ANY resolved address is private. Fails closed on resolution errors.
+ *
+ * Note: resolution happens microseconds before the caller's fetch, so a narrow
+ * DNS-rebinding (TOCTOU) window remains — the resolver here and the kernel
+ * resolver used by fetch() are queried separately. For an OSS dev tool with
+ * operator-authored upstreams this residual window is accepted; full closure
+ * would require pinning the validated IP into the socket connect.
+ */
+export async function assertResolvedHostPublic(
+  parsed: URL,
+  opts: { allowPrivateUpstreams?: boolean; lookup?: DnsLookup } = {},
+): Promise<void> {
+  if (opts.allowPrivateUpstreams) return;
+
+  const hostname = parsed.hostname.replace(/^\[/, "").replace(/\]$/, "");
+  // IP literals were already validated by validateUpstreamUrl's isPrivateHost check;
+  // resolving them would be a needless (and on some systems, failing) DNS round-trip.
+  if (isIpLiteral(hostname)) return;
+
+  const lookup = opts.lookup ?? defaultLookup;
+  let addresses: string[];
+  try {
+    addresses = await lookup(hostname);
+  } catch (err) {
+    throw new UrlValidationError(
+      parsed.href,
+      `DNS resolution failed for '${hostname}': ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  if (addresses.length === 0) {
+    throw new UrlValidationError(parsed.href, `DNS resolution returned no addresses for '${hostname}'`);
+  }
+  for (const addr of addresses) {
+    if (isPrivateHost(addr)) {
+      throw new UrlValidationError(
+        parsed.href,
+        `host '${hostname}' resolves to a private/loopback/link-local address '${addr}'`,
+      );
+    }
+  }
+}
+
+/**
+ * Full upstream validation for the request/delivery path: the synchronous
+ * string-level checks (scheme allowlist + private IP-literal rejection) PLUS
+ * DNS resolution of the hostname with private-range rejection of every resolved
+ * address (F1). Use this at the point of fetch; use the synchronous
+ * `validateUpstreamUrl` for config-load-time checks where DNS is undesirable.
+ */
+export async function validateUpstreamUrlResolved(
+  raw: string,
+  opts: ResolvedValidationOptions = {},
+): Promise<URL> {
+  const parsed = validateUpstreamUrl(raw, opts);
+  await assertResolvedHostPublic(parsed, {
+    allowPrivateUpstreams: opts.allowPrivateUpstreams,
+    lookup: opts.lookup,
+  });
   return parsed;
 }
 

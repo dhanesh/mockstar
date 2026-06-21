@@ -2,13 +2,13 @@
 // @constraint T6 — handler-reference integrity at boot
 // @constraint RT-1 — registry exists and is cross-verified
 
-import { describe, it, expect, beforeAll } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
-  buildHandlerRegistry,
   MissingHandlerError,
+  buildHandlerRegistry,
   verifyHandlerReferences,
 } from "../src/core/handlers/index.ts";
 
@@ -39,7 +39,7 @@ describe("handler registry (RT-1)", () => {
   });
 
   it("returns an empty registry when directory is missing", async () => {
-    const reg = await buildHandlerRegistry(join(tmpdir(), "does-not-exist-" + Math.random()));
+    const reg = await buildHandlerRegistry(join(tmpdir(), `does-not-exist-${Math.random()}`));
     expect(reg.size).toBe(0);
   });
 

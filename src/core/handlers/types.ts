@@ -35,7 +35,7 @@ export interface HandlerRegistry {
 export class HandlerLoadError extends Error {
   constructor(
     public readonly file: string,
-    public readonly cause: unknown,
+    public override readonly cause: unknown,
   ) {
     super(
       `Failed to load handler module '${file}': ${cause instanceof Error ? cause.message : String(cause)}`,
