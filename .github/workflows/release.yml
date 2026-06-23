@@ -75,6 +75,12 @@ jobs:
   # RT-7: ESM-only npm package. RT-3: publish via OIDC, no NPM_TOKEN.
   # Sigstore provenance is minted automatically by `npm publish --provenance`
   # when id-token:write is set and the repo is registered for Trusted Publishing.
+  #
+  # OPT-IN: npm publishing is gated behind the `PUBLISH_NPM` repo variable. Until
+  # the @dhanesh scope is owned and registered for npm Trusted Publishing, leave it
+  # unset — the job still builds + tests (so downstream `needs` are satisfied) but
+  # the publish step is skipped, so a missing npm target can't fail the release and
+  # trip halt-clean. Set the repo variable PUBLISH_NPM=true to enable.
   # ─────────────────────────────────────────────────────────────────────
   publish-npm:
     runs-on: ubuntu-24.04
@@ -87,8 +93,11 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun test
       - run: bun run build
+      - name: npm publish skipped (PUBLISH_NPM not set)
+        if: ${{ vars.PUBLISH_NPM != 'true' }}
+        run: echo "::notice::npm publish is disabled (PUBLISH_NPM != 'true'). Container, helm, and binaries still publish. See docs/releasing.md."
       - name: publish to npm with provenance (RT-3, S5)
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ github.event.inputs.dry_run != 'true' && vars.PUBLISH_NPM == 'true' }}
         run: |
           # RT-6/O5: retry on transient npm registry / Sigstore outage (max 3, exp backoff).
           if [[ "${{ needs.preflight.outputs.is_prerelease }}" == "true" ]]; then
