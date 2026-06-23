@@ -193,6 +193,10 @@ jobs:
       - id: build
         name: build + push multi-arch image (RT-8)
         uses: docker/build-push-action@v6
+        env:
+          # Don't upload the `.dockerbuild` build-record artifact — it isn't needed
+          # downstream and the catch-all download-artifact in release-notes chokes on it.
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
         with:
           context: .
           file: ./Dockerfile
@@ -348,8 +352,16 @@ jobs:
     needs: [preflight, publish-npm, build-binaries, publish-container, publish-helm]
     steps:
       - uses: actions/checkout@v4
+      # Download only the binaries + SBOM (not a catch-all) so stray artifacts like
+      # build-push-action's `.dockerbuild` record can't fail this job.
       - uses: actions/download-artifact@v4
-        with: { path: ./artifacts }
+        with:
+          path: ./artifacts
+          pattern: binary-*
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          pattern: sbom-cyclonedx
       - name: create GitHub Release
         if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
