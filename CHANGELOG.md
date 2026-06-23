@@ -105,6 +105,32 @@ _Constraint-first designed in `.manifold/webhooks.md`. Binding constraint: RT-1 
 
 ---
 
+## [0.1.0] — 2026-06-23
+
+First stable release — consolidates the `0.1.0-alpha`/`rc` line into a signed,
+multi-arch, container-first distribution.
+
+### Added
+- **Signed multi-arch container** at `ghcr.io/dhanesh/mockstar` (`linux/amd64` +
+  `linux/arm64`), cosign-signed by digest with a CycloneDX SBOM + Trivy scan;
+  SLSA build provenance on stable tags.
+- **Helm chart** (`charts/mockstar`) — single-replica, secure-by-default (non-root
+  uid 10001, read-only root FS, dropped caps), `/health` + `/ready` probes,
+  per-tenant ConfigMap mounts, optional handlers mount; published as a signed OCI
+  artifact at `ghcr.io/dhanesh/charts/mockstar`.
+- **Automated versioning** via semantic-release (conventional commits → tag →
+  release pipeline). See `docs/releasing.md`.
+
+### Changed
+- npm package scoped to `@dhanesh/mockstar`; npm publish is opt-in via the
+  `PUBLISH_NPM` repo variable (container/helm/binaries publish regardless).
+- Minimum supported Bun raised to **1.3.0** (pinned toolchain `1.3.14`).
+
+### Verified
+- Outbound webhooks (delivery, request-reflection templating, HMAC-SHA256 signing,
+  `expectResponse` fan-out); DNS-resolving SSRF guard; circuit-breaker single
+  half-open probe. CI green across the Bun matrix (1.3.0 + latest).
+
 ## [0.1.0-rc.1] — 2026-04-20
 
 > Satisfies RT-18 (CHANGELOG-gated release) — first tagged artifact the release workflow is expected to build end-to-end.
