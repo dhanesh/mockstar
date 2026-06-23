@@ -157,6 +157,86 @@ mockstar proxy start             # runs the HTTPS listener on :443
 
 See [docs/PROXY.md](./docs/PROXY.md) for the full guide and [docs/PROXY-RECOVERY.md](./docs/PROXY-RECOVERY.md) for incident recovery.
 
+## Running with Docker
+
+The image is published multi-arch (`linux/amd64` + `linux/arm64`), public, and signed:
+
+```bash
+docker pull ghcr.io/dhanesh/mockstar:latest        # or a pinned tag, e.g. :v0.1.0-alpha.1
+```
+
+The image is **lean — it ships no mocks**. You mount your mock content at run time. The
+default command serves `/config/mocks`; named JS handlers (if any) are read from
+`/config/handlers`. It listens on port `3000` and runs as a non-root user (uid `10001`).
+
+### Run with your mocks mounted
+
+Point a host folder at `/config/mocks` (and `/config/handlers` if you use named handlers):
+
+```bash
+docker run --rm -p 3000:3000 \
+  -v "$PWD/mocks:/config/mocks:ro" \
+  -v "$PWD/handlers:/config/handlers:ro" \
+  ghcr.io/dhanesh/mockstar:latest
+
+# in another shell:
+curl localhost:3000/health        # {"status":"ok"}
+curl localhost:3000/users/123     # your mocked response
+```
+
+Hardened run (read-only root filesystem + writable temp), matching the Helm chart's
+security posture:
+
+```bash
+docker run --rm -p 3000:3000 \
+  --read-only --tmpfs /tmp \
+  -v "$PWD/mocks:/config/mocks:ro" \
+  ghcr.io/dhanesh/mockstar:latest
+```
+
+### Adding more mocks
+
+The mounted folder follows the [Config layout](#config-layout) — **one sub-directory per
+tenant**, one JSON file per resource:
+
+```
+mocks/
+  default/            # the default tenant
+    users.json
+    orders.json
+    billing.json      # ← drop in new files to add more routes
+  acme/               # add a directory to add a tenant
+    users.json
+handlers/             # optional named JS/TS handlers referenced by dynamic mocks
+  computeTotal.ts
+```
+
+Add a file (or tenant directory) under your mounted `mocks/` folder and it's served — no
+image rebuild. Mock JSON changes are hot-reloaded on the mounted volume; **named handler
+changes require a container restart** (handlers are loaded at boot).
+
+### Bake mocks into an image (shared deployments)
+
+For a self-contained, versioned fixture set your team/CI can pull and run with **no mount**,
+build a thin image on top of the published base:
+
+```dockerfile
+# Dockerfile
+FROM ghcr.io/dhanesh/mockstar:latest
+# Copy your fixtures in (owned by the non-root runtime user)
+COPY --chown=10001:10001 mocks/     /config/mocks/
+COPY --chown=10001:10001 handlers/  /config/handlers/   # omit if you have no handlers
+# Base image already sets ENTRYPOINT + CMD (serve /config/mocks on :3000)
+```
+
+```bash
+docker build -t ghcr.io/your-org/team-fixtures:1.0 .
+docker run --rm -p 3000:3000 ghcr.io/your-org/team-fixtures:1.0   # mocks are baked in
+```
+
+Pin the base by digest (`FROM ghcr.io/dhanesh/mockstar@sha256:…`) for reproducible builds,
+push the result to your own registry, and every consumer gets the identical mock set.
+
 ## Kubernetes / Helm
 
 Deploy the mock + webhook server with the chart in [`charts/mockstar`](./charts/mockstar) — secure-by-default (read-only root FS, non-root uid 10001, dropped caps, admin token via Secret).
