@@ -26,7 +26,10 @@ describe("O3: pipeline timing guard", () => {
 describe("T5: binary sha256 recording for reproducibility", () => {
   // @constraint T5 — reproducibility evidence: hash recorded per build
   it("build-binaries job records sha256 of each compiled binary", () => {
-    expect(workflow).toMatch(/sha256sum.*mockstar-.*target/);
+    const block = workflow.split(/record binary sha256/)[1] ?? "";
+    // Portable hashing: `sha256sum` on Linux, `shasum -a 256` on macOS runners.
+    expect(block).toMatch(/sha256sum|shasum -a 256/);
+    expect(block).toMatch(/mockstar-.*target/);
   });
 
   it("sha256 file is included in the uploaded artifact", () => {
