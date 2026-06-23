@@ -17,14 +17,14 @@
     [
       "@semantic-release/exec",
       {
-        "_comment": "Runs AFTER @semantic-release/npm bumps package.json, so generate-schema.ts reads the new version and rewrites schema/mock.json ($id pinned to the minor) + schema/VERSION. The regenerated files are committed via @semantic-release/git below.",
-        "prepareCmd": "bun run scripts/generate-schema.ts"
+        "_comment": "Runs AFTER @semantic-release/npm bumps package.json: generate-schema.ts rewrites schema/mock.json ($id pinned to the minor) + schema/VERSION, and sync-version.ts rewrites src/version.ts (the CLI version constant). All committed via @semantic-release/git below so they never go stale.",
+        "prepareCmd": "bun run scripts/generate-schema.ts && bun run scripts/sync-version.ts"
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["package.json", "CHANGELOG.md", "schema/mock.json", "schema/VERSION"],
+        "assets": ["package.json", "CHANGELOG.md", "schema/mock.json", "schema/VERSION", "src/version.ts"],
         "_comment": "No [skip ci] — it would suppress release.yml on the pushed tag too (GitHub skips ALL workflows for a [skip ci] commit, including tag pushes). The self-re-trigger loop is prevented by semantic-release.yml's job-level guard that skips chore(release): commits.",
         "message": "chore(release): v${nextRelease.version}\n\n${nextRelease.notes}"
       }
