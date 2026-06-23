@@ -46,6 +46,29 @@ describe("mockstar CLI (U3)", () => {
     expect(r.stdout).toContain("MOCKSTAR_ADMIN_TOKEN");
   });
 
+  it("serve subcommand boots from the given config-root (not the word 'serve')", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "mockstar-serve-"));
+    await mkdir(join(dir, "default"), { recursive: true });
+    await writeFile(
+      join(dir, "default", "t.json"),
+      JSON.stringify({
+        mocks: [{ id: "t", match: { method: "GET", path: "/t" }, response: { kind: "static", status: 200 } }],
+      }),
+    );
+    // serve runs until killed; capture the startup line then the timeout kills it.
+    const r = await runCli(["serve", dir, "--port", "39555", "--no-watch"], 2500);
+    expect(r.stdout).toContain("mockstar listening");
+    expect(r.stdout).not.toContain("/serve"); // 'serve' must not be treated as the config path
+  });
+
+  it("serve subcommand treats the following positional as config-root", async () => {
+    // Before the fix, `serve` itself became the config root -> scandir './serve'.
+    const r = await runCli(["serve", "/no-such-mockstar-dir-zzz"]);
+    expect(r.code).not.toBe(0);
+    const out = r.stdout + r.stderr;
+    expect(out).toContain("no-such-mockstar-dir-zzz");
+  });
+
   it("import subcommand converts an OpenAPI spec to mocks.json", async () => {
     const root = await mkdtemp(join(tmpdir(), "mockstar-cli-import-"));
     const specPath = join(root, "spec.json");
