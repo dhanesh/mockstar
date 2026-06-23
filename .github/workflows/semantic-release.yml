@@ -26,6 +26,10 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-24.04
+    # Don't re-trigger on semantic-release's own version-bump commit (its tag push
+    # already drives release.yml). This replaces the `[skip ci]` marker, which would
+    # also have suppressed release.yml on the tag.
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     steps:
       - name: gate on RELEASE_PAT
         id: gate

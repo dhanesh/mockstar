@@ -25,7 +25,8 @@
       "@semantic-release/git",
       {
         "assets": ["package.json", "CHANGELOG.md", "schema/mock.json", "schema/VERSION"],
-        "message": "chore(release): v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        "_comment": "No [skip ci] — it would suppress release.yml on the pushed tag too (GitHub skips ALL workflows for a [skip ci] commit, including tag pushes). The self-re-trigger loop is prevented by semantic-release.yml's job-level guard that skips chore(release): commits.",
+        "message": "chore(release): v${nextRelease.version}\n\n${nextRelease.notes}"
       }
     ]
   ]
