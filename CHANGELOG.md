@@ -1,3 +1,11 @@
+## [0.1.3](https://github.com/dhanesh/mockstar/compare/v0.1.2...v0.1.3) (2026-06-23)
+
+
+### Bug Fixes
+
+* **cli:** derive version from package.json (stop hardcoded constant going stale) ([cde5735](https://github.com/dhanesh/mockstar/commit/cde573529561646eaa62121603a197772137a88c))
+* **release:** trigger release.yml on auto-tags (drop [skip ci]) ([b7a340b](https://github.com/dhanesh/mockstar/commit/b7a340b6d74843d7a881216b73d6b5a01e112489))
+
 ## [0.1.2](https://github.com/dhanesh/mockstar/compare/v0.1.1...v0.1.2) (2026-06-23)
 
 
