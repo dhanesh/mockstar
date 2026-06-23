@@ -1,3 +1,10 @@
+## [0.1.2](https://github.com/dhanesh/mockstar/compare/v0.1.1...v0.1.2) (2026-06-23)
+
+
+### Bug Fixes
+
+* **cli:** recognize the `serve` subcommand keyword ([288edc5](https://github.com/dhanesh/mockstar/commit/288edc527d56f09dd5965488e7edd8b0b6e5716d))
+
 ## [0.1.1](https://github.com/dhanesh/mockstar/compare/v0.1.0...v0.1.1) (2026-06-23)
 
 
