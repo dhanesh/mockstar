@@ -10,8 +10,7 @@ import { runEnhance } from "./features/enhance/index.ts";
 import { runImporter } from "./features/openapi/index.ts";
 import { dispatchProxyCommand } from "./features/proxy/cli.ts";
 import { launch } from "./index.ts";
-
-const MOCKSTAR_VERSION = "0.1.0-alpha.1";
+import { MOCKSTAR_VERSION } from "./version.ts";
 
 interface ParsedArgs {
   command: "serve" | "import" | "enhance" | "migrate" | "init" | "proxy" | "help" | "version";
