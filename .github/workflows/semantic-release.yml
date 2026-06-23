@@ -1,23 +1,33 @@
 name: semantic-release
 
-# Automated versioning. On every push to main, semantic-release reads the
+# Automated releases. On every push to main, semantic-release reads the
 # conventional-commit history, decides the next SemVer, updates CHANGELOG.md +
-# package.json, commits them back, and pushes a `vX.Y.Z` tag. That tag push then
-# triggers release.yml, which performs the actual publish (npm, binaries,
-# multi-arch container -> ghcr.io, helm OCI, GitHub Release, cosign, SLSA).
+# package.json + schema/* + src/version.ts, commits them back, and creates the
+# `vX.Y.Z` tag. The `publish` job then calls release.yml DIRECTLY (workflow_call)
+# to do the actual publish (npm, binaries, multi-arch container -> ghcr.io, helm
+# OCI, GitHub Release, cosign, SLSA).
 #
-# REQUIRED SECRET: RELEASE_PAT — a fine-grained PAT (or GitHub App token) with
-# `contents: write`. The default GITHUB_TOKEN CANNOT be used here, because a tag
-# pushed with GITHUB_TOKEN does NOT trigger release.yml (GitHub blocks workflow
-# chaining via the Actions token). Until RELEASE_PAT is set, this job no-ops with
-# a warning (it stays green). See docs/releasing.md.
+# Why workflow_call instead of letting the tag push trigger release.yml: a tag push
+# is subject to GitHub's [skip ci] scan of the (whole) commit message — and the
+# release commit carries [skip ci]. Calling release.yml directly makes publishing
+# independent of the tag-push event firing.
+#
+# REQUIRED SECRET: RELEASE_PAT — a fine-grained PAT with `contents: write`, used by
+# semantic-release to push the version-bump commit + tag. Until it's set, the job
+# no-ops with a warning (stays green). See docs/releasing.md.
 
 on:
   push:
     branches: [main]
 
+# Union of what the release job (semantic-release) and the release.yml reusable
+# workflow need; workflow-level perms cap the called workflow's jobs.
 permissions:
-  contents: write
+  contents: write # semantic-release commit/tag + release.yml GitHub Release
+  packages: write # release.yml: ghcr container + helm OCI push
+  id-token: write # release.yml: cosign keyless, SLSA, npm provenance
+  attestations: write # release.yml: build attestations
+  actions: read # release.yml: SLSA generator
 
 concurrency:
   group: semantic-release
@@ -26,10 +36,13 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-24.04
-    # Don't re-trigger on semantic-release's own version-bump commit (its tag push
-    # already drives release.yml). This replaces the `[skip ci]` marker, which would
-    # also have suppressed release.yml on the tag.
+    # Defense-in-depth against self-retrigger: the bump commit carries [skip ci]
+    # (which already suppresses this workflow on that push), and this guard skips
+    # `chore(release):` commits regardless.
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    outputs:
+      published: ${{ steps.semrel.outputs.new_release_published }}
+      version: ${{ steps.semrel.outputs.new_release_version }}
     steps:
       - name: gate on RELEASE_PAT
         id: gate
@@ -52,9 +65,8 @@ jobs:
         with:
           node-version: '20'
 
-      # bun + deps are needed by the @semantic-release/exec prepareCmd, which runs
-      # `bun run scripts/generate-schema.ts` to keep schema/mock.json + schema/VERSION
-      # in sync with the bumped package.json version.
+      # bun + deps power the @semantic-release/exec prepareCmd (generate-schema +
+      # sync-version) that keeps schema/* and src/version.ts synced to the bump.
       - uses: oven-sh/setup-bun@v2
         if: steps.gate.outputs.ready == 'true'
         with:
@@ -63,6 +75,7 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
 
       - name: semantic-release
+        id: semrel
         if: steps.gate.outputs.ready == 'true'
         uses: cycjimmy/semantic-release-action@v4
         with:
@@ -73,3 +86,20 @@ jobs:
             @semantic-release/exec@6
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
+
+  # Publish the freshly-cut release by calling release.yml directly (workflow_call) —
+  # no dependency on the tag-push event, so [skip ci] on the release commit can't
+  # suppress publishing.
+  publish:
+    needs: release
+    if: ${{ needs.release.outputs.published == 'true' }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+      actions: read
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: v${{ needs.release.outputs.version }}
+    secrets: inherit

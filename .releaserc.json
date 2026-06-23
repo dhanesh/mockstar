@@ -25,8 +25,8 @@
       "@semantic-release/git",
       {
         "assets": ["package.json", "CHANGELOG.md", "schema/mock.json", "schema/VERSION", "src/version.ts"],
-        "_comment": "No [skip ci] — it would suppress release.yml on the pushed tag too (GitHub skips ALL workflows for a [skip ci] commit, including tag pushes). The self-re-trigger loop is prevented by semantic-release.yml's job-level guard that skips chore(release): commits.",
-        "message": "chore(release): v${nextRelease.version}\n\n${nextRelease.notes}"
+        "_comment": "[skip ci] is safe now that publishing runs via semantic-release.yml's `publish` job (workflow_call), NOT the tag-push event. So [skip ci] only suppresses redundant push-triggered runs on the release commit (release.yml's push:tags, CI, and a self-retrigger of this workflow) — it can't block the publish.",
+        "message": "chore(release): v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ]
   ]
