@@ -48,6 +48,16 @@ jobs:
         with:
           node-version: '20'
 
+      # bun + deps are needed by the @semantic-release/exec prepareCmd, which runs
+      # `bun run scripts/generate-schema.ts` to keep schema/mock.json + schema/VERSION
+      # in sync with the bumped package.json version.
+      - uses: oven-sh/setup-bun@v2
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+        if: steps.gate.outputs.ready == 'true'
+
       - name: semantic-release
         if: steps.gate.outputs.ready == 'true'
         uses: cycjimmy/semantic-release-action@v4
@@ -56,5 +66,6 @@ jobs:
           extra_plugins: |
             @semantic-release/changelog@6
             @semantic-release/git@10
+            @semantic-release/exec@6
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
