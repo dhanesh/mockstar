@@ -6,10 +6,29 @@ name: release
 # Honours: TN1 (SLSA on stable only), TN2 (binary <=150MB), TN6 (.bun-version pinned).
 
 on:
+  # Kept for manually-pushed tags. The AUTOMATED path is workflow_call from
+  # semantic-release.yml — so publishing never depends on the tag-push event firing
+  # (immune to [skip ci]/skip-detection on the release commit). Auto release commits
+  # carry [skip ci], which suppresses this push trigger, leaving workflow_call as the
+  # sole auto publisher (no double-publish).
   push:
     tags: ['v*.*.*', 'v*.*.*-*']
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag to publish (e.g. v1.2.3)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Skip actual publish steps'
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
+      tag:
+        description: 'Release tag to publish (default: the ref this workflow runs on)'
+        required: false
+        type: string
       dry_run:
         description: 'Skip actual publish steps'
         type: boolean
@@ -39,14 +58,26 @@ jobs:
       is_stable: ${{ steps.detect.outputs.is_stable }}
       tag: ${{ steps.detect.outputs.tag }}
       version: ${{ steps.detect.outputs.version }}
+      dry_run: ${{ steps.detect.outputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # workflow_call/dispatch pass the tag explicitly; check it out so the
+          # CHANGELOG gate + git state match the release being published.
+          ref: ${{ inputs.tag || github.ref }}
       - id: detect
         name: detect release type (RT-5)
+        env:
+          # workflow_call + workflow_dispatch supply these; on a tag push they're empty
+          # and we fall back to the pushed ref / a real (non-dry) publish.
+          IN_TAG: ${{ inputs.tag }}
+          IN_DRY: ${{ inputs.dry_run }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${IN_TAG:-$GITHUB_REF_NAME}"
+          DRY="${IN_DRY:-false}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "dry_run=${DRY}" >> "$GITHUB_OUTPUT"
           if [[ "$TAG" =~ -(alpha|beta|rc)\. ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
             echo "is_stable=false" >> "$GITHUB_OUTPUT"
@@ -57,8 +88,10 @@ jobs:
             echo "Release type: stable (full supply-chain surface)"
           fi
       - name: check-changelog (RT-18)
+        env:
+          IN_TAG: ${{ inputs.tag }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${IN_TAG:-$GITHUB_REF_NAME}"
           # SemVer versions in CHANGELOG are written without the leading `v`
           # (e.g. `## [0.1.0-rc.1]`), matching Keep a Changelog convention.
           # Accept one OR two leading '#': semantic-release emits `# [x.y.z]` for
@@ -87,6 +120,8 @@ jobs:
     needs: [preflight]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       # RT-1: Bun version is pinned via .bun-version (TN6).
       - uses: oven-sh/setup-bun@v2
         with: { bun-version-file: .bun-version }
@@ -97,7 +132,7 @@ jobs:
         if: ${{ vars.PUBLISH_NPM != 'true' }}
         run: echo "::notice::npm publish is disabled (PUBLISH_NPM != 'true'). Container, helm, and binaries still publish. See docs/releasing.md."
       - name: publish to npm with provenance (RT-3, S5)
-        if: ${{ github.event.inputs.dry_run != 'true' && vars.PUBLISH_NPM == 'true' }}
+        if: ${{ needs.preflight.outputs.dry_run != 'true' && vars.PUBLISH_NPM == 'true' }}
         run: |
           # RT-6/O5: retry on transient npm registry / Sigstore outage (max 3, exp backoff).
           if [[ "${{ needs.preflight.outputs.is_prerelease }}" == "true" ]]; then
@@ -135,6 +170,8 @@ jobs:
             runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: oven-sh/setup-bun@v2
         with: { bun-version-file: .bun-version }
       - run: bun install --frozen-lockfile
@@ -184,6 +221,8 @@ jobs:
       image: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -201,7 +240,7 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event.inputs.dry_run != 'true' }}
+          push: ${{ needs.preflight.outputs.dry_run != 'true' }}
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.preflight.outputs.tag }}
             ghcr.io/${{ github.repository }}:latest
@@ -224,7 +263,7 @@ jobs:
             -o cyclonedx-json=sbom.cdx.json
       # RT-4 load-bearing line: sign by DIGEST, not tag.
       - name: cosign sign image by digest (RT-4, S1)
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ needs.preflight.outputs.dry_run != 'true' }}
         run: |
           # RT-6/O5: retry on transient Sigstore / Fulcio / Rekor errors (max 3).
           TARGET="ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}"
@@ -235,7 +274,7 @@ jobs:
             sleep $((attempt * 15))
           done
       - name: cosign attest CycloneDX SBOM (RT-4, S2)
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ needs.preflight.outputs.dry_run != 'true' }}
         run: |
           # RT-6/O5: retry on transient Sigstore / Rekor errors (max 3).
           TARGET="ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}"
@@ -258,6 +297,8 @@ jobs:
     needs: [preflight, publish-container]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: azure/setup-helm@v4
         with: { version: v3.15.3 }
       # cosign pushes the chart signature to GHCR using the DOCKER credential store,
@@ -280,7 +321,7 @@ jobs:
             helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: helm push to OCI (RT-10)
         id: push
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ needs.preflight.outputs.dry_run != 'true' }}
         run: |
           # RT-6/O5: retry on GHCR / registry transient failure.
           TGZ="./dist-helm/mockstar-${{ needs.preflight.outputs.version }}.tgz"
@@ -296,7 +337,7 @@ jobs:
       - name: install cosign
         uses: sigstore/cosign-installer@v3
       - name: cosign sign helm chart by digest (RT-4)
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ needs.preflight.outputs.dry_run != 'true' }}
         run: |
           # RT-6/O5: retry on transient Sigstore errors (max 3).
           TARGET="ghcr.io/${{ github.repository_owner }}/charts/mockstar@${{ steps.push.outputs.digest }}"
@@ -355,6 +396,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       # Download only the binaries + SBOM (not a catch-all) so stray artifacts like
       # build-push-action's `.dockerbuild` record can't fail this job.
       - uses: actions/download-artifact@v4
@@ -366,7 +409,7 @@ jobs:
           path: ./artifacts
           pattern: sbom-cyclonedx
       - name: create GitHub Release
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: ${{ needs.preflight.outputs.dry_run != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
