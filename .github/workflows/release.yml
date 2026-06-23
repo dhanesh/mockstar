@@ -350,6 +350,9 @@ jobs:
   release-notes:
     runs-on: ubuntu-24.04
     needs: [preflight, publish-npm, build-binaries, publish-container, publish-helm]
+    # `gh release create` needs contents:write; the workflow default is contents:read.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       # Download only the binaries + SBOM (not a catch-all) so stray artifacts like
