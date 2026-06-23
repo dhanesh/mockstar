@@ -91,7 +91,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with: { bun-version-file: .bun-version }
       - run: bun install --frozen-lockfile
-      - run: bun test
+      - run: bun test tests
       - run: bun run build
       - name: npm publish skipped (PUBLISH_NPM not set)
         if: ${{ vars.PUBLISH_NPM != 'true' }}
@@ -155,7 +155,14 @@ jobs:
         if: ${{ !contains(matrix.target, 'arm64') || matrix.runner != 'macos-14' }}
       # T5/TN6: record binary hash for reproducibility verification (evidence for RT-1).
       - name: record binary sha256 (T5)
-        run: sha256sum "dist/mockstar-${{ matrix.target }}" > "dist/mockstar-${{ matrix.target }}.sha256"
+        # Portable: macOS runners have `shasum`, not `sha256sum`.
+        run: |
+          f="dist/mockstar-${{ matrix.target }}"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$f" > "$f.sha256"
+          else
+            shasum -a 256 "$f" > "$f.sha256"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.target }}
@@ -195,7 +202,7 @@ jobs:
           provenance: mode=max
           sbom: true
       - name: trivy scan — block on CRITICAL (RT-19, S4)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
           severity: CRITICAL
