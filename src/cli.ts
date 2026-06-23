@@ -86,20 +86,27 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
       dryRun: rest.includes("--dry-run"),
     };
   }
-  // Default: serve from positional config root.
-  const configRoot = head.startsWith("-") ? "./mocks" : head;
+  // serve — the default command. Accept it BOTH explicitly (`serve [config-root]`)
+  // and implicitly (`mockstar ./mocks`). When the `serve` keyword is present, strip it
+  // so the first remaining token is the (optional) config root; otherwise the whole
+  // argv is the serve invocation. The config root is the first token only when it isn't
+  // a flag — flag values (e.g. the `4000` in `--port 4000`) are never treated as a path.
+  const serveArgv = head === "serve" ? rest : argv;
+  const firstPositional = serveArgv[0];
+  const configRoot = !firstPositional || firstPositional.startsWith("-") ? "./mocks" : firstPositional;
   return {
     command: "serve",
     configRoot,
-    handlersDir: getFlag(rest, "--handlers"),
-    port: Number.parseInt(getFlag(rest, "--port") ?? process.env.MOCKSTAR_PORT ?? "3000", 10),
-    host: getFlag(rest, "--host") ?? process.env.MOCKSTAR_HOST ?? "127.0.0.1",
-    deterministic: rest.includes("--deterministic") || process.env.MOCKSTAR_DETERMINISTIC === "1",
-    watch: !rest.includes("--no-watch"),
+    handlersDir: getFlag(serveArgv, "--handlers"),
+    port: Number.parseInt(getFlag(serveArgv, "--port") ?? process.env.MOCKSTAR_PORT ?? "3000", 10),
+    host: getFlag(serveArgv, "--host") ?? process.env.MOCKSTAR_HOST ?? "127.0.0.1",
+    deterministic: serveArgv.includes("--deterministic") || process.env.MOCKSTAR_DETERMINISTIC === "1",
+    watch: !serveArgv.includes("--no-watch"),
     // B5/TN5: defaults OFF; admin must explicitly enable to honour X-Mockstar-Webhook-Url.
     allowWebhookUrlHeader:
-      rest.includes("--allow-webhook-url-header") || process.env.MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER === "1",
-    webhookJournalFile: getFlag(rest, "--webhook-journal-file"),
+      serveArgv.includes("--allow-webhook-url-header") ||
+      process.env.MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER === "1",
+    webhookJournalFile: getFlag(serveArgv, "--webhook-journal-file"),
   };
 }
 
