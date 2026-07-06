@@ -40,7 +40,7 @@ bun run bench:proxy            # Proxy pass-through benchmark
 src/
   cli.ts                       # CLI entry point (bin: mockstar)
   server.ts                    # Hono server setup
-  index.ts                     # Library exports (import { launch } from '@dhanesh/mockstar')
+  index.ts                     # Library exports (import { launch } from '@dhaneshpurohit/mockstar')
   cli/commands/                # CLI subcommands (serve, proxy, ...)
   core/
     config/                    # Mock config loading + schema validation (Zod)
@@ -87,7 +87,7 @@ handlers/             # named JS/TS dynamic handlers
 
 **Library embed** (SDET use case — Jest, Vitest, `bun test`):
 ```ts
-import { launch } from '@dhanesh/mockstar'
+import { launch } from '@dhaneshpurohit/mockstar'
 const server = await launch({ mocksDir: './fixtures/mocks' })
 // ...tests...
 await server.stop()

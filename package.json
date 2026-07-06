@@ -1,12 +1,12 @@
 {
-  "name": "@dhanesh/mockstar",
+  "name": "@dhaneshpurohit/mockstar",
   "version": "0.1.3",
   "description": "Bun-based mock server with static + dynamic mocking, JSON config, named JS handlers, pass-through, multi-tenancy, and test-data utilities.",
   "license": "MIT",
   "type": "module",
   "types": "./dist/index.d.ts",
   "bin": {
-    "mockstar": "./dist/cli.js"
+    "mockstar": "dist/cli.js"
   },
   "exports": {
     ".": {

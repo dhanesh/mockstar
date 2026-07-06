@@ -110,7 +110,7 @@ jobs:
   # when id-token:write is set and the repo is registered for Trusted Publishing.
   #
   # OPT-IN: npm publishing is gated behind the `PUBLISH_NPM` repo variable. Until
-  # the @dhanesh scope is owned and registered for npm Trusted Publishing, leave it
+  # the @dhaneshpurohit scope is owned and registered for npm Trusted Publishing, leave it
   # unset — the job still builds + tests (so downstream `needs` are satisfied) but
   # the publish step is skipped, so a missing npm target can't fail the release and
   # trip halt-clean. Set the repo variable PUBLISH_NPM=true to enable.
@@ -128,6 +128,14 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun test tests
       - run: bun run build
+      # RT-3/S5: OIDC Trusted Publishing requires npm >= 11.5.1 for the `id-token`
+      # exchange + provenance. The ubuntu-24.04 runner ships an older npm, so bump it
+      # before publishing. Gated on PUBLISH_NPM so it's a no-op when npm is not a target.
+      - name: Ensure npm supports OIDC trusted publishing (>= 11.5.1)
+        if: ${{ vars.PUBLISH_NPM == 'true' }}
+        run: |
+          npm install -g npm@latest
+          npm --version
       - name: npm publish skipped (PUBLISH_NPM not set)
         if: ${{ vars.PUBLISH_NPM != 'true' }}
         run: echo "::notice::npm publish is disabled (PUBLISH_NPM != 'true'). Container, helm, and binaries still publish. See docs/releasing.md."

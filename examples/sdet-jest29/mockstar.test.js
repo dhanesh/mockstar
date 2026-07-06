@@ -1,6 +1,6 @@
 // Satisfies: RT-15 (Jest 29 via babel-jest transform for the ESM import)
 
-import { launch } from '@dhanesh/mockstar';
+import { launch } from '@dhaneshpurohit/mockstar';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 

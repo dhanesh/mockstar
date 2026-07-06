@@ -25,7 +25,7 @@ new immutable `v0.N/mock.json` rather than silently mutating `v0.M`. See
 
 Tags with the shape `v<X>.<Y>.<Z>-<alpha|beta|rc>.<N>` are pre-releases. They:
 
-- **Do** get published to npm as `npm install @dhanesh/mockstar@alpha` (or `@beta`, `@rc`).
+- **Do** get published to npm as `npm install @dhaneshpurohit/mockstar@alpha` (or `@beta`, `@rc`).
 - **Do** get cosign signatures and Sigstore provenance.
 - **Do NOT** get SLSA Level 3 provenance (TN1 resolution — we don't want to
   proliferate TUF root-of-trust material for unsupported builds).
@@ -52,7 +52,7 @@ NON-breaking changes, safely shipped as patches:
 
 ## What counts as breaking for the library embed
 
-The library embed (`import { launch } from '@dhanesh/mockstar'`) follows normal
+The library embed (`import { launch } from '@dhaneshpurohit/mockstar'`) follows normal
 TypeScript-shop semver. Removing or narrowing a public export's type is a
 breaking change. Widening an accepted union type is NOT.
 

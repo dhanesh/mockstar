@@ -76,7 +76,7 @@ Scenarios work the same way in test suites as they do in the CLI — add a `scen
 **`users.test.ts`**
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { launch } from '@dhanesh/mockstar';
+import { launch } from '@dhaneshpurohit/mockstar';
 import { resolve } from 'node:path';
 
 let fetch: (req: Request) => Response | Promise<Response>;

@@ -113,4 +113,17 @@ describe("encodePathTemplate", () => {
   it("sanitises param names to [a-zA-Z0-9_]", () => {
     expect(encodePathTemplate("/things/{id-with-dash}")).toBe("/things/:id_with_dash");
   });
+
+  it("collapses a segment with an embedded param + literal suffix to a whole-segment :param", () => {
+    // mockstar's path-trie only treats a WHOLE segment as a param; it has no partial-segment
+    // params. `{api}.json` must become `:api` (capturing e.g. `2.0.json`) — NOT the URL-encoded
+    // `%7Bapi%7D.json`, which matches no real request.
+    expect(encodePathTemplate("/specs/{provider}/{api}.json")).toBe("/specs/:provider/:api");
+    expect(encodePathTemplate("/{provider}.json")).toBe("/:provider");
+  });
+
+  it("collapses a segment with multiple embedded params to one :param", () => {
+    // Only one param per trie slot; use the first param name (cosmetic).
+    expect(encodePathTemplate("/v{major}-{minor}/x")).toBe("/:major/x");
+  });
 });

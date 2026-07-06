@@ -38,11 +38,27 @@ Conventional-commit → version bump: `fix:` → patch, `feat:` → minor,
    **Contents: read & write**, and add it as the `RELEASE_PAT` repository secret.
    Until it's set, `semantic-release.yml` no-ops (stays green) with a warning.
 
-2. **npm Trusted Publishing** — `publish-npm` uses OIDC (no `NPM_TOKEN`). Register
-   this repo + workflow as a Trusted Publisher for the `@dhanesh/mockstar` package on
-   npmjs.com. If npm isn't a target yet, see "Container-only releases" below — an
-   unconfigured npm publish will fail the whole release (halt-clean then deletes the
-   pushed container tag).
+2. **npm Trusted Publishing** — `publish-npm` uses OIDC (no `NPM_TOKEN`), which sidesteps
+   the account's 2FA entirely (passkey/OTP never enters CI). Set it up in this order — the
+   order matters, because `PUBLISH_NPM=true` with no trusted publisher registered fails the
+   whole release (halt-clean then deletes the pushed container tag):
+
+   1. **Register the (pending) trusted publisher** on npmjs.com. Because the package may not
+      exist yet, use a *pending* publisher: npmjs.com → **Account → Trusted Publishers → Add**
+      (or the package's *Settings → Trusted Publisher* once it exists). Fields:
+      | Field | Value |
+      |---|---|
+      | Publisher | GitHub Actions |
+      | Organization or user | `dhanesh` |
+      | Repository | `mockstar` |
+      | Workflow filename | `release.yml` |
+      | Environment | *(leave blank — `publish-npm` pins no environment)* |
+   2. **Set the repo variable** `PUBLISH_NPM=true` (`gh variable set PUBLISH_NPM --body true`).
+      Until then, `publish-npm` skips (container/helm/binaries still publish).
+   3. The workflow bumps npm to `@latest` before publishing — OIDC trusted publishing needs
+      **npm ≥ 11.5.1**, newer than the ubuntu-24.04 runner's default.
+
+   If npm isn't a target yet, see "Container-only releases" below.
 
 3. **GHCR** — no setup needed; `release.yml` logs in with `GITHUB_TOKEN`
    (`packages: write`) and pushes to `ghcr.io/dhanesh/...`.

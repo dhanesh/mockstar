@@ -1,7 +1,7 @@
 // Satisfies: RT-15 (Vitest — native ESM, no transform layer)
 
 import { afterAll, beforeAll, expect, test } from 'vitest';
-import { launch } from '@dhanesh/mockstar';
+import { launch } from '@dhaneshpurohit/mockstar';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 

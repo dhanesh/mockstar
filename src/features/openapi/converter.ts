@@ -169,9 +169,15 @@ function firstExample(examples: Record<string, { value?: unknown }> | undefined)
 export function encodePathTemplate(openapiPath: string): string {
   const parts = openapiPath.split("/").map((seg) => {
     if (seg === "") return seg;
-    const paramMatch = seg.match(/^\{([^}]+)\}$/);
-    if (paramMatch?.[1]) {
-      const name = paramMatch[1].replace(/[^a-zA-Z0-9_]/g, "_");
+    // A segment that CONTAINS one or more `{param}` tokens becomes a single
+    // whole-segment `:param`. mockstar's path-trie only treats a whole segment as a
+    // parameter (no partial-segment params), so `{api}.json` → `:api` (captures e.g.
+    // `2.0.json`) and `{a}-{b}` → `:a`. Collapsing to the FIRST param name is correct:
+    // the slot matches any real value, whereas URL-encoding the braces (`%7Bapi%7D.json`)
+    // matches no real request. Names are cosmetic in the trie.
+    const firstParam = seg.match(/\{([^}]+)\}/);
+    if (firstParam?.[1]) {
+      const name = firstParam[1].replace(/[^a-zA-Z0-9_]/g, "_");
       return `:${name}`;
     }
     // Literal segment — encode to prevent `..` or slashes sneaking through.
