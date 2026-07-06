@@ -51,12 +51,19 @@ Conventional-commit → version bump: `fix:` → patch, `feat:` → minor,
       | Publisher | GitHub Actions |
       | Organization or user | `dhanesh` |
       | Repository | `mockstar` |
-      | Workflow filename | `release.yml` |
+      | Workflow filename | **`semantic-release.yml`** |
       | Environment | *(leave blank — `publish-npm` pins no environment)* |
+
+      > **Use `semantic-release.yml`, NOT `release.yml`.** `publish-npm` lives in `release.yml`,
+      > but that runs via `workflow_call` from `semantic-release.yml`. GitHub's OIDC token reports
+      > the **entry** workflow (`GITHUB_WORKFLOW_REF` → `semantic-release.yml`), and npm matches the
+      > trusted publisher against that. Registering `release.yml` makes `npm publish` fail with
+      > `ENEEDAUTH` (npm finds no matching publisher). If you later trigger `release.yml` directly
+      > by pushing a tag, register `release.yml` as an additional publisher too.
    2. **Set the repo variable** `PUBLISH_NPM=true` (`gh variable set PUBLISH_NPM --body true`).
       Until then, `publish-npm` skips (container/helm/binaries still publish).
-   3. The workflow bumps npm to `@latest` before publishing — OIDC trusted publishing needs
-      **npm ≥ 11.5.1**, newer than the ubuntu-24.04 runner's default.
+   3. The workflow bumps npm to `@latest` (via `sudo`) before publishing — OIDC trusted publishing
+      needs **npm ≥ 11.5.1**, newer than the ubuntu-24.04 runner's default.
 
    If npm isn't a target yet, see "Container-only releases" below.
 
