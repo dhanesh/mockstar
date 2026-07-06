@@ -5,6 +5,136 @@
 import { describe, expect, it } from "bun:test";
 import { OpenApiImportError, convertOpenApi, encodePathTemplate } from "../src/features/openapi/index.ts";
 
+describe("schema-derived response bodies (fidelity)", () => {
+  const bodyOf = (entries: Array<Record<string, unknown>>) =>
+    (entries[0]?.response as { body: unknown }).body;
+
+  it("synthesises a body from an inline response schema when no example is given", () => {
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/pets/{id}": {
+          get: {
+            operationId: "getPet",
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        id: { type: "integer" },
+                        name: { type: "string" },
+                        tags: { type: "array", items: { type: "string" } },
+                        active: { type: "boolean" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const body = bodyOf(convertOpenApi(doc)) as Record<string, unknown>;
+    // shaped like the schema, not the {note:...} placeholder
+    expect(body).not.toHaveProperty("note");
+    expect(Object.keys(body).sort()).toEqual(["active", "id", "name", "tags"]);
+    expect(typeof body.id).toBe("number");
+    expect(typeof body.name).toBe("string");
+    expect(Array.isArray(body.tags)).toBe(true);
+    expect(typeof body.active).toBe("boolean");
+  });
+
+  it("resolves in-document $ref schemas", () => {
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/pets": {
+          get: {
+            responses: {
+              "200": {
+                description: "ok",
+                content: { "application/json": { schema: { $ref: "#/components/schemas/Pet" } } },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Pet: { type: "object", properties: { id: { type: "integer" }, kind: { type: "string" } } },
+        },
+      },
+    };
+    const body = bodyOf(convertOpenApi(doc)) as Record<string, unknown>;
+    expect(Object.keys(body).sort()).toEqual(["id", "kind"]);
+  });
+
+  it("prefers an explicit schema.example and honours enum/default", () => {
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/x": {
+          get: {
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        status: { type: "string", enum: ["active", "closed"] },
+                        role: { type: "string", default: "member" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const body = bodyOf(convertOpenApi(doc)) as Record<string, unknown>;
+    expect(body.status).toBe("active"); // first enum value
+    expect(body.role).toBe("member"); // default
+  });
+
+  it("does not infinitely recurse on a self-referential $ref", () => {
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/tree": {
+          get: {
+            responses: {
+              "200": {
+                description: "ok",
+                content: { "application/json": { schema: { $ref: "#/components/schemas/Node" } } },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Node: {
+            type: "object",
+            properties: { value: { type: "string" }, child: { $ref: "#/components/schemas/Node" } },
+          },
+        },
+      },
+    };
+    // must return (not hang) and be shaped like Node
+    const body = bodyOf(convertOpenApi(doc)) as Record<string, unknown>;
+    expect(body).toHaveProperty("value");
+    expect(body).toHaveProperty("child");
+  });
+});
+
 describe("OpenAPI converter", () => {
   it("converts operations to mock entries using response examples", () => {
     const doc = {

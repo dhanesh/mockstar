@@ -97,7 +97,7 @@ export function convertOpenApi(doc: unknown, opts: ConvertOptions = {}): Array<R
     for (const [method, op] of Object.entries(pathItem)) {
       if (!/^(get|post|put|patch|delete|head|options)$/i.test(method)) continue;
       const operation = op as OperationObject;
-      const { status, example, contentType } = pickExemplar(operation);
+      const { status, example, contentType } = pickExemplar(operation, doc as OpenApiDoc);
       const entry = {
         id: operation.operationId ?? `${method.toUpperCase()}-${safePath}`,
         match: {
@@ -132,7 +132,10 @@ function findRefs(value: unknown, acc: string[] = []): string[] {
   return acc;
 }
 
-function pickExemplar(op: OperationObject): { status: number; example: unknown; contentType: string } {
+function pickExemplar(
+  op: OperationObject,
+  doc: OpenApiDoc,
+): { status: number; example: unknown; contentType: string } {
   const responses = op.responses ?? {};
   const preferred = ["200", "201", "202", "204", "default"];
   for (const code of preferred) {
@@ -148,7 +151,13 @@ function pickExemplar(op: OperationObject): { status: number; example: unknown; 
     ]) {
       const media = content[ct];
       if (!media) continue;
-      const example = media.example ?? firstExample(media.examples);
+      // Precedence: explicit media example → named example → schema-derived body.
+      // Schema synthesis is what makes imported mocks shaped like the real API instead
+      // of a `{note:…}` placeholder; `enhance` later tokenises the literal values.
+      const example =
+        media.example ??
+        firstExample(media.examples) ??
+        (media.schema !== undefined ? synthesizeFromSchema(media.schema, doc) : undefined);
       return { status, example, contentType: ct };
     }
   }
@@ -159,6 +168,103 @@ function firstExample(examples: Record<string, { value?: unknown }> | undefined)
   if (!examples) return undefined;
   for (const v of Object.values(examples)) if (v.value !== undefined) return v.value;
   return undefined;
+}
+
+/**
+ * Best-effort synthesis of a representative body from a JSON Schema so imported mocks
+ * are shaped like the real API. Bounded (depth + a per-branch $ref-visited set) so
+ * self-referential schemas terminate. Emits literal placeholders; `mockstar enhance`
+ * upgrades them to Tier 2 tokens. Only in-document `#/…` $refs are followed (external
+ * refs are already rejected upstream — RT-8.3).
+ */
+export function synthesizeFromSchema(
+  schema: unknown,
+  doc: OpenApiDoc,
+  seen: ReadonlySet<string> = new Set(),
+  depth = 0,
+): unknown {
+  if (depth > 8 || schema === null || typeof schema !== "object") return null;
+  const s = schema as Record<string, unknown>;
+
+  // Resolve an in-document $ref, guarding against cycles.
+  if (typeof s.$ref === "string") {
+    if (seen.has(s.$ref)) return null; // cycle — stop here
+    const resolved = resolveRef(s.$ref, doc);
+    if (resolved === undefined) return null;
+    return synthesizeFromSchema(resolved, doc, new Set(seen).add(s.$ref), depth + 1);
+  }
+
+  // Explicit hints win, in order.
+  if (s.example !== undefined) return s.example;
+  if (s.default !== undefined) return s.default;
+  if (Array.isArray(s.enum) && s.enum.length > 0) return s.enum[0];
+
+  // Composition.
+  if (Array.isArray(s.allOf)) {
+    const merged: Record<string, unknown> = {};
+    for (const sub of s.allOf) {
+      const part = synthesizeFromSchema(sub, doc, seen, depth + 1);
+      if (part && typeof part === "object" && !Array.isArray(part)) Object.assign(merged, part);
+    }
+    return merged;
+  }
+  const oneOf = s.oneOf ?? s.anyOf;
+  if (Array.isArray(oneOf) && oneOf.length > 0) {
+    return synthesizeFromSchema(oneOf[0], doc, seen, depth + 1);
+  }
+
+  const type = Array.isArray(s.type) ? s.type[0] : s.type;
+
+  if (type === "object" || s.properties) {
+    const out: Record<string, unknown> = {};
+    const props = (s.properties ?? {}) as Record<string, unknown>;
+    for (const [key, propSchema] of Object.entries(props)) {
+      out[key] = synthesizeFromSchema(propSchema, doc, seen, depth + 1);
+    }
+    return out;
+  }
+  if (type === "array") {
+    const item = s.items !== undefined ? synthesizeFromSchema(s.items, doc, seen, depth + 1) : null;
+    return item === null ? [] : [item];
+  }
+  if (type === "string") return placeholderForString(typeof s.format === "string" ? s.format : "");
+  if (type === "integer" || type === "number") return 0;
+  if (type === "boolean") return true;
+  if (type === "null") return null;
+  return null;
+}
+
+function placeholderForString(format: string): string {
+  switch (format) {
+    case "date-time":
+      return "1970-01-01T00:00:00Z";
+    case "date":
+      return "1970-01-01";
+    case "uuid":
+      return "00000000-0000-0000-0000-000000000000";
+    case "email":
+      return "user@example.com";
+    case "uri":
+    case "url":
+      return "https://example.com";
+    case "byte":
+    case "binary":
+      return "";
+    default:
+      return "string";
+  }
+}
+
+/** Resolve an in-document JSON-pointer `#/a/b/c` against the OpenAPI doc. */
+function resolveRef(ref: string, doc: OpenApiDoc): unknown {
+  if (!ref.startsWith("#/")) return undefined;
+  let node: unknown = doc;
+  for (const raw of ref.slice(2).split("/")) {
+    const key = raw.replace(/~1/g, "/").replace(/~0/g, "~");
+    if (node === null || typeof node !== "object") return undefined;
+    node = (node as Record<string, unknown>)[key];
+  }
+  return node;
 }
 
 /**
