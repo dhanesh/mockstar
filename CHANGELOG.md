@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/dhanesh/mockstar/compare/v0.2.0...v0.2.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **ci:** sudo the global npm upgrade in publish-npm (EACCES on runner) ([3b96c45](https://github.com/dhanesh/mockstar/commit/3b96c45244ba1670df38af5f0ce637905bf3f450))
+
 # [0.2.0](https://github.com/dhanesh/mockstar/compare/v0.1.3...v0.2.0) (2026-07-06)
 
 
