@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(bun run verify:*)",
+      "Bash(bun test:*)",
+      "Bash(bun run lint:*)",
+      "Bash(bun run typecheck:*)",
+      "Bash(bun run build:*)",
+      "Bash(bun run build:types:*)",
+      "Bash(bun run bench:*)",
+      "Bash(bun run format:*)",
+      "Bash(bun install:*)",
+      "Bash(make verify:*)",
+      "Bash(make test:*)",
+      "Bash(make lint:*)",
+      "Bash(make typecheck:*)",
+      "Bash(make format:*)",
+      "Bash(make help:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git fetch:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "WebFetch"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(npm publish:*)",
+      "Bash(bun publish:*)",
+      "Bash(bunx publish:*)",
+      "Bash(gh release:*)",
+      "Bash(make proxy-install:*)",
+      "Bash(make proxy-uninstall:*)",
+      "Bash(bun run src/cli.ts proxy install:*)",
+      "Bash(bun run src/cli.ts proxy uninstall:*)",
+      "Bash(make clean-all:*)",
+      "Read(./.env)",
+      "Read(./.env.local)"
+    ]
+  }
+}

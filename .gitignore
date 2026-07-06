@@ -9,3 +9,6 @@ bench/results/
 *.bun-build
 
 .context/
+
+# Claude Code per-user overrides (never commit)
+.claude/settings.local.json
