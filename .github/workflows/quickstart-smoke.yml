@@ -32,17 +32,17 @@ jobs:
         run: |
           set -euo pipefail
           # Register the freshly-built package globally, then link it by NAME into a
-          # scratch project so `bunx @dhanesh/mockstar` resolves to the local build. (Passing a
+          # scratch project so `bunx @dhaneshpurohit/mockstar` resolves to the local build. (Passing a
           # path directly to `bun link` is rejected as an unrecognised dependency format.)
           (cd "${GITHUB_WORKSPACE}" && bun link)
           WORK=$(mktemp -d)
           cd "$WORK"
           echo '{"name":"smoke","version":"0.0.0","private":true}' > package.json
-          bun link @dhanesh/mockstar
-          bunx @dhanesh/mockstar init .
+          bun link @dhaneshpurohit/mockstar
+          bunx @dhaneshpurohit/mockstar init .
           test -f ./mocks/default/example.json
           test -f ./mockstar.config.json
-          bunx @dhanesh/mockstar ./mocks --port 4017 &
+          bunx @dhaneshpurohit/mockstar ./mocks --port 4017 &
           SERVER_PID=$!
           trap "kill ${SERVER_PID} 2>/dev/null || true" EXIT
           for _ in $(seq 1 30); do
@@ -76,10 +76,10 @@ jobs:
           mkdir -p "$SCRATCH"
           cp -r examples/sdet-jest30/. "$SCRATCH/"
           cd "$SCRATCH"
-          # Install the packed @dhanesh/mockstar tarball FIRST so the example's
+          # Install the packed @dhaneshpurohit/mockstar tarball FIRST so the example's
           # dependency is satisfied from the file — the scoped package isn't on the
           # npm registry yet, so a bare `npm install` first would 404 on
-          # `@dhanesh/mockstar@*`. Then install the remaining devDeps.
+          # `@dhaneshpurohit/mockstar@*`. Then install the remaining devDeps.
           npm install --no-audit --no-fund "${GITHUB_WORKSPACE}/mockstar.tgz"
           npm install --no-audit --no-fund
           # Use the example's own test script — it sets NODE_OPTIONS=--experimental-vm-modules

@@ -15,7 +15,7 @@
 
 ## For SDETs
 
-Mockstar ships a library embed (`import { launch } from '@dhanesh/mockstar'`) supported
+Mockstar ships a library embed (`import { launch } from '@dhaneshpurohit/mockstar'`) supported
 across Jest 30, Jest 29, Vitest, and `bun test`. See [docs/SDET.md](./docs/SDET.md)
 + the [`examples/sdet-*`](./examples) directories.
 
@@ -27,7 +27,7 @@ Read [CONTRIBUTING.md](./CONTRIBUTING.md). Maintainers: [docs/TEAM-WORKFLOW.md](
 Mockstar targets three personas equally:
 
 - **SDETs** — library-embed in test suites, ephemeral instances per CI run, deterministic mode
-- **Developers** — `bunx @dhanesh/mockstar ./mocks` with file-watch hot reload
+- **Developers** — `bunx @dhaneshpurohit/mockstar ./mocks` with file-watch hot reload
 - **DevOps** — Docker image in shared staging with per-tenant ConfigMap mounts
 
 > Built on [Hono](https://hono.dev/) on [Bun](https://bun.sh/). Targets p99 < 5ms for static mock responses. See [DECISIONS.md](./docs/DECISIONS.md) for the constraint-first design record.

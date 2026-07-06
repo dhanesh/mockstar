@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import type { HandlerHelpers } from '@dhanesh/mockstar';
+import type { HandlerHelpers } from '@dhaneshpurohit/mockstar';
 
 interface LineItem { sku: string; qty: number; unitPrice: number }
 

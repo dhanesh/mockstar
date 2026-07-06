@@ -10,7 +10,7 @@ Best fit for test suites that want a mock server in-process, no extra daemon.
 
 ```ts
 import { test, expect } from 'bun:test';
-import { launch } from '@dhanesh/mockstar';
+import { launch } from '@dhaneshpurohit/mockstar';
 
 test('user service calls mock correctly', async () => {
   const instance = await launch({
@@ -39,7 +39,7 @@ test('user service calls mock correctly', async () => {
 Best fit for iterating on mocks locally with hot-reload.
 
 ```bash
-bunx @dhanesh/mockstar ./mocks --handlers ./handlers
+bunx @dhaneshpurohit/mockstar ./mocks --handlers ./handlers
 # open http://localhost:3000
 ```
 

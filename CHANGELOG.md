@@ -144,7 +144,7 @@ multi-arch, container-first distribution.
   release pipeline). See `docs/releasing.md`.
 
 ### Changed
-- npm package scoped to `@dhanesh/mockstar`; npm publish is opt-in via the
+- npm package scoped to `@dhaneshpurohit/mockstar`; npm publish is opt-in via the
   `PUBLISH_NPM` repo variable (container/helm/binaries publish regardless).
 - Minimum supported Bun raised to **1.3.0** (pinned toolchain `1.3.14`).
 

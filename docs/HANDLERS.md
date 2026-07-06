@@ -7,7 +7,7 @@ Dynamic mocks delegate to named functions in the `handlers/` directory. Each fil
 ```ts
 // handlers/echo.ts
 import type { Context } from 'hono';
-import type { HandlerHelpers } from '@dhanesh/mockstar';
+import type { HandlerHelpers } from '@dhaneshpurohit/mockstar';
 
 export async function echo(ctx: Context, helpers: HandlerHelpers): Promise<Response> {
   const body = await ctx.req.json().catch(() => ({}));
@@ -40,7 +40,7 @@ Reference it in config:
 ```ts
 import { describe, it, expect } from 'bun:test';
 import { echo } from './echo.ts';
-import { createFaker } from '@dhanesh/mockstar';
+import { createFaker } from '@dhaneshpurohit/mockstar';
 
 it('echoes the request body', async () => {
   // Use the library's faker in deterministic mode for stable assertions.
