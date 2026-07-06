@@ -1,3 +1,10 @@
+## [0.2.2](https://github.com/dhanesh/mockstar/compare/v0.2.1...v0.2.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* **pkg:** add repository/homepage/bugs so provenance validation passes ([c07a6e0](https://github.com/dhanesh/mockstar/commit/c07a6e0c8682c170ce75b5eb84fa0cfb3f1ae32f))
+
 ## [0.2.1](https://github.com/dhanesh/mockstar/compare/v0.2.0...v0.2.1) (2026-07-06)
 
 
