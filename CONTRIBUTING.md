@@ -7,16 +7,18 @@
 1. **Fork + clone.** Node is NOT required — Mockstar builds on Bun.
 2. **Install toolchain.** `curl -fsSL https://bun.sh/install | bash` (≥ the version in `.bun-version`).
 3. **Install deps.** `bun install --frozen-lockfile`
-4. **Run the suite.** `bun test` — full suite completes in under a minute.
-5. **Run the lint + typecheck.** `bun run lint && bun run typecheck`.
-6. **Make your change + a test.** Tests live in `tests/` mirroring `src/`.
-7. **Open a PR.** Use a conventional-commit style title (`fix(proxy): ...`).
+4. **Make your change + a test.** Tests live in `tests/` mirroring `src/`.
+5. **Run the full gate.** `bun run verify` (or `make verify`) — runs lint +
+   typecheck + build + test in one shot and stops on the first failure. This is
+   the single command CI enforces; if it's green locally, the PR checks pass.
+6. **Open a PR.** Use a conventional-commit style title (`fix(proxy): ...`).
 
-PRs are expected to satisfy three gates before merge:
+PRs must be green on `bun run verify` before merge, which is exactly:
 
-- All `bun test` suites green
+- `bun run lint` clean (Biome — lint + format)
 - `bun run typecheck` clean
-- `bun run lint` clean
+- `bun run build` succeeds
+- All `bun test` suites green (full suite completes in under a minute)
 
 The CI workflow `.github/workflows/quickstart-smoke.yml` also runs — it enforces
 the 5-minute persona quickstart SLOs and will catch drift that unit tests miss.

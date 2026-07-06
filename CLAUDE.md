@@ -25,6 +25,7 @@ bun test --watch               # Watch mode
 bun test tests/matching        # Specific test directory
 
 # Quality
+bun run verify                 # Full pre-PR gate: lint + typecheck + build + test (stops on first failure)
 bun run typecheck              # tsc --noEmit
 bun run lint                   # Biome check
 bun run format                 # Biome format --write

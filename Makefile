@@ -63,6 +63,9 @@ lint:  ## Run biome lint check
 format:  ## Run biome format (writes changes)
 	bun run format
 
+verify:  ## Full pre-PR gate: lint + typecheck + build + test (stops on first failure)
+	bun run verify
+
 # ============================================================================
 # Docker
 # ============================================================================
@@ -150,7 +153,7 @@ clean-all: clean docker-stop  ## Full cleanup: above + node_modules + Docker ima
 	@docker rmi -f $(IMAGE) >/dev/null 2>&1 && echo "removed image $(IMAGE)" || echo "no image to remove"
 	@docker rmi -f $(PROXY_IMAGE) >/dev/null 2>&1 && echo "removed image $(PROXY_IMAGE)" || echo "no proxy image to remove"
 
-.PHONY: help install dev run test test-watch bench typecheck lint format \
+.PHONY: help install dev run test test-watch bench typecheck lint format verify \
         docker-build docker-run docker-stop docker-logs docker-shell \
         proxy-install proxy-start proxy-status proxy-uninstall proxy-bench \
         docker-proxy-build docker-proxy-smoke \
