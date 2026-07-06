@@ -1,3 +1,15 @@
+# [0.2.0](https://github.com/dhanesh/mockstar/compare/v0.1.3...v0.2.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* **release:** publish via workflow_call (decouple from tag-push trigger) ([#23](https://github.com/dhanesh/mockstar/issues/23)) ([c8dda75](https://github.com/dhanesh/mockstar/commit/c8dda755ae3fbba1e90d51044471777de47ab72c))
+
+
+### Features
+
+* **openapi:** synthesise schema-derived response bodies on import ([768560f](https://github.com/dhanesh/mockstar/commit/768560f8c0673a59a47327371a32b1626b990fc4))
+
 ## [0.1.3](https://github.com/dhanesh/mockstar/compare/v0.1.2...v0.1.3) (2026-06-23)
 
 
