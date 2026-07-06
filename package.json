@@ -39,6 +39,7 @@
     "bench": "bun run bench/harness.ts",
     "bench:proxy": "bun run bench/proxy.bench.ts",
     "typecheck": "tsc --noEmit",
+    "verify": "bun run lint && bun run typecheck && bun run build && bun run test",
     "lint": "bunx @biomejs/biome check src tests bench",
     "format": "bunx @biomejs/biome format --write src tests bench"
   },
