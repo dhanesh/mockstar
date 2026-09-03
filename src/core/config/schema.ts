@@ -189,7 +189,36 @@ const WebhookSigning = z
     z.discriminatedUnion("mode", [HmacSigning]),
   )
   .superRefine((v, ctx) => {
+    // Future non-HMAC modes (ed25519, oidc, ...) will not carry signedPayload/signatureTemplate —
+    // the checks below are HMAC-specific, so skip them for any shape that lacks those fields.
+    // (A `v.mode !== "hmac"` guard would be the more obvious form, but the union has exactly one
+    // member today, so TypeScript narrows `mode` to the literal "hmac" and rejects that comparison.)
+    if (typeof v.signedPayload !== "string" || typeof v.signatureTemplate !== "string") return;
+
     const fmt = (names: readonly string[]) => names.map((n) => `{${n}}`).join(", ");
+
+    // #30 finding 2: `{{ }}` is the mockstar request-template engine, not the signing-placeholder
+    // syntax — the two namespaces are deliberately disjoint (see scheme.ts header comment). A user
+    // reaching for `{{ body }}` here would otherwise get a silently wrong signature: the spaced
+    // form matches no placeholder regex (renders literally), and the tight `{{body}}` form is
+    // parsed as a legal `{body}` placeholder nested in braces (renders as "{BODY}").  Reject both
+    // before the placeholder-name checks below, which don't see `{{`/`}}` as a name at all.
+    if (v.signedPayload.includes("{{") || v.signedPayload.includes("}}")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signedPayload"],
+        message:
+          "signedPayload uses single-brace placeholders (e.g. {body}), not the {{ }} request-template syntax — did you mean {body} instead of {{ body }}?",
+      });
+    }
+    if (v.signatureTemplate.includes("{{") || v.signatureTemplate.includes("}}")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signatureTemplate"],
+        message:
+          "signatureTemplate uses single-brace placeholders (e.g. {signature}), not the {{ }} request-template syntax — did you mean {signature} instead of {{ signature }}?",
+      });
+    }
 
     const badPayload = unknownPlaceholders(v.signedPayload, SIGNED_PAYLOAD_PLACEHOLDERS);
     if (badPayload.length > 0) {

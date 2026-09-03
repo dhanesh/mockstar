@@ -59,6 +59,10 @@ that get HMAC'd) and `signatureTemplate` (the header value wrapped around the di
 Every field above except `secretRef` is optional and shown at its default, so the block
 reduces to `{ "enabled": true, "secretRef": "..." }` for mockstar's own format.
 
+Using any of `signedPayload`, `signatureTemplate`, `digestEncoding`, or `mode` requires
+repinning `$schema` from `v0.2` to `v0.3` — published minor schemas are immutable, so the
+`v0.2` schema does not know about these fields (see `docs/SCHEMA-HOSTING.md`).
+
 ### Placeholders
 
 Signing placeholders are **single-brace** — they are not the `{{ }}` request-template engine,

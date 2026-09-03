@@ -239,6 +239,80 @@ describe("signing schemes (#30) — discriminated union on mode", () => {
     expect(build).toThrow();
   });
 
+  test("{{ body }} (spaced double-brace) in signedPayload is rejected with guidance to use single-brace", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{{ body }}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/single-brace/);
+  });
+
+  test("{{body}} (tight double-brace) in signedPayload is rejected, not silently accepted as {body}", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{{body}}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/single-brace/);
+  });
+
+  test("{{signature}} in signatureTemplate is rejected with guidance to use single-brace", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signatureTemplate: "{{signature}}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/single-brace/);
+  });
+
+  test("legitimate single-brace forms still parse (signedPayload and signatureTemplate)", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: "{timestamp}.{body}",
+            signatureTemplate: "{algorithm}={signature}",
+          },
+        },
+      ],
+    });
+    const signing = parsed.webhooks?.[0]?.signing;
+    expect(signing?.signedPayload).toBe("{timestamp}.{body}");
+    expect(signing?.signatureTemplate).toBe("{algorithm}={signature}");
+  });
+
   test("inline secrets are still rejected under the union (S3 unchanged)", () => {
     const build = () =>
       MockEntry.parse({
