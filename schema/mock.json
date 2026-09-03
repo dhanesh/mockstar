@@ -675,7 +675,8 @@
                       "properties": {
                         "mode": {
                           "type": "string",
-                          "const": "hmac"
+                          "const": "hmac",
+                          "default": "hmac"
                         },
                         "enabled": {
                           "type": "boolean",
@@ -725,7 +726,6 @@
                         }
                       },
                       "required": [
-                        "mode",
                         "secretRef"
                       ],
                       "additionalProperties": false

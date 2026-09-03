@@ -159,7 +159,7 @@ const SECRET_REF_RE = /^(\{\{\s*env\.[A-Z_][A-Z0-9_]*\s*\}\}|file:.+)$/;
 // when absent, so every pre-existing config parses untouched.
 const HmacSigning = z
   .object({
-    mode: z.literal("hmac"),
+    mode: z.literal("hmac").default("hmac"),
     enabled: z.boolean().default(false),
     algorithm: z.literal("sha256").default("sha256"),
     // S3: secret-ref shape enforced here; inline strings produce a validation error at config-load.
