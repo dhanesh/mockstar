@@ -19,9 +19,9 @@ export interface SigningScheme {
   readonly algorithm: "sha256";
 }
 
-/** Legacy default — Stripe's signed-payload construction. Unchanged from v0.2.x. */
+// Legacy default — Stripe's signed-payload construction. Unchanged from v0.2.x.
 export const DEFAULT_SIGNED_PAYLOAD = "{timestamp}.{body}";
-/** Legacy default — GitHub's prefixed header value. Unchanged from v0.2.x. */
+// Legacy default — GitHub's prefixed header value. Unchanged from v0.2.x.
 export const DEFAULT_SIGNATURE_TEMPLATE = "{algorithm}={signature}";
 
 export const SIGNED_PAYLOAD_PLACEHOLDERS = ["body", "timestamp", "timestampSeconds"] as const;
