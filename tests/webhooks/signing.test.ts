@@ -5,6 +5,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
+import type { Entry } from "../../src/core/config/schema.ts";
 import {
   DEFAULT_SIGNATURE_TEMPLATE,
   DEFAULT_SIGNED_PAYLOAD,
@@ -16,6 +17,7 @@ import {
   verifySignature,
   withinReplayWindow,
 } from "../../src/features/webhooks/signing.ts";
+import { makeTestServer, spawnReceiver, tick, webhookSpec } from "./_helpers.ts";
 
 describe("signing — HMAC-SHA256 (S1, RT-2)", () => {
   test("signature is deterministic for fixed inputs", () => {
@@ -146,5 +148,95 @@ describe("scheme-aware signing (#30)", () => {
 
   test("verifySignature handles malformed base64 without throwing", () => {
     expect(verifySignature("{}", "s", TS, "!!!!", scheme({ digestEncoding: "base64" }))).toBe(false);
+  });
+});
+
+describe("timestamp header follows the scheme (#30)", () => {
+  test("a body-only scheme emits NO timestamp header", async () => {
+    const receiver = spawnReceiver(() => new Response("{}", { status: 200 }));
+    process.env.MOCKSTAR_TEST_SIG_SECRET = "shhh";
+    const entries: Entry[] = [
+      {
+        id: "mock1",
+        match: { method: "POST", path: "/orders", priority: 0 },
+        response: { kind: "static", status: 201, body: { ok: true } },
+        webhooks: [
+          webhookSpec({
+            url: receiver.url,
+            signing: {
+              mode: "hmac",
+              enabled: true,
+              algorithm: "sha256",
+              secretRef: "{{ env.MOCKSTAR_TEST_SIG_SECRET }}",
+              signedPayload: "{body}",
+              signatureTemplate: DEFAULT_SIGNATURE_TEMPLATE,
+              digestEncoding: "hex",
+              signatureHeader: "x-hub-signature-256",
+              timestampHeader: "x-mockstar-timestamp",
+              replayWindowMs: 300_000,
+            },
+          }),
+        ],
+      },
+    ];
+    const { server } = makeTestServer({ entries });
+    await server.hono.fetch(
+      new Request("http://localhost/orders", {
+        method: "POST",
+        body: "{}",
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    await tick(200);
+    receiver.close();
+
+    expect(receiver.hits.length).toBe(1);
+    const headers = receiver.hits[0]?.headers ?? {};
+    expect(headers["x-hub-signature-256"]).toMatch(/^sha256=[0-9a-f]{64}$/);
+    expect(headers["x-mockstar-timestamp"]).toBeUndefined();
+  });
+
+  test("a seconds-based scheme emits a SECONDS timestamp header", async () => {
+    const receiver = spawnReceiver(() => new Response("{}", { status: 200 }));
+    process.env.MOCKSTAR_TEST_SIG_SECRET = "shhh";
+    const entries: Entry[] = [
+      {
+        id: "mock1",
+        match: { method: "POST", path: "/orders", priority: 0 },
+        response: { kind: "static", status: 201, body: { ok: true } },
+        webhooks: [
+          webhookSpec({
+            url: receiver.url,
+            signing: {
+              mode: "hmac",
+              enabled: true,
+              algorithm: "sha256",
+              secretRef: "{{ env.MOCKSTAR_TEST_SIG_SECRET }}",
+              signedPayload: "v0:{timestampSeconds}:{body}",
+              signatureTemplate: "v0={signature}",
+              digestEncoding: "hex",
+              signatureHeader: "x-slack-signature",
+              timestampHeader: "x-slack-request-timestamp",
+              replayWindowMs: 300_000,
+            },
+          }),
+        ],
+      },
+    ];
+    const { server } = makeTestServer({ entries });
+    await server.hono.fetch(
+      new Request("http://localhost/orders", {
+        method: "POST",
+        body: "{}",
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    await tick(200);
+    receiver.close();
+
+    const headers = receiver.hits[0]?.headers ?? {};
+    expect(headers["x-slack-signature"]).toMatch(/^v0=[0-9a-f]{64}$/);
+    // 10 digits, not 13 — seconds, matching what the signature actually covers.
+    expect(headers["x-slack-request-timestamp"]).toMatch(/^\d{10}$/);
   });
 });

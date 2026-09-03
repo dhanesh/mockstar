@@ -3,6 +3,7 @@
 // Satisfies: S1 (signing opt-in), B5 (header channel opt-out per-route), B2 (URL channels)
 
 import type { CompiledTemplate } from "../../core/templating/index.ts";
+import type { DigestEncoding } from "./scheme.ts";
 
 /** Terminal outcome of a delivery — every delivery resolves to exactly one of these. */
 export type DeliveryOutcome =
@@ -13,14 +14,22 @@ export type DeliveryOutcome =
 
 /** Signing config for a single webhook. Off unless explicitly enabled (S1). */
 export interface WebhookSigningSpec {
+  /** Signature mechanism. Only `hmac` in v0.x; the union exists so ed25519/oidc can follow (#30). */
+  mode: "hmac";
   enabled: boolean;
   /** Algorithm — only sha256 supported in v0.x. */
   algorithm: "sha256";
   /** Secret reference: must be `{{ env.NAME }}` form OR a file:// path. Inline strings rejected at config load (S3). */
   secretRef: string;
-  /** Header carrying the hex signature. Default: x-mockstar-signature. */
+  /** Template for the bytes fed to HMAC. Default `{timestamp}.{body}`. */
+  signedPayload: string;
+  /** Template for the signature header VALUE. Default `{algorithm}={signature}`. */
+  signatureTemplate: string;
+  /** Digest encoding. Default `hex`; `base64` for Shopify-style receivers. */
+  digestEncoding: DigestEncoding;
+  /** Header carrying the rendered signature. Default: x-mockstar-signature. */
   signatureHeader: string;
-  /** Header carrying the unix-millis timestamp. Default: x-mockstar-timestamp. */
+  /** Header carrying the timestamp, in the unit the scheme signs. Omitted when the scheme has no timestamp. */
   timestampHeader: string;
   /** Replay window in ms. Default: 300_000 (5 minutes). Receiver should check timestamp delta. */
   replayWindowMs: number;
