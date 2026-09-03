@@ -4,6 +4,12 @@
 // @constraint RT-2 - node:crypto HMAC works in Bun
 
 import { describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
+import {
+  DEFAULT_SIGNATURE_TEMPLATE,
+  DEFAULT_SIGNED_PAYLOAD,
+  type SigningScheme,
+} from "../../src/features/webhooks/scheme.ts";
 import {
   resolveSecret,
   signPayload,
@@ -87,5 +93,58 @@ describe("resolveSecret — S3 secret-source guard", () => {
 
   test("rejects malformed env ref shape", () => {
     expect(() => resolveSecret("{{ env.lowercase }}")).toThrow(/secretRef must be/);
+  });
+});
+
+describe("scheme-aware signing (#30)", () => {
+  const TS = 1_700_000_000_500;
+
+  const scheme = (over: Partial<SigningScheme> = {}): SigningScheme => ({
+    signedPayload: DEFAULT_SIGNED_PAYLOAD,
+    signatureTemplate: DEFAULT_SIGNATURE_TEMPLATE,
+    digestEncoding: "hex",
+    algorithm: "sha256",
+    ...over,
+  });
+
+  test("omitting the scheme reproduces the pre-#30 signature exactly", () => {
+    const legacy = createHmac("sha256", "s").update(`${TS}.{"x":1}`, "utf8").digest("hex");
+    expect(signPayload('{"x":1}', "s", TS)).toBe(legacy);
+  });
+
+  test("{body} signs the raw body — matches a GitHub-style verifier", () => {
+    const expected = createHmac("sha256", "s").update('{"x":1}', "utf8").digest("hex");
+    expect(signPayload('{"x":1}', "s", TS, scheme({ signedPayload: "{body}" }))).toBe(expected);
+  });
+
+  test("Slack's v0 construction is reproducible", () => {
+    const expected = createHmac("sha256", "s").update('v0:1700000000:{"x":1}', "utf8").digest("hex");
+    expect(signPayload('{"x":1}', "s", TS, scheme({ signedPayload: "v0:{timestampSeconds}:{body}" }))).toBe(
+      expected,
+    );
+  });
+
+  test("base64 encoding matches a Shopify-style verifier", () => {
+    const expected = createHmac("sha256", "s").update('{"x":1}', "utf8").digest("base64");
+    expect(
+      signPayload('{"x":1}', "s", TS, scheme({ signedPayload: "{body}", digestEncoding: "base64" })),
+    ).toBe(expected);
+  });
+
+  test("verifySignature round-trips under a non-default scheme", () => {
+    const s = scheme({ signedPayload: "{body}", digestEncoding: "base64" });
+    const sig = signPayload('{"x":1}', "s", TS, s);
+    expect(verifySignature('{"x":1}', "s", TS, sig, s)).toBe(true);
+    expect(verifySignature('{"x":2}', "s", TS, sig, s)).toBe(false);
+  });
+
+  test("verifySignature rejects a signature produced under a DIFFERENT scheme", () => {
+    // This is bug #30 in miniature: right secret, right body, wrong construction.
+    const sig = signPayload('{"x":1}', "s", TS, scheme({ signedPayload: "{body}" }));
+    expect(verifySignature('{"x":1}', "s", TS, sig, scheme())).toBe(false);
+  });
+
+  test("verifySignature handles malformed base64 without throwing", () => {
+    expect(verifySignature("{}", "s", TS, "!!!!", scheme({ digestEncoding: "base64" }))).toBe(false);
   });
 });

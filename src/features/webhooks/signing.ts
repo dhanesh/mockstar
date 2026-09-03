@@ -3,41 +3,68 @@
 // Satisfies: B3 (industry contract — Stripe/GitHub/Slack/Svix shape)
 
 import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  DEFAULT_SIGNATURE_TEMPLATE,
+  DEFAULT_SIGNED_PAYLOAD,
+  type SigningScheme,
+  renderSignedPayload,
+} from "./scheme.ts";
 
 /**
- * Sign a webhook payload.
- *
- * The signed string is `${timestamp}.${rawBody}` (Stripe's pattern). Receivers
- * verify by reconstructing this string with the timestamp from the header,
- * computing HMAC-SHA256 with the shared secret, and comparing constant-time.
- *
- * Replay-window enforcement is the receiver's responsibility — but we emit the
- * timestamp so they CAN enforce it. Our default replay window in WebhookSigningSpec
- * is 300_000ms (5 minutes), matching industry default.
+ * The pre-#30 wire format: Stripe's signed payload, GitHub's header prefix, hex digest.
+ * Used when a caller supplies no scheme, so library embedders calling signPayload/
+ * verifySignature directly keep their v0.2.x behaviour.
  */
-export function signPayload(rawBody: string, secret: string, timestampMs: number): string {
-  const stringToSign = `${timestampMs}.${rawBody}`;
-  return createHmac("sha256", secret).update(stringToSign, "utf8").digest("hex");
+export const LEGACY_SCHEME: SigningScheme = Object.freeze({
+  signedPayload: DEFAULT_SIGNED_PAYLOAD,
+  signatureTemplate: DEFAULT_SIGNATURE_TEMPLATE,
+  digestEncoding: "hex",
+  algorithm: "sha256",
+});
+
+/**
+ * Sign a webhook payload under `scheme`.
+ *
+ * The signed string is `scheme.signedPayload` with {body}/{timestamp}/{timestampSeconds}
+ * substituted; the digest is encoded per `scheme.digestEncoding`. Receivers verify by
+ * reconstructing the same string and comparing constant-time.
+ *
+ * Replay-window enforcement is the receiver's responsibility — but we emit the timestamp
+ * (in the unit the scheme uses, see timestampUnitFor) so they CAN enforce it.
+ */
+export function signPayload(
+  rawBody: string,
+  secret: string,
+  timestampMs: number,
+  scheme: SigningScheme = LEGACY_SCHEME,
+): string {
+  const stringToSign = renderSignedPayload(scheme.signedPayload, { body: rawBody, timestampMs });
+  return createHmac(scheme.algorithm, secret).update(stringToSign, "utf8").digest(scheme.digestEncoding);
 }
 
 /**
- * Verify a signature constant-time. Used by tests; receivers will implement
- * equivalent logic in their own language. Exposed so tests against this module
- * can verify what we sent matches what we documented (S1 + RT-2 evidence).
+ * Verify a signature constant-time under the SAME scheme it was produced with. Used by
+ * tests; receivers will implement equivalent logic in their own language. Exposed so tests
+ * against this module can verify what we sent matches what we documented (S1 + RT-2 evidence).
  *
- * Returns false on length mismatch or timing-safe-compare miss. Never throws.
+ * Returns false on length mismatch, encoding mismatch, or timing-safe-compare miss. Never throws.
  */
 export function verifySignature(
   rawBody: string,
   secret: string,
   timestampMs: number,
-  signatureHex: string,
+  signature: string,
+  scheme: SigningScheme = LEGACY_SCHEME,
 ): boolean {
-  const expected = signPayload(rawBody, secret, timestampMs);
+  const expected = signPayload(rawBody, secret, timestampMs, scheme);
   // timingSafeEqual requires equal-length buffers — different lengths means immediate mismatch.
-  if (expected.length !== signatureHex.length) return false;
+  if (expected.length !== signature.length) return false;
   try {
-    return timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signatureHex, "hex"));
+    const a = Buffer.from(expected, scheme.digestEncoding);
+    const b = Buffer.from(signature, scheme.digestEncoding);
+    // Buffer.from is lenient with malformed input and can shorten silently; re-check.
+    if (a.length !== b.length || a.length === 0) return false;
+    return timingSafeEqual(a, b);
   } catch {
     return false;
   }

@@ -28,4 +28,12 @@ export type { WebhookJournalOptions } from "./journal.ts";
 export { dispatchWebhooks } from "./dispatcher.ts";
 export type { DispatcherDeps, DispatcherTriggerInput } from "./dispatcher.ts";
 
-export { signPayload, verifySignature, withinReplayWindow, resolveSecret } from "./signing.ts";
+export { signPayload, verifySignature, withinReplayWindow, resolveSecret, LEGACY_SCHEME } from "./signing.ts";
+export {
+  DEFAULT_SIGNATURE_TEMPLATE,
+  DEFAULT_SIGNED_PAYLOAD,
+  renderSignatureHeader,
+  renderSignedPayload,
+  timestampUnitFor,
+} from "./scheme.ts";
+export type { DigestEncoding, SigningScheme } from "./scheme.ts";
