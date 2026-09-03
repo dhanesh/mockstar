@@ -40,19 +40,61 @@ URL, body, and header values support the existing Mockstar template engine — `
 
 ## Signing (HMAC-SHA256)
 
-Opt-in per webhook:
+Opt-in per webhook. Two independent axes control the wire format: `signedPayload` (the bytes
+that get HMAC'd) and `signatureTemplate` (the header value wrapped around the digest).
 
 ```json
 "signing": {
   "enabled": true,
   "secretRef": "{{ env.PARTNER_HOOK_SECRET }}",
+  "signedPayload": "{timestamp}.{body}",
+  "signatureTemplate": "{algorithm}={signature}",
+  "digestEncoding": "hex",
   "signatureHeader": "x-mockstar-signature",
   "timestampHeader": "x-mockstar-timestamp",
   "replayWindowMs": 300000
 }
 ```
 
-Receiver verification (Stripe-style):
+Every field above except `secretRef` is optional and shown at its default, so the block
+reduces to `{ "enabled": true, "secretRef": "..." }` for mockstar's own format.
+
+### Placeholders
+
+Signing placeholders are **single-brace** — they are not the `{{ }}` request-template engine,
+which has already run over the url, body and headers by the time signing happens.
+
+| Placeholder | Valid in | Value |
+|---|---|---|
+| `{body}` | `signedPayload` | the rendered request body, exactly as sent |
+| `{timestamp}` | both | signing time in unix **milliseconds** |
+| `{timestampSeconds}` | both | signing time in unix **seconds** |
+| `{signature}` | `signatureTemplate` | the digest, encoded per `digestEncoding` |
+| `{algorithm}` | `signatureTemplate` | literal `sha256` |
+
+`signatureTemplate` must contain `{signature}`; anything else is rejected at config-load,
+as is any placeholder not in this table.
+
+`timestampHeader` is emitted **only** when the scheme references a timestamp, and carries the
+unit the signature actually covers — seconds if the scheme uses only `{timestampSeconds}`,
+milliseconds otherwise.
+
+### Provider cookbook
+
+| Provider | `signedPayload` | `signatureTemplate` | `digestEncoding` | `signatureHeader` |
+|---|---|---|---|---|
+| mockstar (default) | `{timestamp}.{body}` | `{algorithm}={signature}` | `hex` | `x-mockstar-signature` |
+| GitHub | `{body}` | `{algorithm}={signature}` | `hex` | `x-hub-signature-256` |
+| Slack | `v0:{timestampSeconds}:{body}` | `v0={signature}` | `hex` | `x-slack-signature` |
+| Stripe | `{timestampSeconds}.{body}` | `t={timestampSeconds},v1={signature}` | `hex` | `stripe-signature` |
+| Shopify | `{body}` | `{signature}` | `base64` | `x-shopify-hmac-sha256` |
+| Razorpay | `{body}` | `{signature}` | `hex` | `x-razorpay-signature` |
+
+Each row is covered by an executable test in `tests/webhooks/provider-fidelity.test.ts`,
+which verifies the delivered header with receiver code taken from that provider's own docs.
+For Slack, also set `"timestampHeader": "x-slack-request-timestamp"`.
+
+### Receiver verification (mockstar default format)
 
 ```js
 const stringToSign = `${req.headers['x-mockstar-timestamp']}.${rawBody}`;
@@ -61,6 +103,12 @@ const provided = req.headers['x-mockstar-signature'].replace(/^sha256=/, '');
 if (!crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(provided, 'hex'))) reject();
 if (Date.now() - Number(req.headers['x-mockstar-timestamp']) > 300_000) reject();
 ```
+
+### Modes
+
+`signing.mode` selects the mechanism and defaults to `"hmac"` — the only one implemented in
+v0.x. It exists so asymmetric (ed25519) and OIDC-bearer modes can be added as new union
+members without another breaking change. Omit it unless a future release documents otherwise.
 
 `secretRef` MUST be one of:
 - `{{ env.NAME }}` — env var, read per delivery

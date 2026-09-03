@@ -1,5 +1,6 @@
 // Validates: B3 (industry contract), S1 (signing opt-in)
 // @constraint B3 - a delivery signed for provider X verifies under X's documented algorithm
+// @constraint S1 - signing is opt-in per webhook
 //
 // Each case reimplements the receiver-side check from the named provider's docs and asserts
 // mockstar's delivered header passes it. Closing evidence for #30.
