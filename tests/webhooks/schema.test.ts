@@ -111,3 +111,144 @@ describe("MockEntry accepts webhooks[] as additive field (RT-8)", () => {
     ).toThrow();
   });
 });
+
+describe("signing schemes (#30) — discriminated union on mode", () => {
+  test("a config with no `mode` still parses, and defaults reproduce v0.2.x behaviour", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: { enabled: true, secretRef: "{{ env.SECRET_X }}" },
+        },
+      ],
+    });
+    const signing = parsed.webhooks?.[0]?.signing;
+    expect(signing?.mode).toBe("hmac");
+    expect(signing?.signedPayload).toBe("{timestamp}.{body}");
+    expect(signing?.signatureTemplate).toBe("{algorithm}={signature}");
+    expect(signing?.digestEncoding).toBe("hex");
+  });
+
+  test("an explicit mode: 'hmac' parses identically", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: { mode: "hmac", enabled: true, secretRef: "{{ env.SECRET_X }}" },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.mode).toBe("hmac");
+  });
+
+  test("a GitHub-shaped scheme round-trips", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: "{body}",
+            signatureHeader: "x-hub-signature-256",
+          },
+        },
+      ],
+    });
+    const signing = parsed.webhooks?.[0]?.signing;
+    expect(signing?.signedPayload).toBe("{body}");
+    expect(signing?.signatureHeader).toBe("x-hub-signature-256");
+  });
+
+  test("digestEncoding accepts base64 (Shopify)", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", digestEncoding: "base64" },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.digestEncoding).toBe("base64");
+  });
+
+  test("an unknown placeholder in signedPayload is rejected, and the message names it", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{nonce}.{body}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/\{nonce\}/);
+  });
+
+  test("a signatureTemplate that omits {signature} is rejected", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signatureTemplate: "sha256=" },
+          },
+        ],
+      });
+    expect(build).toThrow(/\{signature\}/);
+  });
+
+  test("an unknown mode is rejected", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { mode: "ed25519", enabled: true, secretRef: "{{ env.SECRET_X }}" },
+          },
+        ],
+      });
+    expect(build).toThrow();
+  });
+
+  test("inline secrets are still rejected under the union (S3 unchanged)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          { id: "w", url: "https://example.test/hook", signing: { enabled: true, secretRef: "plain" } },
+        ],
+      });
+    expect(build).toThrow();
+  });
+});

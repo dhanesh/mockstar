@@ -5,6 +5,14 @@
 
 import { z } from "zod";
 
+import {
+  DEFAULT_SIGNATURE_TEMPLATE,
+  DEFAULT_SIGNED_PAYLOAD,
+  SIGNATURE_TEMPLATE_PLACEHOLDERS,
+  SIGNED_PAYLOAD_PLACEHOLDERS,
+  unknownPlaceholders,
+} from "../../features/webhooks/scheme.ts";
+
 // -- Request matching predicates --
 
 export const MatchMethod = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "*"]);
@@ -145,8 +153,13 @@ export const ScenarioRule = z
 // Secret references must be `{{ env.NAME }}` or `file:/path` — inline strings rejected (S3).
 const SECRET_REF_RE = /^(\{\{\s*env\.[A-Z_][A-Z0-9_]*\s*\}\}|file:.+)$/;
 
-const WebhookSigning = z
+// #30: the signature wire format is two independent axes — what gets signed, and what the
+// header value looks like. Modelled as a discriminated union on `mode` so future mechanisms
+// (ed25519, oidc) slot in as new members without another breaking change. `mode` is injected
+// when absent, so every pre-existing config parses untouched.
+const HmacSigning = z
   .object({
+    mode: z.literal("hmac"),
     enabled: z.boolean().default(false),
     algorithm: z.literal("sha256").default("sha256"),
     // S3: secret-ref shape enforced here; inline strings produce a validation error at config-load.
@@ -154,11 +167,57 @@ const WebhookSigning = z
       message:
         "webhook signing.secretRef must be `{{ env.NAME }}` or `file:/path`; inline secrets rejected (S3)",
     }),
+    // Bytes fed to HMAC. Default is Stripe's construction — v0.2.x behaviour.
+    signedPayload: z.string().min(1).default(DEFAULT_SIGNED_PAYLOAD),
+    // Header VALUE wrapped around the digest. Default is GitHub's prefix — v0.2.x behaviour.
+    signatureTemplate: z.string().min(1).default(DEFAULT_SIGNATURE_TEMPLATE),
+    digestEncoding: z.enum(["hex", "base64"]).default("hex"),
     signatureHeader: z.string().min(1).default("x-mockstar-signature"),
     timestampHeader: z.string().min(1).default("x-mockstar-timestamp"),
     replayWindowMs: z.number().int().positive().default(300_000),
   })
   .strict();
+
+const WebhookSigning = z
+  .preprocess(
+    (raw) =>
+      raw !== null && typeof raw === "object" && !Array.isArray(raw) && !("mode" in raw)
+        ? { ...(raw as Record<string, unknown>), mode: "hmac" }
+        : raw,
+    // Zod 3: discriminatedUnion members MUST be bare ZodObjects — a .superRefine() here
+    // would yield a ZodEffects and throw at construction. Cross-field checks go on the wrapper.
+    z.discriminatedUnion("mode", [HmacSigning]),
+  )
+  .superRefine((v, ctx) => {
+    const fmt = (names: readonly string[]) => names.map((n) => `{${n}}`).join(", ");
+
+    const badPayload = unknownPlaceholders(v.signedPayload, SIGNED_PAYLOAD_PLACEHOLDERS);
+    if (badPayload.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signedPayload"],
+        message: `unknown placeholder(s) ${fmt(badPayload)} — allowed: ${fmt(SIGNED_PAYLOAD_PLACEHOLDERS)}`,
+      });
+    }
+
+    const badTemplate = unknownPlaceholders(v.signatureTemplate, SIGNATURE_TEMPLATE_PLACEHOLDERS);
+    if (badTemplate.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signatureTemplate"],
+        message: `unknown placeholder(s) ${fmt(badTemplate)} — allowed: ${fmt(SIGNATURE_TEMPLATE_PLACEHOLDERS)}`,
+      });
+    }
+
+    if (!v.signatureTemplate.includes("{signature}")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signatureTemplate"],
+        message:
+          "signatureTemplate must contain {signature} — otherwise the signature header carries no digest",
+      });
+    }
+  });
 
 const WebhookRetry = z
   .object({
