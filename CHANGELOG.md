@@ -1,3 +1,23 @@
+# [0.3.0](https://github.com/dhanesh/mockstar/compare/v0.2.2...v0.3.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **webhooks:** close signing-config validation gaps from review round 2 ([62f6cf3](https://github.com/dhanesh/mockstar/commit/62f6cf37b8e157494076257213ebbcde56783cf0)), closes [#30](https://github.com/dhanesh/mockstar/issues/30) [#30](https://github.com/dhanesh/mockstar/issues/30)
+* **webhooks:** convert JSDoc comments to line comments for RT-9 compliance ([70840e4](https://github.com/dhanesh/mockstar/commit/70840e4f6e1e0ac16e58611a94e818c75425fa18))
+* **webhooks:** correct stale signing docs, reject {{ }} in signing templates, guard superRefine for future modes ([f62b1b0](https://github.com/dhanesh/mockstar/commit/f62b1b0f5b30d3091b791820ef796f03e36b76e4)), closes [#30](https://github.com/dhanesh/mockstar/issues/30)
+* **webhooks:** give signing.mode a default so the emitted JSON Schema matches parse behaviour ([9a86781](https://github.com/dhanesh/mockstar/commit/9a8678131b88271671282fdd4a600d95edb22f15)), closes [#30](https://github.com/dhanesh/mockstar/issues/30)
+* **webhooks:** tighten [#30](https://github.com/dhanesh/mockstar/issues/30) signing-scheme validation per code review ([b0b0ff7](https://github.com/dhanesh/mockstar/commit/b0b0ff752e358e35ff3965e7ec6c45df9ab8899d))
+
+
+### Features
+
+* **webhooks:** add signature-scheme placeholder engine ([4c8f01c](https://github.com/dhanesh/mockstar/commit/4c8f01c23289d097a37474018eb14bd0b3fdc225)), closes [#30](https://github.com/dhanesh/mockstar/issues/30)
+* **webhooks:** allow suppressing the standalone timestamp header ([#30](https://github.com/dhanesh/mockstar/issues/30)) ([661ec59](https://github.com/dhanesh/mockstar/commit/661ec5903084a8a684b5c34948ae40afe91b6bff))
+* **webhooks:** emit the configured signature wire format ([762a794](https://github.com/dhanesh/mockstar/commit/762a7947455ae68bf8ff5f78dfe5ae3e08741a18)), closes [#30](https://github.com/dhanesh/mockstar/issues/30)
+* **webhooks:** make signPayload/verifySignature scheme-aware ([f5c69ef](https://github.com/dhanesh/mockstar/commit/f5c69ef53367f9f73c06e25770516d2e91e3800e)), closes [#30](https://github.com/dhanesh/mockstar/issues/30)
+* **webhooks:** model signing as a discriminated union on mode ([2890f36](https://github.com/dhanesh/mockstar/commit/2890f3649e9086856b44c517cd5e49c1e6c84f15)), closes [#30](https://github.com/dhanesh/mockstar/issues/30)
+
 ## [0.2.2](https://github.com/dhanesh/mockstar/compare/v0.2.1...v0.2.2) (2026-07-06)
 
 

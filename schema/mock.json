@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://schemas.mockstar.dev/v0.2/mock.json",
-  "title": "Mockstar mocks file (v0.2)",
+  "$id": "https://schemas.mockstar.dev/v0.3/mock.json",
+  "title": "Mockstar mocks file (v0.3)",
   "description": "Root schema for a Mockstar mocks file. This URL pins to the matching minor version of mockstar — see docs/SCHEMA-HOSTING.md for the versioning contract.",
   "type": "object",
   "properties": {
