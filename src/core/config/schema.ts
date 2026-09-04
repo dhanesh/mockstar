@@ -197,13 +197,17 @@ const WebhookSigning = z
 
     const fmt = (names: readonly string[]) => names.map((n) => `{${n}}`).join(", ");
 
-    // #30 finding 2: `{{ }}` is the mockstar request-template engine, not the signing-placeholder
-    // syntax — the two namespaces are deliberately disjoint (see scheme.ts header comment). A user
-    // reaching for `{{ body }}` here would otherwise get a silently wrong signature: the spaced
-    // form matches no placeholder regex (renders literally), and the tight `{{body}}` form is
-    // parsed as a legal `{body}` placeholder nested in braces (renders as "{BODY}").  Reject both
-    // before the placeholder-name checks below, which don't see `{{`/`}}` as a name at all.
-    if (v.signedPayload.includes("{{") || v.signedPayload.includes("}}")) {
+    // #30 finding 3: `{{` is the mockstar request-template engine's opening delimiter, not the
+    // signing-placeholder syntax — the two namespaces are deliberately disjoint (see scheme.ts
+    // header comment). A user reaching for `{{ body }}` here would otherwise get a silently wrong
+    // signature: the spaced form matches no placeholder regex (renders literally), and the tight
+    // `{{body}}` form is parsed as a legal `{body}` placeholder nested in braces (renders as
+    // "{BODY}"). We check ONLY for `{{`, not `}}` — a legitimate JSON envelope such as
+    // `{"t":{timestamp},"b":{body}}` ends in `}}` (an object's closing brace immediately followed
+    // by a placeholder's closing brace) without the author ever having written `{{ }}` templating,
+    // and a `}}` check would reject that valid, provider-agnostic use case.
+    const signedPayloadHasDoubleBrace = v.signedPayload.includes("{{");
+    if (signedPayloadHasDoubleBrace) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["signedPayload"],
@@ -211,7 +215,8 @@ const WebhookSigning = z
           "signedPayload uses single-brace placeholders (e.g. {body}), not the {{ }} request-template syntax — did you mean {body} instead of {{ body }}?",
       });
     }
-    if (v.signatureTemplate.includes("{{") || v.signatureTemplate.includes("}}")) {
+    const signatureTemplateHasDoubleBrace = v.signatureTemplate.includes("{{");
+    if (signatureTemplateHasDoubleBrace) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["signatureTemplate"],
@@ -220,31 +225,55 @@ const WebhookSigning = z
       });
     }
 
-    const badPayload = unknownPlaceholders(v.signedPayload, SIGNED_PAYLOAD_PLACEHOLDERS);
-    if (badPayload.length > 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["signedPayload"],
-        message: `unknown placeholder(s) ${fmt(badPayload)} — allowed: ${fmt(SIGNED_PAYLOAD_PLACEHOLDERS)}`,
-      });
+    // #30 finding 1: unknownPlaceholders() now scans more broadly than substitution does (see its
+    // doc comment in scheme.ts), so it already catches the SPACED double-brace form on its own
+    // (`{{ body }}`'s inner span is " body ", not an allowed name) — but not the TIGHT form
+    // (`{{body}}`'s inner span is "body", a legal name). The `{{` guard above is still required
+    // for the tight form. Skip the placeholder-name check (and, for signedPayload, the {body}
+    // presence check below) whenever the `{{` guard already fired for that same field: that
+    // message is the more actionable one, and re-running these checks on a `{{ ... }}` value would
+    // just pile a second, confusing complaint about the same underlying mistake.
+    if (!signedPayloadHasDoubleBrace) {
+      const badPayload = unknownPlaceholders(v.signedPayload, SIGNED_PAYLOAD_PLACEHOLDERS);
+      if (badPayload.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signedPayload"],
+          message: `unknown placeholder(s) ${fmt(badPayload)} — allowed: ${fmt(SIGNED_PAYLOAD_PLACEHOLDERS)}`,
+        });
+      }
+
+      // #30 finding 2: a signedPayload with no {body} reference HMACs a constant — the same
+      // digest on every delivery, covering no request content, delivered under a header the
+      // receiver is told to trust. A signature that authenticates nothing is worse than no
+      // signature, because it looks correct. Mirrors the {signature} requirement below.
+      if (!v.signedPayload.includes("{body}")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signedPayload"],
+          message: "signedPayload must contain {body} — otherwise the signature covers no request content",
+        });
+      }
     }
 
-    const badTemplate = unknownPlaceholders(v.signatureTemplate, SIGNATURE_TEMPLATE_PLACEHOLDERS);
-    if (badTemplate.length > 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["signatureTemplate"],
-        message: `unknown placeholder(s) ${fmt(badTemplate)} — allowed: ${fmt(SIGNATURE_TEMPLATE_PLACEHOLDERS)}`,
-      });
-    }
+    if (!signatureTemplateHasDoubleBrace) {
+      const badTemplate = unknownPlaceholders(v.signatureTemplate, SIGNATURE_TEMPLATE_PLACEHOLDERS);
+      if (badTemplate.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signatureTemplate"],
+          message: `unknown placeholder(s) ${fmt(badTemplate)} — allowed: ${fmt(SIGNATURE_TEMPLATE_PLACEHOLDERS)}`,
+        });
+      }
 
-    if (!v.signatureTemplate.includes("{signature}")) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["signatureTemplate"],
-        message:
-          "signatureTemplate must contain {signature} — otherwise the signature header carries no digest",
-      });
+      if (!v.signatureTemplate.includes("{signature}")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signatureTemplate"],
+          message:
+            "signatureTemplate must contain {signature} — otherwise the signature header carries no digest",
+        });
+      }
     }
   });
 

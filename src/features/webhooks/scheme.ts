@@ -34,13 +34,25 @@ export const SIGNATURE_TEMPLATE_PLACEHOLDERS = [
 
 const PLACEHOLDER_RE = /\{([A-Za-z][A-Za-z0-9]*)\}/g;
 
+// #30 finding 1: detection is deliberately WIDER than substitution. PLACEHOLDER_RE above only
+// ever matches an exact, well-formed `{name}` token — that's correct for `substitute()`, which
+// must leave anything it doesn't recognise untouched (see the substitute() doc comment). But it
+// means a near-miss like "{ body }" (a stray space — the habit an author brings from mockstar's
+// own spaced `{{ }}` template syntax) or a typo like "{time_stamp}" never matches PLACEHOLDER_RE
+// either, so if detection reused it, the near-miss would be invisible to validation, parse
+// cleanly, and get signed as literal text — silently producing a signature that authenticates
+// nothing recognisable. So detection scans for ANY `{...}` span (no name-shape restriction) and
+// flags whatever is inside unless it is an allowed name exactly. Do NOT collapse this back to
+// PLACEHOLDER_RE — that reintroduces the exact bug this comment is warning about.
+const UNKNOWN_PLACEHOLDER_SCAN_RE = /\{[^{}]*\}/g;
+
 /** Names appearing in `template` that are not in `allowed`, de-duplicated, first-seen order. */
 export function unknownPlaceholders(template: string, allowed: readonly string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const match of template.matchAll(PLACEHOLDER_RE)) {
-    const name = match[1];
-    if (!name || allowed.includes(name) || seen.has(name)) continue;
+  for (const match of template.matchAll(UNKNOWN_PLACEHOLDER_SCAN_RE)) {
+    const name = match[0].slice(1, -1);
+    if (allowed.includes(name) || seen.has(name)) continue;
     seen.add(name);
     out.push(name);
   }

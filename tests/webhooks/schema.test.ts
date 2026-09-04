@@ -313,6 +313,99 @@ describe("signing schemes (#30) — discriminated union on mode", () => {
     expect(signing?.signatureTemplate).toBe("{algorithm}={signature}");
   });
 
+  test("v0:{timestampSeconds}:{body} (Slack shape) is accepted", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: "v0:{timestampSeconds}:{body}",
+          },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.signedPayload).toBe("v0:{timestampSeconds}:{body}");
+  });
+
+  test('a JSON-envelope signedPayload ({"t":{timestamp},"b":{body}}) is accepted — {{ guard is {{ only, not }}', () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: '{"t":{timestamp},"b":{body}}',
+          },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.signedPayload).toBe('{"t":{timestamp},"b":{body}}');
+  });
+
+  test("{ body } (spaced single-brace) in signedPayload is rejected as an unknown placeholder", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{ body }" },
+          },
+        ],
+      });
+    expect(build).toThrow(/unknown placeholder/);
+    // Must NOT be reported as a {{ }} double-brace mistake — it is single-brace, just spaced.
+    expect(build).not.toThrow(/single-brace/);
+  });
+
+  test("{time_stamp}.{body} (typo'd placeholder name) in signedPayload is rejected as unknown", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{time_stamp}.{body}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/unknown placeholder\(s\) \{time_stamp\}/);
+  });
+
+  test("a signedPayload that never references {body} is rejected (#30 finding 2)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "static-nothing" },
+          },
+        ],
+      });
+    expect(build).toThrow(/signedPayload must contain \{body\}/);
+  });
+
   test("inline secrets are still rejected under the union (S3 unchanged)", () => {
     const build = () =>
       MockEntry.parse({
