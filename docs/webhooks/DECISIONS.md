@@ -94,9 +94,19 @@ Three shapes were considered:
    unreachable at any amount of template cleverness.
 
 The container is a Zod **discriminated union on `mode`**, with `"hmac"` as the only member and
-injected when absent. Adding `ed25519` or `oidc` later is a new union member reusing
-`signedPayload`/`signatureTemplate` verbatim — no second breaking change, and no repeat of the
-"one provider's convention baked into the core" mistake in a second mechanism. This also
+injected when absent.
+
+What that buys is a stable **config contract**, not pre-wired code. A signing block written
+today — with no `mode` key — keeps meaning HMAC after a second mechanism lands, so no mock file
+has to change twice. That is the whole claim, and it is worth being precise about, because the
+mechanism itself is not free: adding `ed25519` or `oidc` means a new union member carrying its
+own fields, unionising `WebhookSigningSpec`, and branching in `compile.ts` and the dispatcher.
+A new mechanism needs new logic. Nor would such a member simply reuse `signedPayload` /
+`signatureTemplate` — Ed25519 has no `algorithm` prefix to template, and PayPal-style RSA signs
+`transmissionId|timestamp|webhookId|crc32(body)`, a construction `signedPayload` cannot express.
+
+The union's value is that none of that churn reaches existing config files, and that a second
+mechanism cannot repeat the "one provider's convention baked into the core" mistake. This also
 follows the precedent set in `TIER2.md`, which chose generic `{{ id("order") }}` over
 `{{ razorpay.id("order") }}` for the same provider-neutrality reason.
 
