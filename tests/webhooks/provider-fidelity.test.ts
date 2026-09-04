@@ -118,6 +118,9 @@ describe("B3 — Stripe (stripe-signature)", () => {
       signedPayload: "{timestampSeconds}.{body}",
       signatureTemplate: "t={timestampSeconds},v1={signature}",
       signatureHeader: "stripe-signature",
+      // Stripe carries its timestamp inside the signature header itself (the `t=` field) —
+      // it has no separate timestamp header, so the cookbook suppresses the standalone one.
+      timestampHeader: null,
     });
     // Receiver code from Stripe's signature-verification docs: split the header, rebuild
     // signed_payload as `${t}.${body}`, compare v1.
@@ -126,6 +129,8 @@ describe("B3 — Stripe (stripe-signature)", () => {
     expect(parts.t).toMatch(/^\d{10}$/);
     const expected = createHmac("sha256", SECRET).update(`${parts.t}.${hit.body}`, "utf8").digest("hex");
     expect(parts.v1).toBe(expected);
+    // No separate x-mockstar-timestamp — the timestamp lives only inside stripe-signature.
+    expect(hit.headers["x-mockstar-timestamp"]).toBeUndefined();
   });
 });
 

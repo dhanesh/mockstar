@@ -715,8 +715,15 @@
                           "default": "x-mockstar-signature"
                         },
                         "timestampHeader": {
-                          "type": "string",
-                          "minLength": 1,
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
                           "default": "x-mockstar-timestamp"
                         },
                         "replayWindowMs": {

@@ -29,8 +29,13 @@ export interface WebhookSigningSpec {
   digestEncoding: DigestEncoding;
   /** Header carrying the rendered signature. Default: x-mockstar-signature. */
   signatureHeader: string;
-  /** Header carrying the timestamp, in the unit the scheme signs. Omitted when the scheme has no timestamp. */
-  timestampHeader: string;
+  /**
+   * Header carrying the timestamp, in the unit the scheme signs. `null` means: never emit a
+   * standalone timestamp header (e.g. Stripe carries its timestamp inside the signature header
+   * itself). Independently, no header is emitted when the scheme signs no timestamp at all,
+   * regardless of this field — see `timestampUnitFor` in scheme.ts.
+   */
+  timestampHeader: string | null;
   /** Replay window in ms. Default: 300_000 (5 minutes). Receiver should check timestamp delta. */
   replayWindowMs: number;
 }

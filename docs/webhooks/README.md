@@ -83,6 +83,21 @@ as is any placeholder not in this table.
 unit the signature actually covers — seconds if the scheme uses only `{timestampSeconds}`,
 milliseconds otherwise.
 
+Set `"timestampHeader": null` to suppress the standalone timestamp header entirely — for a
+provider like Stripe, whose timestamp already travels inside the signature header itself
+(`t=...,v1=...`), a separate `x-mockstar-timestamp` would just be a stray duplicate. The
+opposite direction — asking for a timestamp header on a scheme that signs no timestamp at all
+— stays unreachable by design: a timestamp the signature doesn't cover isn't authenticated (see
+the warning below), so mockstar won't hand you one to rely on.
+
+> **Warning:** a timestamp referenced in `signatureTemplate` but **not** in `signedPayload` is
+> not authenticated — it isn't covered by the HMAC digest, so anyone on the wire can rewrite it
+> and the signature still verifies. Receivers must not trust such a timestamp for replay
+> decisions. (`signedPayload: "{timestamp}.{body}"` with a matching `{timestamp}`/
+> `{timestampSeconds}` in `signatureTemplate` is the authenticated shape; a `signatureTemplate`
+> that references a timestamp placeholder absent from `signedPayload` parses but is not safe to
+> rely on for replay protection.)
+
 ### Provider cookbook
 
 | Provider | `signedPayload` | `signatureTemplate` | `digestEncoding` | `signatureHeader` |
@@ -96,7 +111,9 @@ milliseconds otherwise.
 
 Each row is covered by an executable test in `tests/webhooks/provider-fidelity.test.ts`,
 which verifies the delivered header with receiver code taken from that provider's own docs.
-For Slack, also set `"timestampHeader": "x-slack-request-timestamp"`.
+For Slack, also set `"timestampHeader": "x-slack-request-timestamp"`. For Stripe, also set
+`"timestampHeader": null` — its timestamp travels inside `stripe-signature` itself, so mockstar
+should not additionally emit `x-mockstar-timestamp`.
 
 ### Receiver verification (mockstar default format)
 

@@ -173,9 +173,10 @@ async function performAttempt(
     );
     // Emit the standalone timestamp header only when the scheme references one, and in the
     // unit it signs — a millisecond header beside a seconds-based signature is precisely the
-    // mismatch #30 was about.
+    // mismatch #30 was about. `timestampHeader: null` additionally suppresses it outright
+    // (e.g. Stripe carries its timestamp inside the signature header, not a separate one).
     const unit = timestampUnitFor(scheme);
-    if (unit !== null) {
+    if (unit !== null && spec.signing.timestampHeader !== null) {
       const value = unit === "s" ? Math.floor(timestampMs / 1000) : timestampMs;
       renderedHeaders.set(spec.signing.timestampHeader, String(value));
     }

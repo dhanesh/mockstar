@@ -173,7 +173,12 @@ const HmacSigning = z
     signatureTemplate: z.string().min(1).default(DEFAULT_SIGNATURE_TEMPLATE),
     digestEncoding: z.enum(["hex", "base64"]).default("hex"),
     signatureHeader: z.string().min(1).default("x-mockstar-signature"),
-    timestampHeader: z.string().min(1).default("x-mockstar-timestamp"),
+    // null = never emit a standalone timestamp header (e.g. Stripe carries its timestamp
+    // inside the signature header itself; a separate x-mockstar-timestamp would be a stray
+    // duplicate). The opposite direction — a timestamp header for a scheme that signs no
+    // timestamp at all — stays unreachable: an unsigned timestamp is not trustworthy (see
+    // docs/webhooks/README.md's placeholder-section warning).
+    timestampHeader: z.string().min(1).nullable().default("x-mockstar-timestamp"),
     replayWindowMs: z.number().int().positive().default(300_000),
   })
   .strict();
