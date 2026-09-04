@@ -48,6 +48,11 @@ export function signPayload(
  * against this module can verify what we sent matches what we documented (S1 + RT-2 evidence).
  *
  * Returns false on length mismatch, encoding mismatch, or timing-safe-compare miss. Never throws.
+ *
+ * This helper exists for tests and receiver-side reuse and is **not hardened for adversarial
+ * input**: in particular, `Buffer.from(x, "base64")` silently discards non-canonical trailing
+ * bits, so a non-canonical base64 variant can decode to the same bytes and compare equal. Real
+ * receivers should compare the encoded strings themselves, not just the decoded buffers.
  */
 export function verifySignature(
   rawBody: string,
@@ -56,10 +61,10 @@ export function verifySignature(
   signature: string,
   scheme: SigningScheme = LEGACY_SCHEME,
 ): boolean {
-  const expected = signPayload(rawBody, secret, timestampMs, scheme);
-  // timingSafeEqual requires equal-length buffers — different lengths means immediate mismatch.
-  if (expected.length !== signature.length) return false;
   try {
+    const expected = signPayload(rawBody, secret, timestampMs, scheme);
+    // timingSafeEqual requires equal-length buffers — different lengths means immediate mismatch.
+    if (expected.length !== signature.length) return false;
     const a = Buffer.from(expected, scheme.digestEncoding);
     const b = Buffer.from(signature, scheme.digestEncoding);
     // Buffer.from is lenient with malformed input and can shorten silently; re-check.

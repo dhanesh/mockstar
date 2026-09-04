@@ -5,13 +5,20 @@
 // Each case reimplements the receiver-side check from the named provider's docs and asserts
 // mockstar's delivered header passes it. Closing evidence for #30.
 
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
 import type { Entry } from "../../src/core/config/schema.ts";
 import { makeTestServer, spawnReceiver, tick, webhookSpec } from "./_helpers.ts";
 
 const SECRET = "provider-shared-secret";
-process.env.MOCKSTAR_TEST_PROVIDER_SECRET = SECRET;
+
+beforeAll(() => {
+  process.env.MOCKSTAR_TEST_PROVIDER_SECRET = SECRET;
+});
+
+afterAll(() => {
+  delete process.env.MOCKSTAR_TEST_PROVIDER_SECRET;
+});
 
 let cleanups: Array<() => void> = [];
 afterEach(() => {

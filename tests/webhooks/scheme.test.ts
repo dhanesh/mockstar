@@ -97,6 +97,12 @@ describe("unknownPlaceholders", () => {
   test("{body} is not valid in a signature header template", () => {
     expect(unknownPlaceholders("{body}", SIGNATURE_TEMPLATE_PLACEHOLDERS)).toEqual(["body"]);
   });
+
+  test("returns [] when every placeholder is allowed (SIGNATURE_TEMPLATE_PLACEHOLDERS)", () => {
+    expect(
+      unknownPlaceholders("t={timestampSeconds},v1={signature}", SIGNATURE_TEMPLATE_PLACEHOLDERS),
+    ).toEqual([]);
+  });
 });
 
 describe("timestampUnitFor", () => {

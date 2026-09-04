@@ -1,5 +1,10 @@
 # Webhook Signing Schemes (discriminated union) Implementation Plan
 
+> **Historical planning artifact.** This is a point-in-time implementation plan; code review
+> found several defects in it during implementation. It is not current guidance — the
+> authoritative record of the design decisions made here is `docs/webhooks/DECISIONS.md`, and
+> details below may have been superseded during implementation.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the webhook signature wire-format configurable so a mockstar webhook can emit bytes a real GitHub / Slack / Stripe / Shopify / Razorpay receiver will actually verify, without breaking a single existing config.
