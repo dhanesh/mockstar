@@ -5,6 +5,15 @@
 
 import { z } from "zod";
 
+import {
+  DEFAULT_SIGNATURE_TEMPLATE,
+  DEFAULT_SIGNED_PAYLOAD,
+  SIGNATURE_TEMPLATE_PLACEHOLDERS,
+  SIGNED_PAYLOAD_PLACEHOLDERS,
+  hasUnbalancedPlaceholder,
+  unknownPlaceholders,
+} from "../../features/webhooks/scheme.ts";
+
 // -- Request matching predicates --
 
 export const MatchMethod = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "*"]);
@@ -145,8 +154,13 @@ export const ScenarioRule = z
 // Secret references must be `{{ env.NAME }}` or `file:/path` — inline strings rejected (S3).
 const SECRET_REF_RE = /^(\{\{\s*env\.[A-Z_][A-Z0-9_]*\s*\}\}|file:.+)$/;
 
-const WebhookSigning = z
+// #30: the signature wire format is two independent axes — what gets signed, and what the
+// header value looks like. Modelled as a discriminated union on `mode` so future mechanisms
+// (ed25519, oidc) slot in as new members without another breaking change. `mode` is injected
+// when absent, so every pre-existing config parses untouched.
+const HmacSigning = z
   .object({
+    mode: z.literal("hmac").default("hmac"),
     enabled: z.boolean().default(false),
     algorithm: z.literal("sha256").default("sha256"),
     // S3: secret-ref shape enforced here; inline strings produce a validation error at config-load.
@@ -154,11 +168,169 @@ const WebhookSigning = z
       message:
         "webhook signing.secretRef must be `{{ env.NAME }}` or `file:/path`; inline secrets rejected (S3)",
     }),
+    // Bytes fed to HMAC. Default is Stripe's construction — v0.2.x behaviour.
+    signedPayload: z.string().min(1).default(DEFAULT_SIGNED_PAYLOAD),
+    // Header VALUE wrapped around the digest. Default is GitHub's prefix — v0.2.x behaviour.
+    signatureTemplate: z.string().min(1).default(DEFAULT_SIGNATURE_TEMPLATE),
+    digestEncoding: z.enum(["hex", "base64"]).default("hex"),
     signatureHeader: z.string().min(1).default("x-mockstar-signature"),
-    timestampHeader: z.string().min(1).default("x-mockstar-timestamp"),
+    // null = never emit a standalone timestamp header (e.g. Stripe carries its timestamp
+    // inside the signature header itself; a separate x-mockstar-timestamp would be a stray
+    // duplicate). The opposite direction — a timestamp header for a scheme that signs no
+    // timestamp at all — stays unreachable: an unsigned timestamp is not trustworthy (see
+    // docs/webhooks/README.md's placeholder-section warning).
+    timestampHeader: z.string().min(1).nullable().default("x-mockstar-timestamp"),
     replayWindowMs: z.number().int().positive().default(300_000),
   })
   .strict();
+
+const WebhookSigning = z
+  .preprocess(
+    (raw) =>
+      raw !== null && typeof raw === "object" && !Array.isArray(raw) && !("mode" in raw)
+        ? { ...(raw as Record<string, unknown>), mode: "hmac" }
+        : raw,
+    // Zod 3: discriminatedUnion members MUST be bare ZodObjects — a .superRefine() here
+    // would yield a ZodEffects and throw at construction. Cross-field checks go on the wrapper.
+    z.discriminatedUnion("mode", [HmacSigning]),
+  )
+  .superRefine((v, ctx) => {
+    // Future non-HMAC modes (ed25519, oidc, ...) will not carry signedPayload/signatureTemplate —
+    // the checks below are HMAC-specific, so skip them for any shape that lacks those fields.
+    // (A `v.mode !== "hmac"` guard would be the more obvious form, but the union has exactly one
+    // member today, so TypeScript narrows `mode` to the literal "hmac" and rejects that comparison.)
+    if (typeof v.signedPayload !== "string" || typeof v.signatureTemplate !== "string") return;
+
+    const fmt = (names: readonly string[]) => names.map((n) => `{${n}}`).join(", ");
+
+    // #30 finding 3: `{{` is the mockstar request-template engine's opening delimiter, not the
+    // signing-placeholder syntax — the two namespaces are deliberately disjoint (see scheme.ts
+    // header comment). A user reaching for `{{ body }}` here would otherwise get a silently wrong
+    // signature: the spaced form matches no placeholder regex (renders literally), and the tight
+    // `{{body}}` form is parsed as a legal `{body}` placeholder nested in braces (renders as
+    // "{BODY}"). We check ONLY for `{{`, not `}}` — a legitimate JSON envelope such as
+    // `{"t":{timestamp},"b":{body}}` ends in `}}` (an object's closing brace immediately followed
+    // by a placeholder's closing brace) without the author ever having written `{{ }}` templating,
+    // and a `}}` check would reject that valid, provider-agnostic use case.
+    const signedPayloadHasDoubleBrace = v.signedPayload.includes("{{");
+    if (signedPayloadHasDoubleBrace) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signedPayload"],
+        message:
+          "signedPayload uses single-brace placeholders (e.g. {body}), not the {{ }} request-template syntax — did you mean {body} instead of {{ body }}?",
+      });
+    }
+    const signatureTemplateHasDoubleBrace = v.signatureTemplate.includes("{{");
+    if (signatureTemplateHasDoubleBrace) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signatureTemplate"],
+        message:
+          "signatureTemplate uses single-brace placeholders (e.g. {signature}), not the {{ }} request-template syntax — did you mean {signature} instead of {{ signature }}?",
+      });
+    }
+
+    // #30 finding 1 (review round 2): `${...}` is JS template-literal syntax, not mockstar's
+    // signing-placeholder syntax — but the `$` sits outside the `{...}` span the scanner below
+    // looks at, so `"${timestamp}.${body}"` slips past both the {{ guard above and the
+    // placeholder-name check below (it decodes to the allowed names "timestamp" and "body") and
+    // signs the literal text "$1700000000123.$<body>". This is the mistake an author is likeliest
+    // to make, because docs/webhooks/README.md and docs/webhooks/SECURITY.md both write the
+    // receiver-side reconstruction AS a JS template literal for readability — copying that string
+    // into config lands exactly here, with no local signal that anything is wrong.
+    const signedPayloadHasTemplateLiteral = v.signedPayload.includes("${");
+    if (signedPayloadHasTemplateLiteral) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signedPayload"],
+        message:
+          "signedPayload uses single-brace placeholders (e.g. {body}), not JS template-literal syntax — did you mean {body} instead of ${body}?",
+      });
+    }
+    const signatureTemplateHasTemplateLiteral = v.signatureTemplate.includes("${");
+    if (signatureTemplateHasTemplateLiteral) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signatureTemplate"],
+        message:
+          "signatureTemplate uses single-brace placeholders (e.g. {signature}), not JS template-literal syntax — did you mean {signature} instead of ${signature}?",
+      });
+    }
+
+    // #30 finding 1: unknownPlaceholders() now scans more broadly than substitution does (see its
+    // doc comment in scheme.ts), so it already catches the SPACED double-brace form on its own
+    // (`{{ body }}`'s inner span is " body ", not an allowed name) — but not the TIGHT form
+    // (`{{body}}`'s inner span is "body", a legal name). The `{{` guard above is still required
+    // for the tight form. Skip the placeholder-name check (and, for signedPayload, the {body}
+    // presence check below) whenever the `{{` guard already fired for that same field: that
+    // message is the more actionable one, and re-running these checks on a `{{ ... }}` value would
+    // just pile a second, confusing complaint about the same underlying mistake.
+    if (!signedPayloadHasDoubleBrace && !signedPayloadHasTemplateLiteral) {
+      const badPayload = unknownPlaceholders(v.signedPayload, SIGNED_PAYLOAD_PLACEHOLDERS);
+      if (badPayload.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signedPayload"],
+          message: `unknown placeholder(s) ${fmt(badPayload)} — allowed: ${fmt(SIGNED_PAYLOAD_PLACEHOLDERS)}`,
+        });
+      }
+
+      // #30 finding 2: a signedPayload with no {body} reference HMACs a constant — the same
+      // digest on every delivery, covering no request content, delivered under a header the
+      // receiver is told to trust. A signature that authenticates nothing is worse than no
+      // signature, because it looks correct. Mirrors the {signature} requirement below.
+      if (!v.signedPayload.includes("{body}")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signedPayload"],
+          message: "signedPayload must contain {body} — otherwise the signature covers no request content",
+        });
+      }
+
+      // #30 finding 3 (review round 2): a leftover `{` that looks like an unterminated
+      // placeholder (see hasUnbalancedPlaceholder's doc comment) — e.g. "{timestamp.{body}"
+      // parses today, signs the literal text "{timestamp." plus the body, and silently drops
+      // the timestamp header because timestampUnitFor() never sees a real {timestamp} token.
+      if (hasUnbalancedPlaceholder(v.signedPayload)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signedPayload"],
+          message:
+            "signedPayload has an unmatched { that looks like an unterminated placeholder — check for a missing closing brace",
+        });
+      }
+    }
+
+    if (!signatureTemplateHasDoubleBrace && !signatureTemplateHasTemplateLiteral) {
+      const badTemplate = unknownPlaceholders(v.signatureTemplate, SIGNATURE_TEMPLATE_PLACEHOLDERS);
+      if (badTemplate.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signatureTemplate"],
+          message: `unknown placeholder(s) ${fmt(badTemplate)} — allowed: ${fmt(SIGNATURE_TEMPLATE_PLACEHOLDERS)}`,
+        });
+      }
+
+      if (!v.signatureTemplate.includes("{signature}")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signatureTemplate"],
+          message:
+            "signatureTemplate must contain {signature} — otherwise the signature header carries no digest",
+        });
+      }
+
+      if (hasUnbalancedPlaceholder(v.signatureTemplate)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signatureTemplate"],
+          message:
+            "signatureTemplate has an unmatched { that looks like an unterminated placeholder — check for a missing closing brace",
+        });
+      }
+    }
+  });
 
 const WebhookRetry = z
   .object({

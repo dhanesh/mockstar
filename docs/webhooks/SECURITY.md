@@ -74,18 +74,18 @@ Secrets are resolved **per delivery attempt**, not at config-load. This means:
 
 ### Redaction
 
-Admin endpoints listing webhook config return `signing: { enabled: bool, algorithm: 'sha256' }` only — never the secretRef value, never the resolved secret. Structured logs render templated URLs and bodies AFTER the rendered value would be sensitive (env-supplied secrets in URLs would appear as raw `{{ env.X }}` in log fields, not as the resolved value).
+Admin endpoints listing webhook config return `signing: { mode: 'hmac', enabled: bool, algorithm: 'sha256' }` only — never the secretRef value, never the resolved secret. Structured logs render templated URLs and bodies AFTER the rendered value would be sensitive (env-supplied secrets in URLs would appear as raw `{{ env.X }}` in log fields, not as the resolved value).
 
 ### HMAC-SHA256 (RT-2)
 
-We use `node:crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex')` — Stripe's pattern. Receivers verify by:
+We use `node:crypto.createHmac('sha256', secret).update(signedPayload).digest(digestEncoding)`. The **default** scheme reproduces Stripe's signed-payload construction (`signedPayload: "{timestamp}.{body}"`, i.e. `${ts}.${body}`) paired with GitHub's prefixed header value (`signatureTemplate: "{algorithm}={signature}"`) — but both axes are configurable per webhook via `signing.signedPayload` and `signing.signatureTemplate`, so the actual bytes signed and the actual header shape depend on the receiver being targeted. See the provider cookbook in `docs/webhooks/README.md` for GitHub, Slack, Stripe, Shopify, and Razorpay's real wire formats. Receivers verify by:
 
-1. Reconstructing `${header.x-mockstar-timestamp}.${rawBody}`.
-2. Computing HMAC-SHA256 with the shared secret.
-3. Comparing against `header.x-mockstar-signature` (strip optional `sha256=` prefix) using **constant-time** comparison.
+1. Reconstructing the string configured in `signing.signedPayload` (default: `${header.x-mockstar-timestamp}.${rawBody}`).
+2. Computing HMAC-SHA256 with the shared secret, encoded per `signing.digestEncoding` (default hex).
+3. Comparing against the header named by `signing.signatureHeader` (default `x-mockstar-signature`), whose value shape is `signing.signatureTemplate` (default: strip the `sha256=` prefix), using **constant-time** comparison.
 4. Checking `Date.now() - timestamp <= replayWindowMs` (default 5 minutes).
 
-`verifySignature` and `withinReplayWindow` are exported from `src/features/webhooks/signing.ts` for receiver-side test reuse and for our own assertion tests.
+`signPayload`, `verifySignature`, `withinReplayWindow`, and `LEGACY_SCHEME` are exported from the package root (`@dhaneshpurohit/mockstar`) for receiver-side test reuse and for our own assertion tests.
 
 ## Replay-window enforcement
 

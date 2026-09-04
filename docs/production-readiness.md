@@ -38,4 +38,4 @@
 ## Known follow-ups (non-blocking)
 - The proxy tier (TLS MITM) is excluded from the core unit-coverage gate by design; it retains `tier1-integration.yml`. If it becomes first-class, add unit coverage and revisit the exclusion.
 - 32 lint warnings remain (non-null assertions, a few `any`) — visible, non-blocking, cleanup-as-you-go.
-- Webhook signing timestamp is in ms (vs Stripe's seconds) — internally consistent; only matters for a real Stripe-format receiver. Documented in SECURITY.md.
+- Webhook signing timestamp unit follows the configured scheme: `{timestamp}` (default) emits milliseconds, `{timestampSeconds}` emits seconds (e.g. for a real Stripe-format receiver) — the `timestampHeader` is only emitted when one of the two is referenced, and always carries the matching unit. See the provider cookbook and Signing section in `docs/webhooks/README.md`.

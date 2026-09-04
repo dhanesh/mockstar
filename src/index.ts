@@ -88,3 +88,14 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
 
 export type { RunningServer, CreateServerOptions } from "./server.ts";
 export { SnapshotHolder } from "./core/config/index.ts";
+
+// Receiver-side verification surface (docs/webhooks/SECURITY.md promises these are reachable
+// for test reuse by library embedders — see LEGACY_SCHEME's docstring). Only the
+// verification-relevant names; queue/dispatcher/journal/circuit-breaker internals stay private.
+export {
+  signPayload,
+  verifySignature,
+  withinReplayWindow,
+  LEGACY_SCHEME,
+} from "./features/webhooks/signing.ts";
+export type { SigningScheme, DigestEncoding } from "./features/webhooks/scheme.ts";

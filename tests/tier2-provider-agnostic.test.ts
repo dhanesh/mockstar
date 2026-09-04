@@ -32,10 +32,19 @@ async function walk(dir: string): Promise<string[]> {
   return out;
 }
 
+// Matches a block comment that opens AND closes on the same line — `/* ... */` or the
+// JSDoc form `/** ... */`. Deliberately does not attempt to track state across lines: a
+// multi-line block comment's continuation lines are still handled by the whole-line `*`
+// skip below, and its opening line (bare `/**` with no trailing text) never contains a
+// provider name to strip in the first place.
+const SINGLE_LINE_BLOCK_COMMENT_RE = /\/\*\*?[^*]*\*+(?:[^/*][^*]*\*+)*\//g;
+
 function stripCommentsAndStrings(line: string): string {
-  // Conservative: remove `// ...` trailing comments, then strip string contents so that
-  // only identifier tokens remain for the regex check.
-  const noLineComment = line.replace(/\/\/.*$/, "");
+  // Conservative: remove single-line `/** ... */` / `/* ... */` block comments, then
+  // trailing `// ...` comments, then strip string contents so that only identifier tokens
+  // remain for the regex check.
+  const noBlockComments = line.replace(SINGLE_LINE_BLOCK_COMMENT_RE, "");
+  const noLineComment = noBlockComments.replace(/\/\/.*$/, "");
   const noStrings = noLineComment
     .replace(/"([^"\\]|\\.)*"/g, '""')
     .replace(/'([^'\\]|\\.)*'/g, "''")
@@ -43,30 +52,43 @@ function stripCommentsAndStrings(line: string): string {
   return noStrings;
 }
 
+const PROVIDER_PATTERN = new RegExp(`\\b(${PROVIDER_NAMES.join("|")})\\b`, "i");
+
+/**
+ * Scan `text` (the contents of one file) for bare-code provider-name occurrences, per the
+ * same rules the RT-9 guard enforces: `//` line comments, whole-line `*` continuation lines
+ * (multi-line block-comment bodies), and single-line `/* ... *​/` / `/** ... *​/` block
+ * comments are all exempt; everything else is checked.
+ */
+function scanForProviderHits(
+  text: string,
+  pattern: RegExp = PROVIDER_PATTERN,
+): Array<{ line: number; text: string; match: string }> {
+  const hits: Array<{ line: number; text: string; match: string }> = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? "";
+    // Line-level comments and block-comment bodies: skip whole-line `*` lines and `//`.
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+    const stripped = stripCommentsAndStrings(line);
+    const m = stripped.match(pattern);
+    if (m) {
+      hits.push({ line: i + 1, text: line.trim(), match: m[1] ?? m[0] });
+    }
+  }
+  return hits;
+}
+
 describe("RT-9 — core source contains no hard-coded provider-name conditionals", () => {
   it("no file under src/ references razorpay|stripe|twilio|paypal outside comments/strings", async () => {
     const files = await walk(SRC_ROOT);
     const hits: Hit[] = [];
-    const pattern = new RegExp(`\\b(${PROVIDER_NAMES.join("|")})\\b`, "i");
 
     for (const file of files) {
       const text = await readFile(file, "utf-8");
-      const lines = text.split("\n");
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i] ?? "";
-        // Line-level comments and block-comment bodies: skip whole-line `*` lines and `//`.
-        const trimmed = line.trimStart();
-        if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
-        const stripped = stripCommentsAndStrings(line);
-        const m = stripped.match(pattern);
-        if (m) {
-          hits.push({
-            file: relative(REPO_ROOT, file),
-            line: i + 1,
-            text: line.trim(),
-            match: m[1] ?? m[0],
-          });
-        }
+      for (const h of scanForProviderHits(text)) {
+        hits.push({ file: relative(REPO_ROOT, file), ...h });
       }
     }
 
@@ -77,6 +99,22 @@ describe("RT-9 — core source contains no hard-coded provider-name conditionals
       );
     }
     expect(hits).toHaveLength(0);
+  });
+
+  it("comment parser: a single-line /** ... */ block comment is not flagged", () => {
+    const fixture = [
+      "const x = 1;",
+      "/** This mirrors Stripe's t=...,v1=... construction. */",
+      "const y = /* Razorpay-shaped */ 2;",
+    ].join("\n");
+    expect(scanForProviderHits(fixture)).toHaveLength(0);
+  });
+
+  it("comment parser: still catches a genuine bare-code occurrence", () => {
+    const fixture = ["const provider = stripe;"].join("\n");
+    const hits = scanForProviderHits(fixture);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.match.toLowerCase()).toBe("stripe");
   });
 
   it("provider names DO appear in fixture directories (sanity check — fixtures exist)", async () => {

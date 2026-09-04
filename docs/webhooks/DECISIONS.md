@@ -72,3 +72,46 @@ m1's T3 wrote `[1s, 2s, 4s, 8s, 16s, 32s]` (6 intervals) for "6 attempts / ~63s 
 | Schema additive `webhooks?: WebhookSpec[]` | TWO_WAY | Field is optional; removing it is a backward-compatible delete |
 | New CLI flags | TWO_WAY | Removable when feature is gated off |
 | Server post-response microtask hook | TWO_WAY | Single conditional; remove the `if (webhookTrigger)` block |
+
+## Signature wire format is configuration, not code (#30)
+
+v0.2.x hardcoded `HMAC(timestamp.body)` delivered as `sha256=<hex>` — Stripe's signed-payload
+construction paired with GitHub's header value. That combination matches **no** provider, and
+because `signatureHeader` was already configurable, a mock could wear `x-hub-signature-256`
+while carrying a digest no GitHub-shaped verifier would accept. Failure surfaced only when a
+team wired up real verification, with nothing in the payload explaining why.
+
+Three shapes were considered:
+
+1. **A `scheme` enum** (`stripe | github | slack | raw`) — smallest config surface and hardest
+   to misconfigure, but every new provider needs an enum value and a release.
+2. **`signedPayload` + `signaturePrefix`** — the shape proposed in the issue. Reaches GitHub,
+   Slack, bare-digest providers and the existing default, but a *prefix* cannot express
+   Stripe's `t=...,v1=...`, so Stripe would have needed a third field later.
+3. **`signedPayload` + `signatureTemplate`** — chosen. Same field count as (2), but templating
+   the whole header value subsumes the prefix case and reaches Stripe. `digestEncoding` was
+   added alongside because Shopify signs base64, and it is a one-line change that is otherwise
+   unreachable at any amount of template cleverness.
+
+The container is a Zod **discriminated union on `mode`**, with `"hmac"` as the only member and
+injected when absent.
+
+What that buys is a stable **config contract**, not pre-wired code. A signing block written
+today — with no `mode` key — keeps meaning HMAC after a second mechanism lands, so no mock file
+has to change twice. That is the whole claim, and it is worth being precise about, because the
+mechanism itself is not free: adding `ed25519` or `oidc` means a new union member carrying its
+own fields, unionising `WebhookSigningSpec`, and branching in `compile.ts` and the dispatcher.
+A new mechanism needs new logic. Nor would such a member simply reuse `signedPayload` /
+`signatureTemplate` — Ed25519 has no `algorithm` prefix to template, and PayPal-style RSA signs
+`transmissionId|timestamp|webhookId|crc32(body)`, a construction `signedPayload` cannot express.
+
+The union's value is that none of that churn reaches existing config files, and that a second
+mechanism cannot repeat the "one provider's convention baked into the core" mistake. This also
+follows the precedent set in `TIER2.md`, which chose generic `{{ id("order") }}` over
+`{{ razorpay.id("order") }}` for the same provider-neutrality reason.
+
+Single-brace placeholders (`{body}`) rather than `{{ body }}` keep the signing namespace
+disjoint from the request-template engine, which has already rendered url/body/headers by the
+time signing runs.
+
+Defaults reproduce v0.2.x byte-for-byte, so no existing mock config or delivery changes.

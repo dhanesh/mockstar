@@ -55,9 +55,13 @@ function compileOne(spec: WebhookSpecT): CompiledWebhookSpec {
     },
     signing: spec.signing
       ? {
+          mode: spec.signing.mode,
           enabled: spec.signing.enabled,
           algorithm: spec.signing.algorithm,
           secretRef: spec.signing.secretRef,
+          signedPayload: spec.signing.signedPayload,
+          signatureTemplate: spec.signing.signatureTemplate,
+          digestEncoding: spec.signing.digestEncoding,
           signatureHeader: spec.signing.signatureHeader,
           timestampHeader: spec.signing.timestampHeader,
           replayWindowMs: spec.signing.replayWindowMs,

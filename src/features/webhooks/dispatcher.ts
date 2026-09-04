@@ -11,6 +11,7 @@ import type { CircuitBreaker } from "./circuit-breaker.ts";
 import type { DeliveryEventRegistry } from "./event-registry.ts";
 import type { WebhookJournalRegistry } from "./journal.ts";
 import type { AttemptRecord, BoundedRetryQueue } from "./queue.ts";
+import { type SigningScheme, renderSignatureHeader, timestampUnitFor } from "./scheme.ts";
 import { resolveSecret, signPayload } from "./signing.ts";
 import type {
   CompiledWebhookSpec,
@@ -151,13 +152,34 @@ async function performAttempt(
   }
   const rawBody = spec.body ? spec.body.render(input.templateContext) : "";
 
-  // Sign if enabled (S1 opt-in).
+  // Sign if enabled (S1 opt-in). Wire format comes from config, not code (#30).
   if (spec.signing?.enabled) {
     const secret = resolveSecret(spec.signing.secretRef);
     const timestampMs = Date.now();
-    const signature = signPayload(rawBody, secret, timestampMs);
-    renderedHeaders.set(spec.signing.signatureHeader, `${spec.signing.algorithm}=${signature}`);
-    renderedHeaders.set(spec.signing.timestampHeader, String(timestampMs));
+    const scheme: SigningScheme = {
+      signedPayload: spec.signing.signedPayload,
+      signatureTemplate: spec.signing.signatureTemplate,
+      digestEncoding: spec.signing.digestEncoding,
+      algorithm: spec.signing.algorithm,
+    };
+    const signature = signPayload(rawBody, secret, timestampMs, scheme);
+    renderedHeaders.set(
+      spec.signing.signatureHeader,
+      renderSignatureHeader(scheme.signatureTemplate, {
+        signature,
+        algorithm: scheme.algorithm,
+        timestampMs,
+      }),
+    );
+    // Emit the standalone timestamp header only when the scheme references one, and in the
+    // unit it signs — a millisecond header beside a seconds-based signature is precisely the
+    // mismatch #30 was about. `timestampHeader: null` additionally suppresses it outright
+    // (e.g. Stripe carries its timestamp inside the signature header, not a separate one).
+    const unit = timestampUnitFor(scheme);
+    if (unit !== null && spec.signing.timestampHeader !== null) {
+      const value = unit === "s" ? Math.floor(timestampMs / 1000) : timestampMs;
+      renderedHeaders.set(spec.signing.timestampHeader, String(value));
+    }
   }
 
   // Idempotency-id header — same deliveryId across all retries (B3).

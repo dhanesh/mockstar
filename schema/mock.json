@@ -669,41 +669,75 @@
                   "default": {}
                 },
                 "signing": {
-                  "type": "object",
-                  "properties": {
-                    "enabled": {
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "algorithm": {
-                      "type": "string",
-                      "const": "sha256",
-                      "default": "sha256"
-                    },
-                    "secretRef": {
-                      "type": "string",
-                      "pattern": "^(\\{\\{\\s*env\\.[A-Z_][A-Z0-9_]*\\s*\\}\\}|file:.+)$"
-                    },
-                    "signatureHeader": {
-                      "type": "string",
-                      "minLength": 1,
-                      "default": "x-mockstar-signature"
-                    },
-                    "timestampHeader": {
-                      "type": "string",
-                      "minLength": 1,
-                      "default": "x-mockstar-timestamp"
-                    },
-                    "replayWindowMs": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0,
-                      "default": 300000
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "const": "hmac",
+                          "default": "hmac"
+                        },
+                        "enabled": {
+                          "type": "boolean",
+                          "default": false
+                        },
+                        "algorithm": {
+                          "type": "string",
+                          "const": "sha256",
+                          "default": "sha256"
+                        },
+                        "secretRef": {
+                          "type": "string",
+                          "pattern": "^(\\{\\{\\s*env\\.[A-Z_][A-Z0-9_]*\\s*\\}\\}|file:.+)$"
+                        },
+                        "signedPayload": {
+                          "type": "string",
+                          "minLength": 1,
+                          "default": "{timestamp}.{body}"
+                        },
+                        "signatureTemplate": {
+                          "type": "string",
+                          "minLength": 1,
+                          "default": "{algorithm}={signature}"
+                        },
+                        "digestEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "hex",
+                            "base64"
+                          ],
+                          "default": "hex"
+                        },
+                        "signatureHeader": {
+                          "type": "string",
+                          "minLength": 1,
+                          "default": "x-mockstar-signature"
+                        },
+                        "timestampHeader": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": "x-mockstar-timestamp"
+                        },
+                        "replayWindowMs": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "default": 300000
+                        }
+                      },
+                      "required": [
+                        "secretRef"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "secretRef"
-                  ],
-                  "additionalProperties": false
+                  ]
                 },
                 "circuit": {
                   "type": "object",

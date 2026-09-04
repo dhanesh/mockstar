@@ -7,7 +7,7 @@
 //   2. The resolved secret value (e.g. 'SUPER_SECRET_XYZ')
 //   3. The signatureHeader / timestampHeader / replayWindowMs internal config
 //   4. Any field named 'secret', 'secretRef', or similar
-// Only the SHAPE — { enabled: bool, algorithm: 'sha256' } — should appear.
+// Only the SHAPE — { mode: 'hmac', enabled: bool, algorithm: 'sha256' } — should appear.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { Entry } from "../../src/core/config/schema.ts";
@@ -51,9 +51,13 @@ beforeAll(() => {
           body: { event: "sensitive" },
           retry: { attempts: 6, backoff: [1000, 2000, 4000, 8000, 16000], jitterRatio: 0.2 },
           signing: {
+            mode: "hmac",
             enabled: true,
             algorithm: "sha256",
             secretRef: SECRET_REF,
+            signedPayload: "{timestamp}.{body}",
+            signatureTemplate: "{algorithm}={signature}",
+            digestEncoding: "hex",
             signatureHeader: "x-mockstar-signature",
             timestampHeader: "x-mockstar-timestamp",
             replayWindowMs: 300_000,
@@ -138,10 +142,11 @@ describe("U3 — admin /webhooks list redacts signing secrets", () => {
     expect(body.webhooks.length).toBeGreaterThan(0);
     const wh = body.webhooks[0];
     expect(wh?.signing).toBeDefined();
-    // Shape-only: only `enabled` and `algorithm` keys.
-    expect(Object.keys(wh?.signing!).sort()).toEqual(["algorithm", "enabled"]);
+    // Shape-only: `mode`, `enabled` and `algorithm` keys — no secret material, no wire format.
+    expect(Object.keys(wh?.signing!).sort()).toEqual(["algorithm", "enabled", "mode"]);
     expect(wh?.signing?.algorithm).toBe("sha256");
     expect(wh?.signing?.enabled).toBe(true);
+    expect(wh?.signing?.mode).toBe("hmac");
   });
 
   test("the listed webhook DOES expose non-sensitive fields (sanity check)", async () => {

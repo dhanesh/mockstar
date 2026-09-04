@@ -122,7 +122,7 @@ export function adminRouter(deps: AdminDeps): Hono {
             method: spec.method,
             // U3: never expose secret material in admin responses.
             signing: spec.signing
-              ? { enabled: spec.signing.enabled, algorithm: spec.signing.algorithm }
+              ? { mode: spec.signing.mode, enabled: spec.signing.enabled, algorithm: spec.signing.algorithm }
               : null,
             retry: { attempts: spec.retry.attempts },
             circuit: spec.circuit,

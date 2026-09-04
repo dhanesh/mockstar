@@ -111,3 +111,413 @@ describe("MockEntry accepts webhooks[] as additive field (RT-8)", () => {
     ).toThrow();
   });
 });
+
+describe("signing schemes (#30) — discriminated union on mode", () => {
+  test("a config with no `mode` still parses, and defaults reproduce v0.2.x behaviour", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: { enabled: true, secretRef: "{{ env.SECRET_X }}" },
+        },
+      ],
+    });
+    const signing = parsed.webhooks?.[0]?.signing;
+    expect(signing?.mode).toBe("hmac");
+    expect(signing?.signedPayload).toBe("{timestamp}.{body}");
+    expect(signing?.signatureTemplate).toBe("{algorithm}={signature}");
+    expect(signing?.digestEncoding).toBe("hex");
+  });
+
+  test("an explicit mode: 'hmac' parses identically", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: { mode: "hmac", enabled: true, secretRef: "{{ env.SECRET_X }}" },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.mode).toBe("hmac");
+  });
+
+  test("a GitHub-shaped scheme round-trips", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: "{body}",
+            signatureHeader: "x-hub-signature-256",
+          },
+        },
+      ],
+    });
+    const signing = parsed.webhooks?.[0]?.signing;
+    expect(signing?.signedPayload).toBe("{body}");
+    expect(signing?.signatureHeader).toBe("x-hub-signature-256");
+  });
+
+  test("digestEncoding accepts base64 (Shopify)", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", digestEncoding: "base64" },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.digestEncoding).toBe("base64");
+  });
+
+  test("an unknown placeholder in signedPayload is rejected, and the message names it", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{nonce}.{body}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/\{nonce\}/);
+  });
+
+  test("a signatureTemplate that omits {signature} is rejected", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signatureTemplate: "sha256=" },
+          },
+        ],
+      });
+    expect(build).toThrow(/\{signature\}/);
+  });
+
+  test("an unknown mode is rejected", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { mode: "ed25519", enabled: true, secretRef: "{{ env.SECRET_X }}" },
+          },
+        ],
+      });
+    expect(build).toThrow();
+  });
+
+  test("{{ body }} (spaced double-brace) in signedPayload is rejected with guidance to use single-brace", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{{ body }}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/single-brace/);
+  });
+
+  test("{{body}} (tight double-brace) in signedPayload is rejected, not silently accepted as {body}", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{{body}}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/single-brace/);
+  });
+
+  test("{{signature}} in signatureTemplate is rejected with guidance to use single-brace", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signatureTemplate: "{{signature}}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/single-brace/);
+  });
+
+  test("legitimate single-brace forms still parse (signedPayload and signatureTemplate)", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: "{timestamp}.{body}",
+            signatureTemplate: "{algorithm}={signature}",
+          },
+        },
+      ],
+    });
+    const signing = parsed.webhooks?.[0]?.signing;
+    expect(signing?.signedPayload).toBe("{timestamp}.{body}");
+    expect(signing?.signatureTemplate).toBe("{algorithm}={signature}");
+  });
+
+  test("v0:{timestampSeconds}:{body} (Slack shape) is accepted", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: "v0:{timestampSeconds}:{body}",
+          },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.signedPayload).toBe("v0:{timestampSeconds}:{body}");
+  });
+
+  test('a JSON-envelope signedPayload ({"t":{timestamp},"b":{body}}) is accepted — {{ guard is {{ only, not }}', () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: '{"t":{timestamp},"b":{body}}',
+          },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.signedPayload).toBe('{"t":{timestamp},"b":{body}}');
+  });
+
+  test("{ body } (spaced single-brace) in signedPayload is rejected as an unknown placeholder", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{ body }" },
+          },
+        ],
+      });
+    expect(build).toThrow(/unknown placeholder/);
+    // Must NOT be reported as a {{ }} double-brace mistake — it is single-brace, just spaced.
+    expect(build).not.toThrow(/single-brace/);
+  });
+
+  test("{time_stamp}.{body} (typo'd placeholder name) in signedPayload is rejected as unknown", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{time_stamp}.{body}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/unknown placeholder\(s\) \{time_stamp\}/);
+  });
+
+  test("a signedPayload that never references {body} is rejected (#30 finding 2)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "static-nothing" },
+          },
+        ],
+      });
+    expect(build).toThrow(/signedPayload must contain \{body\}/);
+  });
+
+  test("inline secrets are still rejected under the union (S3 unchanged)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          { id: "w", url: "https://example.test/hook", signing: { enabled: true, secretRef: "plain" } },
+        ],
+      });
+    expect(build).toThrow();
+  });
+
+  test("a signedPayload with an empty {} span inside a JSON envelope is accepted (review round 2, item 2)", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: '{"meta":{},"b":{body}}',
+          },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.signedPayload).toBe('{"meta":{},"b":{body}}');
+  });
+
+  test("${timestamp}.${body} (JS template-literal syntax) in signedPayload is rejected (review round 2, item 1)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: {
+              enabled: true,
+              secretRef: "{{ env.SECRET_X }}",
+              signedPayload: "${timestamp}.${body}",
+            },
+          },
+        ],
+      });
+    expect(build).toThrow(/template-literal/);
+    expect(build).toThrow(/\$\{body\}/);
+  });
+
+  test("${signature} (JS template-literal syntax) in signatureTemplate is rejected (review round 2, item 1)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signatureTemplate: "${signature}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/template-literal/);
+    expect(build).toThrow(/\$\{signature\}/);
+  });
+
+  test("{timestamp.{body} (unbalanced brace) in signedPayload is rejected — silently drops the timestamp header otherwise (review round 2, item 3)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{timestamp.{body}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/unmatched \{/);
+    // Must NOT be misreported as an unknown-placeholder or missing-{body} problem — {body} IS
+    // present and every well-formed span IS an allowed name; the bug is the stray unclosed brace.
+    expect(build).not.toThrow(/unknown placeholder/);
+    expect(build).not.toThrow(/must contain \{body\}/);
+  });
+
+  test('{"t":{timestamp},"b":{body}} (JSON envelope) does NOT trip the unbalanced-brace check (review round 2, item 3 regression guard)', () => {
+    expect(() =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: {
+              enabled: true,
+              secretRef: "{{ env.SECRET_X }}",
+              signedPayload: '{"t":{timestamp},"b":{body}}',
+            },
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+});
