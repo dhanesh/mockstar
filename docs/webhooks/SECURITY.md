@@ -85,7 +85,7 @@ We use `node:crypto.createHmac('sha256', secret).update(signedPayload).digest(di
 3. Comparing against the header named by `signing.signatureHeader` (default `x-mockstar-signature`), whose value shape is `signing.signatureTemplate` (default: strip the `sha256=` prefix), using **constant-time** comparison.
 4. Checking `Date.now() - timestamp <= replayWindowMs` (default 5 minutes).
 
-`verifySignature` and `withinReplayWindow` are exported from `src/features/webhooks/signing.ts` for receiver-side test reuse and for our own assertion tests.
+`signPayload`, `verifySignature`, `withinReplayWindow`, and `LEGACY_SCHEME` are exported from the package root (`@dhaneshpurohit/mockstar`) for receiver-side test reuse and for our own assertion tests.
 
 ## Replay-window enforcement
 

@@ -12,6 +12,7 @@ import {
   type SigningScheme,
 } from "../../src/features/webhooks/scheme.ts";
 import {
+  LEGACY_SCHEME,
   resolveSecret,
   signPayload,
   verifySignature,
@@ -328,5 +329,36 @@ describe("timestampHeader: null suppresses the standalone timestamp header", () 
     const headers = receiver.hits[0]?.headers ?? {};
     expect(headers["x-mockstar-signature"]).toMatch(/^sha256=[0-9a-f]{64}$/);
     expect(headers["x-mockstar-timestamp"]).toMatch(/^\d{13}$/);
+  });
+});
+
+describe("verifySignature's catch path (review round 2, item 4)", () => {
+  // d816b4d moved `signPayload(...)` inside the try so a malformed scheme throws through the
+  // catch as the "never throws" docstring promises, rather than escaping past it. Coverage
+  // showed the catch itself was never exercised by the suite — every other verifySignature test
+  // passes a well-formed scheme, so `signPayload` never throws inside the try. This exercises it
+  // directly with a scheme whose `digestEncoding` node:crypto's Hmac#digest() rejects outright.
+  test("a scheme with an invalid digestEncoding makes signPayload throw inside the try — verifySignature returns false, not throw", () => {
+    const brokenScheme = {
+      ...LEGACY_SCHEME,
+      digestEncoding: "not-a-real-encoding",
+    } as unknown as SigningScheme;
+
+    expect(() =>
+      verifySignature('{"x":1}', "secret", 1_700_000_000_000, "deadbeef", brokenScheme),
+    ).not.toThrow();
+    expect(verifySignature('{"x":1}', "secret", 1_700_000_000_000, "deadbeef", brokenScheme)).toBe(false);
+  });
+
+  test("a scheme with an invalid algorithm makes createHmac throw inside the try — verifySignature returns false, not throw", () => {
+    const brokenScheme = {
+      ...LEGACY_SCHEME,
+      algorithm: "not-a-real-algorithm",
+    } as unknown as SigningScheme;
+
+    expect(() =>
+      verifySignature('{"x":1}', "secret", 1_700_000_000_000, "deadbeef", brokenScheme),
+    ).not.toThrow();
+    expect(verifySignature('{"x":1}', "secret", 1_700_000_000_000, "deadbeef", brokenScheme)).toBe(false);
   });
 });

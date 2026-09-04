@@ -8,6 +8,7 @@ import {
   DEFAULT_SIGNED_PAYLOAD,
   SIGNATURE_TEMPLATE_PLACEHOLDERS,
   SIGNED_PAYLOAD_PLACEHOLDERS,
+  hasUnbalancedPlaceholder,
   renderSignatureHeader,
   renderSignedPayload,
   timestampUnitFor,
@@ -102,6 +103,51 @@ describe("unknownPlaceholders", () => {
     expect(
       unknownPlaceholders("t={timestampSeconds},v1={signature}", SIGNATURE_TEMPLATE_PLACEHOLDERS),
     ).toEqual([]);
+  });
+
+  // Review round 2, item 6: the case above passes identically under the OLD narrow
+  // implementation (PLACEHOLDER_RE-shaped scanning), so it doesn't actually exercise the wider
+  // `/\{[^{}]*\}/g` scan documented on UNKNOWN_PLACEHOLDER_SCAN_RE. These two do: a JSON-envelope
+  // payload only parses correctly under the wide scan (each `{...}` span is found independently,
+  // not gated on the whole string looking like a single placeholder), and a spaced near-miss is
+  // only caught because the wide scan sees " body " as a span at all.
+  test("wide scan: a JSON-envelope signedPayload with independent {timestamp}/{body} spans returns []", () => {
+    expect(unknownPlaceholders('{"t":{timestamp},"b":{body}}', SIGNED_PAYLOAD_PLACEHOLDERS)).toEqual([]);
+  });
+
+  test("wide scan: a spaced near-miss '{ body }' is caught as an unknown placeholder", () => {
+    expect(unknownPlaceholders("{ body }", SIGNED_PAYLOAD_PLACEHOLDERS)).toEqual([" body "]);
+  });
+
+  // Review round 2, item 2: an empty `{}` span (e.g. inside a JSON-envelope payload like
+  // `{"meta":{},"b":{body}}`) decodes to the name "" and must not be reported as unknown.
+  test("a zero-length {} span is skipped, not reported as an unknown placeholder named ''", () => {
+    expect(unknownPlaceholders('{"meta":{},"b":{body}}', SIGNED_PAYLOAD_PLACEHOLDERS)).toEqual([]);
+  });
+});
+
+describe("hasUnbalancedPlaceholder", () => {
+  test("a leftover { followed by a letter is flagged as an unterminated placeholder", () => {
+    // Review round 2, item 3: stripping the one well-formed span ({body}) leaves residue
+    // "{timestamp." — a leftover { immediately before the letter 't'.
+    expect(hasUnbalancedPlaceholder("{timestamp.{body}")).toBe(true);
+  });
+
+  test("a JSON envelope's outer { (leftover { before a quote) is NOT flagged", () => {
+    // Stripping {timestamp} and {body} leaves residue '{"t":,"b":}' — leftover { before '"'.
+    expect(hasUnbalancedPlaceholder('{"t":{timestamp},"b":{body}}')).toBe(false);
+  });
+
+  test("a JSON envelope with an empty {} object is NOT flagged", () => {
+    expect(hasUnbalancedPlaceholder('{"meta":{},"b":{body}}')).toBe(false);
+  });
+
+  test("a well-formed template with no leftover brace is NOT flagged", () => {
+    expect(hasUnbalancedPlaceholder("{timestamp}.{body}")).toBe(false);
+  });
+
+  test("a { at the very end of the string is NOT flagged (no letter follows)", () => {
+    expect(hasUnbalancedPlaceholder("{body}{")).toBe(false);
   });
 });
 

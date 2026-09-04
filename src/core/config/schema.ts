@@ -10,6 +10,7 @@ import {
   DEFAULT_SIGNED_PAYLOAD,
   SIGNATURE_TEMPLATE_PLACEHOLDERS,
   SIGNED_PAYLOAD_PLACEHOLDERS,
+  hasUnbalancedPlaceholder,
   unknownPlaceholders,
 } from "../../features/webhooks/scheme.ts";
 
@@ -230,6 +231,33 @@ const WebhookSigning = z
       });
     }
 
+    // #30 finding 1 (review round 2): `${...}` is JS template-literal syntax, not mockstar's
+    // signing-placeholder syntax — but the `$` sits outside the `{...}` span the scanner below
+    // looks at, so `"${timestamp}.${body}"` slips past both the {{ guard above and the
+    // placeholder-name check below (it decodes to the allowed names "timestamp" and "body") and
+    // signs the literal text "$1700000000123.$<body>". This is the mistake an author is likeliest
+    // to make, because docs/webhooks/README.md and docs/webhooks/SECURITY.md both write the
+    // receiver-side reconstruction AS a JS template literal for readability — copying that string
+    // into config lands exactly here, with no local signal that anything is wrong.
+    const signedPayloadHasTemplateLiteral = v.signedPayload.includes("${");
+    if (signedPayloadHasTemplateLiteral) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signedPayload"],
+        message:
+          "signedPayload uses single-brace placeholders (e.g. {body}), not JS template-literal syntax — did you mean {body} instead of ${body}?",
+      });
+    }
+    const signatureTemplateHasTemplateLiteral = v.signatureTemplate.includes("${");
+    if (signatureTemplateHasTemplateLiteral) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["signatureTemplate"],
+        message:
+          "signatureTemplate uses single-brace placeholders (e.g. {signature}), not JS template-literal syntax — did you mean {signature} instead of ${signature}?",
+      });
+    }
+
     // #30 finding 1: unknownPlaceholders() now scans more broadly than substitution does (see its
     // doc comment in scheme.ts), so it already catches the SPACED double-brace form on its own
     // (`{{ body }}`'s inner span is " body ", not an allowed name) — but not the TIGHT form
@@ -238,7 +266,7 @@ const WebhookSigning = z
     // presence check below) whenever the `{{` guard already fired for that same field: that
     // message is the more actionable one, and re-running these checks on a `{{ ... }}` value would
     // just pile a second, confusing complaint about the same underlying mistake.
-    if (!signedPayloadHasDoubleBrace) {
+    if (!signedPayloadHasDoubleBrace && !signedPayloadHasTemplateLiteral) {
       const badPayload = unknownPlaceholders(v.signedPayload, SIGNED_PAYLOAD_PLACEHOLDERS);
       if (badPayload.length > 0) {
         ctx.addIssue({
@@ -259,9 +287,22 @@ const WebhookSigning = z
           message: "signedPayload must contain {body} — otherwise the signature covers no request content",
         });
       }
+
+      // #30 finding 3 (review round 2): a leftover `{` that looks like an unterminated
+      // placeholder (see hasUnbalancedPlaceholder's doc comment) — e.g. "{timestamp.{body}"
+      // parses today, signs the literal text "{timestamp." plus the body, and silently drops
+      // the timestamp header because timestampUnitFor() never sees a real {timestamp} token.
+      if (hasUnbalancedPlaceholder(v.signedPayload)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signedPayload"],
+          message:
+            "signedPayload has an unmatched { that looks like an unterminated placeholder — check for a missing closing brace",
+        });
+      }
     }
 
-    if (!signatureTemplateHasDoubleBrace) {
+    if (!signatureTemplateHasDoubleBrace && !signatureTemplateHasTemplateLiteral) {
       const badTemplate = unknownPlaceholders(v.signatureTemplate, SIGNATURE_TEMPLATE_PLACEHOLDERS);
       if (badTemplate.length > 0) {
         ctx.addIssue({
@@ -277,6 +318,15 @@ const WebhookSigning = z
           path: ["signatureTemplate"],
           message:
             "signatureTemplate must contain {signature} — otherwise the signature header carries no digest",
+        });
+      }
+
+      if (hasUnbalancedPlaceholder(v.signatureTemplate)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["signatureTemplate"],
+          message:
+            "signatureTemplate has an unmatched { that looks like an unterminated placeholder — check for a missing closing brace",
         });
       }
     }

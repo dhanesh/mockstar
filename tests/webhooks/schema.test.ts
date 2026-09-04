@@ -418,4 +418,106 @@ describe("signing schemes (#30) — discriminated union on mode", () => {
       });
     expect(build).toThrow();
   });
+
+  test("a signedPayload with an empty {} span inside a JSON envelope is accepted (review round 2, item 2)", () => {
+    const parsed = MockEntry.parse({
+      id: "m",
+      match: { method: "POST", path: "/x" },
+      response: { kind: "static", status: 200, body: {} },
+      webhooks: [
+        {
+          id: "w",
+          url: "https://example.test/hook",
+          signing: {
+            enabled: true,
+            secretRef: "{{ env.SECRET_X }}",
+            signedPayload: '{"meta":{},"b":{body}}',
+          },
+        },
+      ],
+    });
+    expect(parsed.webhooks?.[0]?.signing?.signedPayload).toBe('{"meta":{},"b":{body}}');
+  });
+
+  test("${timestamp}.${body} (JS template-literal syntax) in signedPayload is rejected (review round 2, item 1)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: {
+              enabled: true,
+              secretRef: "{{ env.SECRET_X }}",
+              signedPayload: "${timestamp}.${body}",
+            },
+          },
+        ],
+      });
+    expect(build).toThrow(/template-literal/);
+    expect(build).toThrow(/\$\{body\}/);
+  });
+
+  test("${signature} (JS template-literal syntax) in signatureTemplate is rejected (review round 2, item 1)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signatureTemplate: "${signature}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/template-literal/);
+    expect(build).toThrow(/\$\{signature\}/);
+  });
+
+  test("{timestamp.{body} (unbalanced brace) in signedPayload is rejected — silently drops the timestamp header otherwise (review round 2, item 3)", () => {
+    const build = () =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: { enabled: true, secretRef: "{{ env.SECRET_X }}", signedPayload: "{timestamp.{body}" },
+          },
+        ],
+      });
+    expect(build).toThrow(/unmatched \{/);
+    // Must NOT be misreported as an unknown-placeholder or missing-{body} problem — {body} IS
+    // present and every well-formed span IS an allowed name; the bug is the stray unclosed brace.
+    expect(build).not.toThrow(/unknown placeholder/);
+    expect(build).not.toThrow(/must contain \{body\}/);
+  });
+
+  test('{"t":{timestamp},"b":{body}} (JSON envelope) does NOT trip the unbalanced-brace check (review round 2, item 3 regression guard)', () => {
+    expect(() =>
+      MockEntry.parse({
+        id: "m",
+        match: { method: "POST", path: "/x" },
+        response: { kind: "static", status: 200, body: {} },
+        webhooks: [
+          {
+            id: "w",
+            url: "https://example.test/hook",
+            signing: {
+              enabled: true,
+              secretRef: "{{ env.SECRET_X }}",
+              signedPayload: '{"t":{timestamp},"b":{body}}',
+            },
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
 });

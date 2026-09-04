@@ -52,11 +52,34 @@ export function unknownPlaceholders(template: string, allowed: readonly string[]
   const out: string[] = [];
   for (const match of template.matchAll(UNKNOWN_PLACEHOLDER_SCAN_RE)) {
     const name = match[0].slice(1, -1);
+    // #30 finding 2 (review round 2): an empty `{}` span decodes to the name "" — not a
+    // placeholder at all, just an empty JSON object landing inside a JSON-envelope payload
+    // (e.g. `{"meta":{},"b":{body}}`). Flagging "" as an unknown placeholder would reject that
+    // legitimate shape, so a zero-length span is skipped rather than reported.
+    if (name === "") continue;
     if (allowed.includes(name) || seen.has(name)) continue;
     seen.add(name);
     out.push(name);
   }
   return out;
+}
+
+/**
+ * #30 finding 3 (review round 2): after stripping every well-formed `{...}` span the scanner
+ * matched, a leftover `{` immediately followed by an ASCII letter looks like a placeholder the
+ * author meant to close but didn't — e.g. `"{timestamp.{body}"` has its trailing `{body}`
+ * stripped, leaving residue `"{timestamp."`, whose leftover `{` precedes `t`. That signedPayload
+ * signs the literal text `{timestamp.` plus the body and references no `{timestamp}` placeholder
+ * `timestampUnitFor()` can see, so the timestamp header is silently dropped from the delivery.
+ *
+ * A JSON envelope's outer brace is NOT this shape: stripping `{"t":{timestamp},"b":{body}}`'s
+ * two placeholder spans leaves residue `{"t":,"b":}`, whose leftover `{` precedes `"` — not a
+ * letter — so it passes. Only a leftover `{` directly followed by a letter is flagged; `{"`,
+ * `{}` (already consumed above), and a trailing `{` are all legitimate JSON-envelope shapes.
+ */
+export function hasUnbalancedPlaceholder(template: string): boolean {
+  const residue = template.replace(UNKNOWN_PLACEHOLDER_SCAN_RE, "");
+  return /\{[A-Za-z]/.test(residue);
 }
 
 /**
