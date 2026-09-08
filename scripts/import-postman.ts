@@ -12,10 +12,12 @@
 //   <out-dir>/<tenant>/<folder-slug>.json   (one per top-level folder)
 //
 // Notes:
-// - Path is taken from request.url.path (segments) so {{var}} substitutions in
-//   raw URLs become literal mockstar paths. {{petId}} → :petId.
-// - Postman variables in the URL ({{baseUrl}}, {{API_Key_ID}}) are stripped from
-//   the path: only the resource portion is mocked.
+// - Path is taken from request.url.path (segments). In Postman v2.1
+//   collections, url.host holds everything before the path (including a
+//   {{baseUrl}}-style variable) — url.path only ever contains genuine path
+//   segments and variables. So a whole-segment {{var}} here (e.g. {{petId}})
+//   is a real path variable, not a stripped base URL: {{petId}} → :petId,
+//   the same as Postman's {petId} path-variable form.
 // - Bodies preserve the example's status code (defaults to 200).
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -66,9 +68,11 @@ function pathFromRequest(req: PostmanRequest): string | null {
     const value = typeof seg === 'string' ? seg : seg?.value ?? '';
     if (!value) continue;
     // Postman path variables: ":id" → mockstar's ":id" (already compatible).
-    // Curly-brace vars: "{{baseUrl}}" → skip; "{id}" → ":id".
-    if (/^\{\{.*\}\}$/.test(value)) continue;
-    if (/^\{[^{}]+\}$/.test(value)) {
+    // Curly-brace vars: "{id}" and "{{id}}" both → ":id" (a {{baseUrl}}-style
+    // variable never reaches here — Postman puts it in url.host, not url.path).
+    if (/^\{\{[^{}]+\}\}$/.test(value)) {
+      cleaned.push(`:${value.slice(2, -2).replace(/[^a-zA-Z0-9_]/g, '_')}`);
+    } else if (/^\{[^{}]+\}$/.test(value)) {
       cleaned.push(`:${value.slice(1, -1).replace(/[^a-zA-Z0-9_]/g, '_')}`);
     } else if (value.startsWith(':')) {
       cleaned.push(value);
