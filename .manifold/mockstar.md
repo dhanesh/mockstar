@@ -190,6 +190,8 @@ The HTTP listener binds to `127.0.0.1` by default. Binding to `0.0.0.0` or a pub
 
 Each tenant has a configurable max request body size (default 1 MB) and a configurable request rate cap (default 1000 req/s per tenant). Exceeding returns 413 / 429 respectively with tenant context in the body.
 
+> **Status note (2026-09-09):** only the body-size half of this constraint is implemented. The 413 path is enforced on the request byte stream (not on `Content-Length`, which chunked encoding omits). The rate cap is **not** implemented: `requestsPerSecond` is declared and defaulted in the schema but read by no code path, and no `429` is returned anywhere in `src/`. Tracked in #35, where the implement-vs-remove decision is still open — a default-on 1000 req/s cap would throttle this repo's own benchmarks and users' load tests, so it is not an obvious yes.
+
 > **Rationale (GAP-10):** Mock endpoints are usually unauthenticated; without caps, a single misconfigured client can exhaust memory (oversized bodies) or starve other tenants (request floods). Per-tenant caps preserve isolation (S1) under abuse.
 
 #### S6: Pass-through URL validation — scheme allowlist + SSRF guard
