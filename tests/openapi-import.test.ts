@@ -224,6 +224,162 @@ describe("OpenAPI converter", () => {
   });
 });
 
+// #43a — status-code range keys (2XX/4XX/5XX) must not be silently ignored.
+describe("response range keys (#43a)", () => {
+  it("imports the example from a 2XX-keyed response instead of the placeholder", () => {
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/orders": {
+          get: {
+            operationId: "listOrders",
+            responses: {
+              "2XX": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    example: { orders: [{ id: "o1", total: 42 }] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const entries = convertOpenApi(doc);
+    expect(entries).toHaveLength(1);
+    const response = entries[0]?.response as { status: number; body: unknown };
+    // Real example data was imported — NOT the generic `{note: "Mock for GET /orders"}`
+    // placeholder that a doc with no recognised response key falls back to.
+    expect(response.body).toEqual({ orders: [{ id: "o1", total: 42 }] });
+    expect(response.status).toBe(200);
+  });
+});
+
+// #43b — a literal `$ref` field inside response example DATA (not a JSON Schema) must not
+// hard-fail the import; a genuine external $ref inside a *schema* still must be rejected.
+describe("$ref scanning restricted to schema-shaped subtrees (#43b)", () => {
+  it("imports successfully when a response `example` contains a literal $ref key (HAL-style)", () => {
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/orders/{id}": {
+          get: {
+            operationId: "getOrder",
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    example: {
+                      id: "o1",
+                      _links: { $ref: "self-link-not-a-schema-ref" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    expect(() => convertOpenApi(doc)).not.toThrow();
+    const entries = convertOpenApi(doc);
+    const response = entries[0]?.response as { body: unknown };
+    expect(response.body).toEqual({ id: "o1", _links: { $ref: "self-link-not-a-schema-ref" } });
+  });
+
+  it("imports successfully when an `examples[].value` payload contains a literal $ref key", () => {
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/orders/{id}": {
+          get: {
+            operationId: "getOrder",
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    examples: {
+                      success: { value: { id: "o1", _links: { $ref: "self-link-not-a-schema-ref" } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    expect(() => convertOpenApi(doc)).not.toThrow();
+  });
+
+  it("still rejects a genuine external $ref inside a schema (regression guard for #43b)", () => {
+    // This is the case (a)'s narrowing must NOT relax: an external $ref reached through a
+    // real JSON-Schema subtree — not example payload data — must still hard-fail.
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/orders/{id}": {
+          get: {
+            operationId: "getOrder",
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    schema: { $ref: "http://evil.example.com/schemas/order.json" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    expect(() => convertOpenApi(doc)).toThrow(OpenApiImportError);
+  });
+
+  it("names the JSON path of the rejected $ref in the error (#43c)", () => {
+    const doc = {
+      openapi: "3.0.0",
+      paths: {
+        "/orders/{id}": {
+          get: {
+            operationId: "getOrder",
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    schema: { $ref: "http://evil.example.com/schemas/order.json" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    try {
+      convertOpenApi(doc);
+      throw new Error("expected convertOpenApi to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(OpenApiImportError);
+      const openApiErr = err as InstanceType<typeof OpenApiImportError>;
+      expect(openApiErr.message).toContain(
+        "$.paths./orders/{id}.get.responses.200.content.application/json.schema.$ref",
+      );
+      expect(openApiErr.detail).toMatchObject({
+        ref: "http://evil.example.com/schemas/order.json",
+        path: "$.paths./orders/{id}.get.responses.200.content.application/json.schema.$ref",
+      });
+    }
+  });
+});
+
 describe("encodePathTemplate", () => {
   it("rewrites {name} to :name", () => {
     expect(encodePathTemplate("/users/{userId}/orders/{orderId}")).toBe("/users/:userId/orders/:orderId");
