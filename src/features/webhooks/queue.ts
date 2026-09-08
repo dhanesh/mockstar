@@ -318,7 +318,11 @@ export class BoundedRetryQueue {
         lastError = errorToString(err);
         req.onAttempt({
           attempt,
-          outcome: attempt === req.retry.attempts ? "failed" : "success", // 'success' here means "we'll retry" — actual semantics handled by outcome on terminal
+          // #44: the FINAL attempt journals as 'failed' (matches the terminal outcome below).
+          // Every non-final failed attempt journals as 'retrying', never 'success' — a
+          // delivery that hasn't succeeded yet must never satisfy an
+          // `outcome === "success"` assertion against the journal (U4's whole purpose).
+          outcome: attempt === req.retry.attempts ? "failed" : "retrying",
           durationUs: 0,
           error: lastError,
         });

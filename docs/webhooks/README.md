@@ -173,6 +173,26 @@ Prometheus metrics:
 
 Each delivery attempt also writes a row to the per-tenant webhook journal (separate from the request journal).
 
+### Journal `outcome` values (U4)
+
+Each journal row's `outcome` field is one of:
+
+| Value | Meaning |
+|---|---|
+| `success` | This attempt returned a matching status (and matching body if `expectResponse` set). Only ever recorded on an attempt that actually succeeded. |
+| `retrying` | This attempt failed, but retries remain — the delivery is NOT done. Never appears on the last attempt of a delivery. |
+| `failed` | The delivery's retry budget is exhausted; the final attempt was non-2xx or threw. |
+| `dropped` | Queue cap overflow evicted this delivery before it ran (O1/TN2). |
+| `circuit-open` | The breaker was open at attempt time; no HTTP call was made (O3). |
+
+**#44 — behaviour change:** before this fix, a failed-but-will-retry attempt was journaled as
+`outcome: "success"` (with an `error` field populated), because there was no dedicated value for
+"failed, but not done yet." An SDET asserting `entries.some(e => e.outcome === "success")` got a
+false green on a webhook that never actually succeeded. Non-final failed attempts now journal as
+`outcome: "retrying"` — `success` is recorded ONLY on an attempt that actually succeeded. If you
+have assertions written against the old (incorrect) behaviour, update them to check for the final
+`failed`/`success` outcome, or filter out `retrying` rows explicitly.
+
 ## Limits and caveats
 
 - **In-memory only.** Process restart loses pending and in-flight retries. (Use `--webhook-journal-file` for replay-on-restart.)
