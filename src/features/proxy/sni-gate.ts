@@ -1,16 +1,24 @@
-// Satisfies: RT-3 (SNI-to-hostname allowlist is the exclusive cert-issuance gate)
+// NOT wired into the running TLS server — see tls-adapter.ts's own doc comment.
+// Bun.serve's `tls` option only accepts an array of {cert, key, serverName} triples
+// (no resolveSni() callback), so the actual RT-3 gate at runtime is Bun's own SNI
+// matching against that array (built by tls-adapter's leavesFromSnapshot) plus the
+// post-handshake servername-vs-snapshot check in proxy/server.ts's dispatch()
+// (`snapshot.hosts.get(meta.servername)`). This module is a pure-function
+// diagnostics helper (sniGate/explainSni) kept for its unit-test coverage and
+// exported from the proxy barrel; it does not itself accept or reject a connection.
 // Satisfies: T3, T4, S3
 //
-// Paired with tls-adapter's SniResolver. Given the current snapshot and an incoming
-// SNI hostname, return the leaf to present OR null to reject the handshake.
+// Given the current snapshot and an incoming SNI hostname, return the leaf that
+// WOULD be presented OR null to indicate the handshake WOULD be rejected — matches
+// the semantics of the array-form TLS config, without executing on the live path.
 
 import type { SnapshotHolder } from "./cert-cache.ts";
 import { type SniResolver, snapshotResolver } from "./tls-adapter.ts";
 
 /**
  * Build an SniResolver that ALWAYS reads the current snapshot (captured per-call,
- * not per-closure-build). This keeps it safe to pass to the TLS adapter and have
- * it reflect reloads.
+ * not per-closure-build). Not consumed by Bun.serve (see file header) — exported
+ * for callers that want to reproduce the SNI decision outside the live TLS path.
  */
 export function sniGate(holder: SnapshotHolder): SniResolver {
   return (servername: string) => {
@@ -21,7 +29,8 @@ export function sniGate(holder: SnapshotHolder): SniResolver {
 
 /**
  * For diagnostics: given a hostname and the current snapshot, explain why
- * we'd accept or reject. Useful for `mockstar proxy status --explain-sni`.
+ * we'd accept or reject. Not currently wired to any CLI command — no
+ * `mockstar proxy status --explain-sni` flag exists yet.
  */
 export function explainSni(
   holder: SnapshotHolder,

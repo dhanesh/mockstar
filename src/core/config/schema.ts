@@ -431,7 +431,7 @@ export const TenantLimits = z
   .object({
     maxBodyBytes: z.number().int().positive().default(1_048_576), // S5: inbound request cap, 1 MB default
     maxResponseBytes: z.number().int().positive().default(1_048_576), // S4: outbound response cap (Tier 2 render), 1 MB default
-    requestsPerSecond: z.number().int().positive().default(1000), // S5: 1000 rps default
+    requestsPerSecond: z.number().int().positive().default(1000), // S5: 1000 rps default. NOT CURRENTLY ENFORCED — declared and defaulted only; nothing in src/ reads this field or returns 429. See issue #35.
     journalSize: z.number().int().positive().default(1000), // O3: 1000 entries default
   })
   .strict();

@@ -41,7 +41,7 @@ mockstar ./mocks --allow-webhook-url-header   # tier 1: server flag, default off
 When tier-1 is off, the header is silently ignored even when set on the request. When tier-1 is on, individual routes can opt out via `acceptHeaderOverride: false`. The header value still passes:
 
 1. `validateUpstreamUrl` per webhook's `allowHttp` / `allowPrivateNetworks` flags.
-2. The S4 admin-path skip-list (you cannot redirect a webhook to `/_mockstar/*`).
+2. Nothing else. The S4 admin-path skip-list (below) is checked against the **inbound** request's matched mock path, not the outbound webhook URL — it stops a mock defined *on* `/_mockstar/*` (or `/health`, `/ready`, `/metrics`) from firing a webhook at all. It does not inspect where a header-supplied or templated webhook URL points, so a header-supplied URL *can* target `/_mockstar/*` on the same host; only the SSRF checks in step 1 (scheme/private-range/loopback) constrain the destination.
 
 ## Admin path skip-list (S4)
 
