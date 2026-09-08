@@ -55,10 +55,12 @@ describe("webhook dispatcher — redirect guard wiring (#37)", () => {
     expect(journalEntries.length).toBeGreaterThan(0);
     const last = journalEntries[journalEntries.length - 1];
     expect(last?.outcome).toBe("success");
-    // #37: resolvedUrl must be the POST-redirect URL (the actual host reached), not the
-    // pre-redirect `front.url` — otherwise a redirect pivot is invisible in the journal.
-    expect(last?.resolvedUrl).toBe(`${target.url}/landed`);
-    expect(last?.resolvedUrl).not.toBe(front.url);
+    // #37: resolvedUrl must reflect the POST-redirect origin (the actual host reached), not the
+    // pre-redirect `front.url` origin — otherwise a redirect pivot is invisible in the journal.
+    // (The path/query are redacted per #38 — see redirect-guard-journal-redaction.test.ts — so
+    // this asserts on the origin only.)
+    expect(last?.resolvedUrl).toBe(`${new URL(target.url).origin}/[redacted]`);
+    expect(last?.resolvedUrl).not.toBe(`${new URL(front.url).origin}/[redacted]`);
   });
 
   test("a relative-path redirect is resolved against the current hop and followed end-to-end", async () => {
@@ -96,7 +98,8 @@ describe("webhook dispatcher — redirect guard wiring (#37)", () => {
     const journalEntries = server.webhookJournal.snapshot("default");
     const last = journalEntries[journalEntries.length - 1];
     expect(last?.outcome).toBe("success");
-    expect(last?.resolvedUrl).toBe(`${receiver.url}/landed`);
+    // Path redacted per #38 — see redirect-guard-journal-redaction.test.ts for that coverage.
+    expect(last?.resolvedUrl).toBe(`${new URL(receiver.url).origin}/[redacted]`);
   });
 
   test(`hop cap: a receiver that always redirects fails the delivery after ${DEFAULT_MAX_REDIRECT_HOPS} hops instead of looping forever`, async () => {

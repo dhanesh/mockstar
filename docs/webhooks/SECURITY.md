@@ -74,7 +74,13 @@ Secrets are resolved **per delivery attempt**, not at config-load. This means:
 
 ### Redaction
 
-Admin endpoints listing webhook config return `signing: { mode: 'hmac', enabled: bool, algorithm: 'sha256' }` only — never the secretRef value, never the resolved secret. Structured logs render templated URLs and bodies AFTER the rendered value would be sensitive (env-supplied secrets in URLs would appear as raw `{{ env.X }}` in log fields, not as the resolved value).
+Admin endpoints listing webhook config (`GET /__admin/tenants/:t/webhooks`) return `signing: { mode: 'hmac', enabled: bool, algorithm: 'sha256' }` only — never the secretRef value, never the resolved secret.
+
+**Structured logs** (the request/response log lines) never resolve a webhook's URL template at all, so an env-supplied secret in a URL appears there as the raw `{{ env.X }}` placeholder, not the resolved value.
+
+**The webhook journal is a different sink with a different contract (#38).** `GET /__admin/tenants/:t/webhooks/journal`, the in-memory ring buffer, and `--webhook-journal-file` all need the ACTUAL resolved URL to be useful — which host a delivery really reached, including after a redirect (see the SSRF section above) — so they can't just echo the unresolved `{{ env.X }}` template the way logs do. Instead, every journaled `resolvedUrl` is redacted to `<scheme>://<host>[:port]/[redacted]` before it is written to ANY of the three sinks: userinfo, path, and query are all dropped, because provider webhook URLs (Slack, Discord, Teams, ...) carry their bearer secret in the path, not just the query string. Any URL embedded in a journaled `error` message is redacted the same way. Only the origin — the part an SDET actually needs to assert "which webhook fired, to which host, with what outcome" — is kept.
+
+An earlier version of this document claimed the journal behaved like the structured logger (raw `{{ env.X }}`, never resolved). That was **false** — the journal persisted the fully-rendered, secret-bearing URL in plaintext across all three sinks. This section now describes what the code actually does; see `src/features/webhooks/journal.ts`'s `redactUrlForJournal` / `redactUrlsInText`.
 
 ### HMAC-SHA256 (RT-2)
 
