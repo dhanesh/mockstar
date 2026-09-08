@@ -5,7 +5,7 @@ import type { Context } from "hono";
 import type { Entry } from "../core/config/schema.ts";
 import { bodyTooLargeResponse, capRequestBodyStream } from "../core/http/body-cap.ts";
 import type { StructuredLogger } from "../core/observability/logger.ts";
-import { UrlValidationError, validateUpstreamUrlResolved } from "./url-validator.ts";
+import { UrlValidationError, fetchWithRedirectGuard, validateUpstreamUrlResolved } from "./url-validator.ts";
 
 export interface PassThroughOptions {
   allowPrivateUpstreams: boolean;
@@ -31,12 +31,14 @@ export async function renderPassThrough(
 
   // Re-validate at request time (RT-8.2) in case templating ever rewrites the URL in future.
   // Resolves DNS and rejects hostnames whose A/AAAA records point at private ranges (F1 SSRF guard).
+  // Reused verbatim (not re-derived from defaults) to re-validate any redirect Location below (#37).
+  const validationOpts = {
+    allowedSchemes: ["https", "http"] as const,
+    allowPrivateUpstreams: opts.allowPrivateUpstreams,
+  };
   let upstreamUrl: URL;
   try {
-    upstreamUrl = await validateUpstreamUrlResolved(spec.upstream, {
-      allowedSchemes: ["https", "http"],
-      allowPrivateUpstreams: opts.allowPrivateUpstreams,
-    });
+    upstreamUrl = await validateUpstreamUrlResolved(spec.upstream, validationOpts);
   } catch (err) {
     opts.logger.error({
       event: "passthrough_url_rejected",
@@ -84,12 +86,23 @@ export async function renderPassThrough(
 
   const started = performance.now();
   try {
-    const upstreamRes = await fetch(targetUrl, {
-      method: ctx.req.method,
-      headers,
-      body: bodyCap ? await ctx.req.raw.arrayBuffer() : undefined,
-      signal: controller.signal,
-    });
+    const requestBody = bodyCap ? await ctx.req.raw.arrayBuffer() : null;
+    // redirect: "manual" + fetchWithRedirectGuard (#37): the default redirect: "follow"
+    // would otherwise let a permitted public upstream 3xx the caller to a private/loopback/
+    // metadata address with no revalidation. `targetUrl` shares its scheme+host+port with
+    // `upstreamUrl` (already validated above) — only the path/query differ — so it's safe
+    // to fetch directly; every REDIRECT hop beyond it is separately re-validated inside
+    // the guard using the SAME validationOpts.
+    const { response: upstreamRes } = await fetchWithRedirectGuard(
+      targetUrl,
+      {
+        method: ctx.req.method,
+        headers,
+        body: requestBody,
+        signal: controller.signal,
+      },
+      validationOpts,
+    );
     clearTimeout(timer);
     // Pass upstream response verbatim.
     return new Response(upstreamRes.body, {
@@ -102,6 +115,24 @@ export async function renderPassThrough(
       return bodyTooLargeResponse(opts.maxBodyBytes);
     }
     const durationMs = performance.now() - started;
+    if (err instanceof UrlValidationError) {
+      // A redirect hop (or the hop cap) was rejected by the SSRF guard — fail closed,
+      // same shape as the initial-URL rejection above, but distinguishable in logs (#37).
+      opts.logger.error({
+        event: "passthrough_redirect_rejected",
+        entryId: entry.id,
+        upstream: String(upstreamUrl),
+        reason: err.reason,
+      });
+      return new Response(
+        JSON.stringify({
+          error: "passthrough_upstream",
+          upstream: String(upstreamUrl),
+          reason: "upstream redirected to a URL rejected by validator",
+        }),
+        { status: 502, headers: { "content-type": "application/json" } },
+      );
+    }
     const aborted = err instanceof DOMException && err.name === "AbortError";
     opts.logger.error({
       event: "passthrough_upstream_error",

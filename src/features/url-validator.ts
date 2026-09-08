@@ -160,6 +160,128 @@ export async function validateUpstreamUrlResolved(
   return parsed;
 }
 
+/**
+ * Redirect statuses eligible for guard-and-follow. Any other 3xx (e.g. 300, 304,
+ * or a redirect status with no `Location`) is returned to the caller untouched —
+ * we only intercept the cases that would otherwise cause a second network fetch.
+ */
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/** Default cap on redirect hops followed by `fetchWithRedirectGuard` (see #37). */
+export const DEFAULT_MAX_REDIRECT_HOPS = 5;
+
+export interface RedirectGuardInit {
+  method: string;
+  headers: Headers;
+  /** Must be a fully-buffered body (string/ArrayBuffer/etc), NOT a stream — it may be resent on a 307/308 hop. */
+  body: RequestInit["body"];
+  signal?: AbortSignal;
+}
+
+export interface RedirectGuardResult {
+  response: Response;
+  /** The URL the returned `response` actually came from (post-redirect-chain). */
+  finalUrl: URL;
+  redirectsFollowed: number;
+}
+
+/**
+ * Fetch `initialUrl` with `redirect: "manual"`, and when the response is a redirect,
+ * resolve its `Location` header against the CURRENT url and re-validate the target
+ * with the SAME `validation` options used for the initial request before following
+ * it — closing the gap where `validateUpstreamUrlResolved` only checked the
+ * pre-redirect URL and a permitted public host could 302 the caller to
+ * `169.254.169.254` or `127.0.0.1` with no revalidation (#37).
+ *
+ * `initialUrl` is NOT re-validated here — callers are expected to have already
+ * validated it (e.g. via `validateUpstreamUrlResolved`) before calling this function.
+ * Only redirect targets are validated inside the loop.
+ *
+ * Hop cap: after `maxRedirects` (default `DEFAULT_MAX_REDIRECT_HOPS` = 5) redirects
+ * have been followed, a further redirect throws `UrlValidationError` rather than
+ * being followed or silently truncating the chain. 5 covers realistic legitimate
+ * chains (scheme upgrade, canonical-host bounce, an auth gateway hop) while bounding
+ * worst-case latency and request amplification from a malicious or misbehaving
+ * receiver — a hostile server cannot turn one delivery attempt into an unbounded
+ * redirect loop.
+ *
+ * Redirect semantics implemented — NOT full RFC 9110 fidelity:
+ *  - 303, and 301/302 on a request whose method is not GET/HEAD: the next hop
+ *    switches to GET with no body (matches WHATWG fetch's browser-compatible
+ *    redirect algorithm, which is what the previous `redirect: "follow"` default
+ *    already did under the hood).
+ *  - 307/308: method and body are resent unchanged on the next hop.
+ *  - Headers are forwarded unchanged to every hop, INCLUDING across a scheme or
+ *    host change. We do NOT strip credential-bearing headers (e.g. `Authorization`)
+ *    on a cross-origin redirect — every hop's target still passes the same SSRF
+ *    validation as the initial URL, so this fix's scope is "never reach a
+ *    disallowed destination," not "never forward a header to an allowed one."
+ */
+export async function fetchWithRedirectGuard(
+  initialUrl: URL,
+  init: RedirectGuardInit,
+  validation: ResolvedValidationOptions,
+  maxRedirects: number = DEFAULT_MAX_REDIRECT_HOPS,
+): Promise<RedirectGuardResult> {
+  let currentUrl = initialUrl;
+  let method = init.method;
+  let body = init.body;
+  let redirectsFollowed = 0;
+
+  for (;;) {
+    const response = await fetch(currentUrl, {
+      method,
+      headers: init.headers,
+      body: method === "GET" || method === "HEAD" ? undefined : (body ?? undefined),
+      redirect: "manual",
+      signal: init.signal,
+    });
+
+    const location = response.headers.get("location");
+    if (!REDIRECT_STATUSES.has(response.status) || !location) {
+      return { response, finalUrl: currentUrl, redirectsFollowed };
+    }
+
+    // Discard the redirect response's body (empty per HTTP semantics for a
+    // Location-bearing 3xx, but drain defensively) so the connection is released
+    // promptly instead of being left dangling while we decide whether to follow it.
+    await response.body?.cancel();
+
+    if (redirectsFollowed >= maxRedirects) {
+      throw new UrlValidationError(
+        currentUrl.href,
+        `redirect chain exceeded ${maxRedirects} hop(s); blocked before following Location '${location}'`,
+      );
+    }
+    redirectsFollowed++;
+
+    let nextUrl: URL;
+    try {
+      // Location may be relative (RFC 9110 §10.2.2) — resolve against the CURRENT
+      // hop's URL, never the original. Resolving against the original would let a
+      // same-looking relative path smuggle a different host once earlier hops had
+      // already changed the effective base (#37).
+      nextUrl = new URL(location, currentUrl);
+    } catch {
+      throw new UrlValidationError(location, "redirect Location header is not a resolvable URL");
+    }
+
+    // Re-validate with the SAME options as the initial request (the route's
+    // allowHttp / allowPrivateUpstreams) — never defaults — so a route that
+    // legitimately allows private/http upstreams doesn't break on its first
+    // redirect (#37).
+    currentUrl = await validateUpstreamUrlResolved(nextUrl.href, validation);
+
+    if (
+      response.status === 303 ||
+      ((response.status === 301 || response.status === 302) && method !== "GET" && method !== "HEAD")
+    ) {
+      method = "GET";
+      body = null;
+    }
+  }
+}
+
 export function isPrivateHost(hostname: string): boolean {
   // Strip IPv6 brackets (some platforms keep them on URL.hostname for [::1] form).
   const stripped = hostname.replace(/^\[/, "").replace(/\]$/, "");
