@@ -67,3 +67,54 @@ describe("match index", () => {
     expect(ids).toContain("e2");
   });
 });
+
+// #41: discriminator regexes must be compiled once at buildMatchIndex time, not per request.
+// We monkeypatch the global RegExp constructor to count instantiations — buildMatchIndex should
+// account for exactly the regex-bearing predicates, and repeated match() calls afterward must not
+// add to that count. This fails at pre-fix HEAD, where discriminators.ts did `new RegExp(...)`
+// inside stringMatchOk on every evaluated candidate.
+describe("match index — regex precompilation (#41)", () => {
+  it("compiles discriminator regexes once at build time, not per match() call", () => {
+    const OriginalRegExp = RegExp;
+    let constructedCount = 0;
+    class CountingRegExp extends OriginalRegExp {
+      constructor(pattern: string | RegExp, flags?: string) {
+        constructedCount++;
+        super(pattern, flags);
+      }
+    }
+    // @ts-expect-error — intentional global monkeypatch for instrumentation, restored below.
+    globalThis.RegExp = CountingRegExp;
+
+    try {
+      const regexEntries = [
+        MockEntry.parse({
+          id: "r1",
+          match: { method: "GET", path: "/search", query: { q: { regex: "^[a-z]+$" } } },
+          response: { kind: "static", status: 200, body: "ok" },
+        }),
+        MockEntry.parse({
+          id: "r2",
+          match: { method: "GET", path: "/search2", headers: { "x-trace": { regex: "^v[0-9]+$" } } },
+          response: { kind: "static", status: 200, body: "ok" },
+        }),
+      ];
+
+      const before = constructedCount;
+      const regexIndex = buildMatchIndex(regexEntries);
+      const afterBuild = constructedCount;
+      expect(afterBuild).toBeGreaterThan(before); // compiled at build time...
+
+      for (let i = 0; i < 20; i++) {
+        regexIndex.match("GET", "/search", view({ query: { q: "abc" } }));
+        regexIndex.match("GET", "/search", view({ query: { q: "ABC" } })); // mismatch path too
+        regexIndex.match("GET", "/search2", view({ headers: { "x-trace": "v12" } }));
+      }
+
+      // ...and evaluating 60 requests against the compiled regexes must not construct any more.
+      expect(constructedCount).toBe(afterBuild);
+    } finally {
+      globalThis.RegExp = OriginalRegExp;
+    }
+  });
+});

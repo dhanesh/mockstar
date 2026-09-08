@@ -18,21 +18,14 @@ import {
 
 export const MatchMethod = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "*"]);
 
-const StringMatch = z.union([
-  z.string(),
-  z.object({ equals: z.string() }).strict(),
-  z.object({ regex: z.string() }).strict(),
-  z.object({ startsWith: z.string() }).strict(),
-  z.object({ contains: z.string() }).strict(),
-]);
-
 // Detects nested quantifier patterns that cause catastrophic backtracking (S1/TN3 resolution).
 // Rejects: (a+)+, (a{1,3})+, (a|b)+ etc. Accepts bounded patterns like /^[A-Z]{2,4}$/.
 function isUnsafeRegex(pattern: string): boolean {
   return /\([^)]*[*+{][^)]*\)[*+{]/.test(pattern) || /\([^)]*\|[^)]*\)[*+{]/.test(pattern);
 }
 
-// StringMatch with a ReDoS guard on the regex variant (S1/TN3). Same inferred TS type.
+// StringMatch with a ReDoS guard on the regex variant (S1/TN3, and — since #41 — MatchPredicate
+// too). Same inferred TS type as the unguarded union used to be.
 const StringMatchWithRegexGuard = z.union([
   z.string(),
   z.object({ equals: z.string() }).strict(),
@@ -42,7 +35,7 @@ const StringMatchWithRegexGuard = z.union([
     .refine(
       (v) => !isUnsafeRegex(v.regex),
       (v) => ({
-        message: `scenario regex '${v.regex}' may cause catastrophic backtracking — use exact/startsWith/contains instead`,
+        message: `regex '${v.regex}' may cause catastrophic backtracking — use exact/startsWith/contains instead`,
       }),
     ),
   z.object({ startsWith: z.string() }).strict(),
@@ -61,8 +54,8 @@ export const MatchPredicate = z
   .object({
     method: MatchMethod.default("*"),
     path: z.string().min(1), // hono-style: /users/:id
-    query: z.record(StringMatch).optional(),
-    headers: z.record(StringMatch).optional(),
+    query: z.record(StringMatchWithRegexGuard).optional(),
+    headers: z.record(StringMatchWithRegexGuard).optional(),
     body: BodyMatch.optional(),
     priority: z.number().int().default(0),
   })

@@ -68,6 +68,29 @@ describe("MatchPredicate (T2)", () => {
     });
     expect(p.body?.partial).toEqual({ currency: "INR" });
   });
+
+  // Ported from tests/scenarios-schema.test.ts:50,57 — #41: MatchPredicate.query/.headers must
+  // run the same ReDoS guard (isUnsafeRegex) that ScenarioPredicate already runs.
+  it("rejects unsafe regex in query — nested quantifiers", () => {
+    // @constraint S1
+    const r = MatchPredicate.safeParse({ path: "/foo", query: { name: { regex: "(a+)+" } } });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.message).toMatch(/catastrophic backtracking/);
+  });
+
+  it("rejects unsafe regex in headers — alternation with quantifier", () => {
+    // @constraint S1
+    const r = MatchPredicate.safeParse({ path: "/foo", headers: { name: { regex: "(foo|bar)+" } } });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.message).toMatch(/catastrophic backtracking/);
+  });
+
+  it("accepts safe regex with bounded quantifier in query", () => {
+    // @constraint S1 (TN3 — bounded patterns accepted)
+    expect(
+      MatchPredicate.safeParse({ path: "/foo", query: { code: { regex: "^[A-Z]{2,4}$" } } }).success,
+    ).toBe(true);
+  });
 });
 
 describe("TenantConfig (S5)", () => {
