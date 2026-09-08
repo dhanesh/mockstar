@@ -71,6 +71,52 @@ Changes are picked up automatically (file-watch). Adding a new hostname: edit �
 | `mockstar proxy reload`     | No-op; proxy reloads automatically on config change |
 | `mockstar proxy uninstall`  | Reverse every journaled mutation (LIFO) |
 
+## Running `proxy install` from source / in a container (#39)
+
+`mockstar proxy install` refuses by default when the binary it would grant `cap_net_bind_service`
+to (Linux: `setcap`; macOS: a launchd plist) resolves to the `bun` (or `node`/`deno`) interpreter
+itself, rather than a packaged mockstar binary. This happens whenever you run install from source
+(`bun run src/cli.ts proxy install`) or via the npm `mockstar` shim, and it also means it happens
+**inside the official Docker image**, whose `ENTRYPOINT` is `["bun", "./dist/cli.js"]` — so
+`docker run <image> proxy install` hits the same refusal.
+
+The refusal exists because granting the capability to the interpreter grants it to **every
+program that interpreter ever runs**, persistently, on that machine — not just mockstar. On a
+developer's laptop that's a real, standing risk, so the default stays "refuse":
+
+```
+Refusing to grant the network-bind capability to '/usr/local/bin/bun': it resolves to the
+bun interpreter, not a packaged mockstar binary.
+```
+
+The right fix is almost always to build and use a packaged binary instead:
+
+```bash
+bun run build && bun run build:binary
+./dist/mockstar-<platform>-<arch> proxy install
+```
+
+**On a single-purpose, ephemeral host — a CI runner, a throwaway VM/container — that risk
+doesn't apply** (the machine is discarded after the run), so there's an explicit opt-in:
+
+| Form | Value |
+|---|---|
+| CLI flag | `--allow-interpreter-capability-grant` |
+| Env var (for a CI step or Dockerfile, where editing the invoked command is awkward) | `MOCKSTAR_ALLOW_INTERPRETER_CAPABILITY_GRANT=1` |
+
+```bash
+mockstar proxy install --allow-interpreter-capability-grant
+# or
+MOCKSTAR_ALLOW_INTERPRETER_CAPABILITY_GRANT=1 mockstar proxy install
+```
+
+When used, install prints a `WARNING` naming exactly what capability is being granted and to
+which path, and the install journal (`~/.mockstar/install-state.json`) records that the
+mutation used this escape hatch — so the grant is auditable in CI logs and after the fact.
+
+**Never use either form on a developer's own machine.** It is meant for hosts that are
+single-purpose and get thrown away, not for anything long-lived.
+
 ## Security
 
 **Installing a local CA is a significant system-trust-store modification.** Read `docs/GOVERNANCE.md` + `docs/PROXY.md#threat-model`.

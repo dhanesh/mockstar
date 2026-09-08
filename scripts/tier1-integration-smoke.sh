@@ -59,7 +59,16 @@ EOF
 # -----------------------------------------------------------------------------
 # Step 3: install the proxy (writes /etc/hosts entry, setcap on Bun binary)
 # -----------------------------------------------------------------------------
-bun run src/cli.ts proxy install --force --dns-mode=hosts
+# --allow-interpreter-capability-grant (#39): this smoke test runs `proxy install` via
+# `bun run src/cli.ts`, so process.execPath resolves to the `bun` interpreter itself, not
+# a packaged mockstar binary — the refusal `portBindMutation` added for #39 would otherwise
+# reject this. That refusal exists because granting cap_net_bind_service to a general-purpose
+# interpreter hands every program it runs the ability to bind privileged ports, persistently,
+# on the machine that's granted it. Here that concern doesn't apply: Dockerfile.tier1-proxy
+# builds a throwaway, single-purpose container that this job destroys (`docker run --rm`)
+# immediately after the run, so there is no persistent "every Bun program on this machine"
+# to worry about. Do not copy this flag onto a developer's own machine.
+bun run src/cli.ts proxy install --force --dns-mode=hosts --allow-interpreter-capability-grant
 
 # -----------------------------------------------------------------------------
 # Step 4: start mockstar-core on :3000

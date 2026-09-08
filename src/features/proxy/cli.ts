@@ -7,6 +7,8 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir, hostname as osHostname, platform, userInfo } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV,
+  ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG,
   type Mutation,
   type ProxyConfig,
   appendStep,
@@ -123,6 +125,7 @@ async function install(argv: readonly string[]): Promise<number> {
     mutations.push(
       portBindMutation({
         binaryPath: process.execPath,
+        allowInterpreter: resolveAllowInterpreterGrant(argv, process.env),
       }),
     );
   } catch (err) {
@@ -270,6 +273,26 @@ function defaultJournalPath(): string {
   return join(homedir(), ".mockstar", "install-state.json");
 }
 
+/**
+ * Resolve the #39 escape hatch: explicit opt-in to grant cap_net_bind_service (or the
+ * launchd equivalent) to a general-purpose interpreter rather than a packaged mockstar
+ * binary. Pure (no I/O) so it's unit-testable without exercising the rest of `install()`,
+ * which shells out to mkcert/setcap/launchctl.
+ *
+ * Two forms, either one enables it: the CLI flag is what a human types; the env var is
+ * what a CI step or Dockerfile can set without rewriting the invoked command. Default
+ * stays "not opted in" — the caller (portBindMutation) still refuses unless this is true.
+ */
+export function resolveAllowInterpreterGrant(
+  argv: readonly string[],
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  return (
+    argv.includes(ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG) ||
+    env[ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV] === "1"
+  );
+}
+
 function pickFlag(args: readonly string[], name: string): string | undefined {
   const prefixed = args.find((a) => a.startsWith(`${name}=`));
   if (prefixed) return prefixed.slice(name.length + 1);
@@ -299,6 +322,13 @@ function proxyHelp(): string {
     "Subcommands:",
     "  install               Install local CA + DNS + port-443 capability; journaled for clean uninstall.",
     "                        Flags: --force, --dns-mode=<dnsmasq|hosts>, --config=<path>",
+    `                        ${ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG}`,
+    "                          Opt-in escape hatch for #39: grants the network-bind capability",
+    "                          even when running from source (bun) instead of a packaged binary.",
+    "                          Grants EVERY program run by that interpreter the ability to bind",
+    "                          privileged ports — only use on a single-purpose, ephemeral host",
+    "                          (CI runner, throwaway VM/container), never on a dev machine. Env:",
+    `                          ${ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV}=1 (for CI steps / Dockerfiles).`,
     "  uninstall             Reverse every journaled install mutation (LIFO).",
     "  start                 Run the HTTPS proxy (requires prior install).",
     "                        Flags: --config=<path>",

@@ -23,7 +23,13 @@ export {
 export type { TlsLeaf, TlsServerHandle, TlsServerOptions, RequestMeta } from "./tls-adapter.ts";
 export { startProxyServer, type ProxyRuntime, type StartOptions } from "./server.ts";
 export { detectEnvHostility, remediationMessage } from "./env-detector.ts";
-export { portBindMutation, isPlatformSupported, runPrivileged } from "./port-bind.ts";
+export {
+  portBindMutation,
+  isPlatformSupported,
+  runPrivileged,
+  ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG,
+  ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV,
+} from "./port-bind.ts";
 export {
   appendStep,
   readJournal,
