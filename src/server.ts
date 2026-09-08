@@ -31,6 +31,23 @@ import {
   dispatchWebhooks,
 } from "./features/webhooks/index.ts";
 
+/**
+ * S5 / issue #34: bucket for journal/metrics/log entries recorded for a resolved tenant
+ * that does NOT exist in the current snapshot. In header-mode tenancy, `ctx.var.tenant`
+ * is only regex-validated (see TENANT_REGEX in core/tenancy/extractor.ts) — it is never
+ * checked against configured tenants — so without this bucket an attacker can allocate
+ * one unbounded JournalRegistry ring buffer and one unbounded Metrics label set per
+ * distinct header value they send.
+ *
+ * The colon makes this value impossible to collide with a real tenant: every tenant
+ * name that can ever reach this point either passed TENANT_REGEX (`^[a-zA-Z0-9_-]{1,64}$`,
+ * which excludes ':') or is the literal fallback "default". A plain word like
+ * "unknown" would NOT be safe here — tenant directory names are unrestricted basenames
+ * (see loadSnapshot in core/config/loader.ts), so an operator could legally name a
+ * tenant directory "unknown", and header-mode extraction could resolve a request to it.
+ */
+const UNKNOWN_TENANT_BUCKET = ":unknown:";
+
 // Hono variable augmentation — all middleware reads typed `ctx.var.*`.
 declare module "hono" {
   interface ContextVariableMap {
@@ -349,11 +366,17 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   }
 
   // Defer observability writes to after the response goes out (RT-6.3).
+  // Issue #34: bucket unknown-tenant traffic under one fixed key rather than the
+  // attacker-supplied string, so it costs one ring buffer / one label set to see that
+  // unknown-tenant traffic is arriving, not one per distinct probed value. This changes
+  // ONLY what gets journaled/metered/logged — the response itself (computed above) is
+  // untouched, so an unknown tenant still gets exactly the 404 it got before.
+  const observedTenant = tenantSnap ? tenant : UNKNOWN_TENANT_BUCKET;
   queueMicrotask(() => {
     const durationUs = Math.round(performance.now() * 1000 - startedUs);
     const entry: JournalEntry = {
       timestamp: Date.now(),
-      tenant,
+      tenant: observedTenant,
       requestId,
       method,
       path: matchPath,
@@ -365,15 +388,15 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
     };
     deps.journal.record(entry);
     deps.metrics.incCounter("mockstar_requests_total", {
-      tenant,
+      tenant: observedTenant,
       method,
       status: String(response.status),
       matched: matchedMockId ? "1" : "0",
     });
-    deps.metrics.observeLatencyUs("mockstar_request_latency_us", { tenant }, durationUs);
+    deps.metrics.observeLatencyUs("mockstar_request_latency_us", { tenant: observedTenant }, durationUs);
     deps.logger.info({
       event: "request",
-      tenant,
+      tenant: observedTenant,
       method,
       path: matchPath,
       status: response.status,
