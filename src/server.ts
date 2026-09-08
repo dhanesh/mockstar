@@ -92,6 +92,14 @@ export interface RunningServer {
    * fresh delivery. Returns the new deliveryId on success or an error code.
    */
   readonly replayWebhook: (tenant: string, deliveryId: string) => ReplayResult;
+  /**
+   * Issue #40: stop every per-tenant webhook queue (cancels live backoff timers,
+   * settles any promise awaiting one, terminates never-run deliveries) AND the
+   * delivery-event registry (settles every pending `await()` caller with null).
+   * Called from `launch().stop()` so a library-embed test process never hangs on
+   * a webhook retry timer after the server it started has "stopped".
+   */
+  readonly stopWebhooks: () => void;
 }
 
 export type ReplayResult =
@@ -261,6 +269,11 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     }),
   );
 
+  const stopWebhooks = (): void => {
+    for (const q of webhookQueues.values()) q.stop();
+    webhookEvents.stop();
+  };
+
   return {
     hono: app,
     journal,
@@ -270,6 +283,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     webhookJournal,
     webhookEvents,
     replayWebhook,
+    stopWebhooks,
   };
 }
 

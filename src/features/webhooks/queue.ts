@@ -86,12 +86,73 @@ export class BoundedRetryQueue {
   readonly #cap: number;
   readonly #onDropped?: (dropped: QueuedDelivery) => void;
   readonly #onSizeChange?: (size: number) => void;
+  /**
+   * Every live backoff timer, keyed to the `resolve` that settles its `#sleep()` promise.
+   * Tracked (rather than `unref()`-ed) so `stop()` can both clear the timer AND settle the
+   * promise awaiting it — `unref()` alone stops the process hanging but leaves the awaited
+   * promise pending forever, which is exactly the "caller blocked on a delivery that never
+   * settles" failure this queue must not produce (issue #40).
+   */
+  readonly #timers = new Map<ReturnType<typeof setTimeout>, () => void>();
+  /** Set by stop(); once true, no new HTTP attempt is started and backoff sleeps resolve instantly. */
+  #stopped = false;
 
   constructor(opts: Partial<BoundedRetryQueueOptions> = {}) {
     this.#pq = new PQueue({ concurrency: opts.concurrency ?? DEFAULT_CONCURRENCY });
     this.#cap = opts.cap ?? DEFAULT_CAP;
     this.#onDropped = opts.onDropped;
     this.#onSizeChange = opts.onSizeChange;
+  }
+
+  /**
+   * Stop the queue: cancel every live backoff timer, settle any promise that was awaiting
+   * one (so no caller hangs), and terminate every delivery that never got a chance to run.
+   *
+   * Decision (issue #40): in-flight HTTP attempts (already inside `req.attempt()`, i.e.
+   * `#pq.pending`) are left to SETTLE, not cancelled — the fetch has its own bounded
+   * per-attempt timeout (T8, `AbortSignal.timeout(spec.timeoutMs)`) so it cannot hang the
+   * process indefinitely, and severing it mid-flight would leave the receiver's HTTP
+   * state ambiguous (did it apply the webhook or not?) for no benefit. Everything this
+   * queue itself controls — deliveries still waiting in the FIFO, and deliveries currently
+   * sleeping between retry attempts — is cancelled immediately: waiting entries terminate
+   * via the existing drop path, and a delivery asleep in backoff terminates as 'failed'
+   * the moment its sleep is force-resolved (see #runWithRetry), rather than firing another
+   * HTTP attempt after the caller asked the server to stop.
+   */
+  stop(): void {
+    if (this.#stopped) return;
+    this.#stopped = true;
+
+    // Cancel every live backoff timer AND settle its promise — clearing the timer alone
+    // would stop the process hanging but leave `await this.#sleep(...)` pending forever.
+    for (const [timer, resolve] of this.#timers) {
+      clearTimeout(timer);
+      resolve();
+    }
+    this.#timers.clear();
+
+    // Deliveries that never got a chance to run — terminate them now via the same
+    // resolve-never-reject path used for cap eviction, so onTerminal always fires exactly once.
+    const abandoned = this.#waiting.splice(0, this.#waiting.length);
+    for (const req of abandoned) {
+      this.#dropDelivery(req);
+    }
+  }
+
+  /**
+   * Cancellable backoff sleep. Tracked in `#timers` so `stop()` can clear + settle it.
+   * Once stopped, resolves immediately — the caller (`#runWithRetry`) checks `#stopped`
+   * right after and terminates instead of making another attempt.
+   */
+  #sleep(ms: number): Promise<void> {
+    if (ms <= 0 || this.#stopped) return Promise.resolve();
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.#timers.delete(timer);
+        resolve();
+      }, ms);
+      this.#timers.set(timer, resolve);
+    });
   }
 
   /** Fire the size-change callback. Wrapped so we never throw from a hook. */
@@ -120,12 +181,23 @@ export class BoundedRetryQueue {
     return this.#pq.pending;
   }
 
+  /** Test-helper: number of live backoff timers currently tracked (should be 0 after stop()). */
+  liveTimerCount(): number {
+    return this.#timers.size;
+  }
+
   /**
    * Enqueue a delivery. If queue is at cap, evict OLDEST waiting entries first
    * (resolved with outcome:'dropped'). If still no slack — i.e. cap entries are
    * all in-flight — the new entry itself drops (we cannot abort in-flight tasks).
    */
   enqueue(req: QueuedDelivery): void {
+    // Refuse new work once stopped — a queue that keeps accepting deliveries after
+    // stop() could resurrect the very timers stop() just cleared.
+    if (this.#stopped) {
+      this.#dropDelivery(req);
+      return;
+    }
     while (this.size() >= this.#cap) {
       const oldest = this.#waiting.shift();
       if (oldest) {
@@ -185,7 +257,22 @@ export class BoundedRetryQueue {
       if (attempt > 1) {
         const baseMs = req.retry.backoff[attempt - 2] ?? 0;
         const delayMs = applyJitter(baseMs, req.retry.jitterRatio);
-        await sleep(delayMs);
+        await this.#sleep(delayMs);
+
+        // stop() may have force-resolved the sleep above rather than letting it elapse
+        // naturally. Terminate now instead of firing another HTTP attempt after the
+        // caller asked the server to stop (issue #40) — the delivery already made
+        // `attempt - 1` real attempts, all failed, so 'failed' is the honest terminal state.
+        if (this.#stopped) {
+          req.onTerminal({
+            deliveryId: req.deliveryId,
+            outcome: "failed",
+            totalAttempts: attempt - 1,
+            lastHttpStatus,
+            totalDurationUs: Math.round((performance.now() - totalStart) * 1000),
+          });
+          return;
+        }
       }
 
       // Circuit gate check immediately before HTTP — covers the case where another
@@ -271,11 +358,6 @@ function applyJitter(baseMs: number, ratio: number): number {
   const delta = baseMs * ratio;
   // ±ratio uniform jitter
   return Math.max(0, Math.round(baseMs - delta + Math.random() * 2 * delta));
-}
-
-function sleep(ms: number): Promise<void> {
-  if (ms <= 0) return Promise.resolve();
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function errorToString(err: unknown): string {
