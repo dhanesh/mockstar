@@ -6,6 +6,7 @@ import { type Context, Hono } from "hono";
 import type { ConfigSnapshot, SnapshotHolder } from "./core/config/snapshot.ts";
 import { installProcessHandlers } from "./core/errors/index.ts";
 import type { HandlerRegistry } from "./core/handlers/index.ts";
+import { bodyTooLargeResponse, capRequestBodyStream } from "./core/http/body-cap.ts";
 import { type JournalEntry, JournalRegistry } from "./core/journal/index.ts";
 import { Metrics, type StructuredLogger, createLogger } from "./core/observability/index.ts";
 import { type ScenarioAttrs, evaluateScenarios } from "./core/scenarios/evaluator.ts";
@@ -603,6 +604,7 @@ async function routeToMock(
       response = await renderPassThrough(hit.entry, ctx, {
         allowPrivateUpstreams: tenantSnap.allowPrivateUpstreams,
         logger: deps.logger,
+        maxBodyBytes: tenantSnap.limits.maxBodyBytes,
       });
       break;
   }
@@ -623,13 +625,6 @@ function notFoundUnknownTenant(tenant: string, method: string, path: string): Re
   });
 }
 
-function bodyTooLargeResponse(limit: number): Response {
-  return new Response(JSON.stringify({ error: "body_too_large", limit }), {
-    status: 413,
-    headers: { "content-type": "application/json" },
-  });
-}
-
 type SafeBodyResult = { ok: true; body: unknown } | { ok: false };
 
 /**
@@ -637,14 +632,13 @@ type SafeBodyResult = { ok: true; body: unknown } | { ok: false };
  * STREAM ITSELF — never by trusting Content-Length (a chunked request carries none,
  * see issue #33) and never by buffering the whole body first and measuring after.
  *
- * We splice a byte-counting TransformStream in front of the request body and swap
- * it into `ctx.req.raw` before anything reads it. `ctx.req.text()`/`.json()` (used
- * here, and potentially again by a user-authored dynamic handler downstream) then
- * consume the capped stream through Hono's normal body-cache path, so a request
- * exactly at the cap round-trips identically to today and nothing downstream needs
- * to change. Once the running total exceeds the cap we error the stream, which
- * aborts the read immediately — the remainder of an oversized body is never pulled
- * off the wire into memory.
+ * The cap itself lives in `capRequestBodyStream` (core/http/body-cap.ts), shared with
+ * the pass-through forwarding path (#33 follow-up: a non-JSON body never reaches this
+ * function's cap at all, since we return before touching the stream below — pass-through
+ * applies the same helper directly before its own `.arrayBuffer()` read). `ctx.req.text()`
+ * (used here, and potentially again by a user-authored dynamic handler downstream) then
+ * consumes the capped stream through Hono's normal body-cache path, so a request exactly
+ * at the cap round-trips identically to today and nothing downstream needs to change.
  */
 async function safeParseBody(ctx: Context, maxBodyBytes: number): Promise<SafeBodyResult> {
   const method = ctx.req.method;
@@ -652,25 +646,7 @@ async function safeParseBody(ctx: Context, maxBodyBytes: number): Promise<SafeBo
   const contentType = ctx.req.header("content-type") ?? "";
   if (!contentType.includes("json")) return { ok: true, body: null };
 
-  const original = ctx.req.raw;
-  let tooLarge = false;
-  if (original.body) {
-    let total = 0;
-    const limited = original.body.pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          total += chunk.byteLength;
-          if (total > maxBodyBytes) {
-            tooLarge = true;
-            controller.error(new Error("body_too_large"));
-            return;
-          }
-          controller.enqueue(chunk);
-        },
-      }),
-    );
-    ctx.req.raw = new Request(original, { body: limited, duplex: "half" } as RequestInit);
-  }
+  const { tooLarge } = capRequestBodyStream(ctx, maxBodyBytes);
 
   try {
     // Hono's req.json() clones; we use raw text to avoid double-read issues downstream.
@@ -682,7 +658,7 @@ async function safeParseBody(ctx: Context, maxBodyBytes: number): Promise<SafeBo
       return { ok: true, body: null };
     }
   } catch (err) {
-    if (tooLarge) return { ok: false };
+    if (tooLarge()) return { ok: false };
     throw err;
   }
 }

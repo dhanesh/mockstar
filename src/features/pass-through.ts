@@ -3,12 +3,20 @@
 
 import type { Context } from "hono";
 import type { Entry } from "../core/config/schema.ts";
+import { bodyTooLargeResponse, capRequestBodyStream } from "../core/http/body-cap.ts";
 import type { StructuredLogger } from "../core/observability/logger.ts";
 import { UrlValidationError, validateUpstreamUrlResolved } from "./url-validator.ts";
 
 export interface PassThroughOptions {
   allowPrivateUpstreams: boolean;
   logger: StructuredLogger;
+  /**
+   * S5 / #33: the tenant's request body size cap. `safeParseBody` (src/server.ts) only
+   * caps JSON bodies — a non-JSON body (chunked, no Content-Length) reaches this function
+   * with its stream untouched, so we apply the SAME cap (via `capRequestBodyStream`)
+   * before reading it for upstream forwarding. See the read below.
+   */
+  maxBodyBytes: number;
 }
 
 export async function renderPassThrough(
@@ -64,13 +72,22 @@ export async function renderPassThrough(
   // Bun/Node: unref the timer so it doesn't keep the process alive.
   (timer as unknown as { unref?: () => void }).unref?.();
 
+  // S5 / #33: apply the same byte cap the JSON path applies, right before the read that
+  // would otherwise buffer an unbounded, non-JSON, chunked body into memory. `capRequestBodyStream`
+  // no-ops when the body was already capped-and-consumed upstream (a JSON-content-type body
+  // routed to a passthrough entry — `safeParseBody` already read it), so this doesn't touch
+  // that path's behavior.
+  const bodyCap =
+    ctx.req.method === "GET" || ctx.req.method === "HEAD"
+      ? null
+      : capRequestBodyStream(ctx, opts.maxBodyBytes);
+
   const started = performance.now();
   try {
     const upstreamRes = await fetch(targetUrl, {
       method: ctx.req.method,
       headers,
-      body:
-        ctx.req.method === "GET" || ctx.req.method === "HEAD" ? undefined : await ctx.req.raw.arrayBuffer(),
+      body: bodyCap ? await ctx.req.raw.arrayBuffer() : undefined,
       signal: controller.signal,
     });
     clearTimeout(timer);
@@ -81,6 +98,9 @@ export async function renderPassThrough(
     });
   } catch (err) {
     clearTimeout(timer);
+    if (bodyCap?.tooLarge()) {
+      return bodyTooLargeResponse(opts.maxBodyBytes);
+    }
     const durationMs = performance.now() - started;
     const aborted = err instanceof DOMException && err.name === "AbortError";
     opts.logger.error({
