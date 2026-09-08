@@ -116,11 +116,23 @@ async function install(argv: readonly string[]): Promise<number> {
   mutations.push(...(await buildDnsMutations(config)));
 
   // Step 3 — Port 443 binding capability.
-  mutations.push(
-    portBindMutation({
-      binaryPath: process.argv[0] ?? "/usr/bin/env",
-    }),
-  );
+  // Use process.execPath, not process.argv[0]: execPath is the OS-resolved path of
+  // the actual running executable, whereas argv[0] is just whatever the calling
+  // process set it to and is not a reliable "what binary is this" signal (see #39).
+  try {
+    mutations.push(
+      portBindMutation({
+        binaryPath: process.execPath,
+      }),
+    );
+  } catch (err) {
+    if (err instanceof ProxyError) {
+      process.stderr.write(`\n${err.message}\n`);
+      if (err.hint) process.stderr.write(`${err.hint}\n`);
+      return 1;
+    }
+    throw err;
+  }
 
   try {
     const { applied } = await atomicInstall(journalPath, mutations, {

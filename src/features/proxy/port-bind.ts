@@ -11,9 +11,45 @@
 import { spawn } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { platform } from "node:os";
+import { basename } from "node:path";
 import { ProxyError, type ReverseCommand } from "./types.ts";
 
 // --- PUBLIC API ----------------------------------------------------------
+
+// General-purpose JS/TS runtime executables. `mockstar proxy install` must never grant
+// cap_net_bind_service (or install a launchd plist) against one of these — see #39: run
+// from source (`bun run src/cli.ts proxy install`) — or through the npm `mockstar` shim,
+// which is itself a `#!/usr/bin/env bun` script — the resolved binary path is the
+// interpreter's own path, not a packaged mockstar binary. Granting the capability to
+// `bun` would hand every Bun program on the machine the ability to bind privileged
+// ports, and makes `bun` an AT_SECURE binary machine-wide and persistently. `node` and
+// `deno` are included defensively even though only Bun runs this project today.
+const INTERPRETER_BASENAMES: ReadonlySet<string> = new Set(["bun", "bun-debug", "node", "deno"]);
+
+/**
+ * Refuse when `binaryPath` resolves to a general-purpose interpreter rather than a
+ * packaged mockstar binary. Checked on the *basename* of the resolved path (not the
+ * whole path or a "looks like mockstar" allowlist) because that is the one honest,
+ * self-contained signal available here: the caller passes `process.execPath` (the
+ * OS-resolved path of the actual running executable — more robust than
+ * `process.argv[0]`, which a caller could override, e.g. via `exec -a`), and a
+ * standalone `bun build --compile` binary never has a basename of `bun`/`node`/`deno`
+ * regardless of what the user names it, whereas the interpreter always does.
+ */
+function assertPackagedBinary(binaryPath: string): void {
+  const base = basename(binaryPath).toLowerCase();
+  if (INTERPRETER_BASENAMES.has(base)) {
+    throw new ProxyError(
+      `Refusing to grant the network-bind capability to '${binaryPath}': it resolves to the ` +
+        `${base} interpreter, not a packaged mockstar binary.`,
+      "binary_path_is_interpreter",
+      "Build and use a packaged binary instead of running from source: `bun run build && " +
+        "bun run build:binary`, then run `./dist/mockstar-<platform>-<arch> proxy install` " +
+        "(or use a downloaded release binary / the Docker image). Granting this capability to " +
+        "the interpreter itself would let every program it runs bind privileged ports.",
+    );
+  }
+}
 
 export interface PortBindMutation {
   /** Human-readable description for the install journal. */
@@ -36,6 +72,8 @@ export function portBindMutation(params: {
   plistPath?: string;
   launchdLabel?: string;
 }): PortBindMutation {
+  assertPackagedBinary(params.binaryPath);
+
   const os = platform();
   if (os === "linux") {
     return linuxSetcapMutation(params.binaryPath);
