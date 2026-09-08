@@ -15,13 +15,16 @@
 // testing on each platform. The structure + signatures are stable; the shell-outs are
 // scaffolded with clear intent.
 
-import { appendFile, readFile, writeFile } from "node:fs/promises";
-import { platform } from "node:os";
+import { appendFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Mutation } from "./install-journal.ts";
 import { runPrivileged } from "./port-bind.ts";
 import type { HostConfig, ProxyConfig, ReverseCommand } from "./types.ts";
 import { ProxyError } from "./types.ts";
+
+/** Signature of {@link runPrivileged} — injectable so tests never shell out to real `sudo`. */
+type PrivilegedRunner = typeof runPrivileged;
 
 // --- PUBLIC API ----------------------------------------------------------
 
@@ -41,23 +44,76 @@ export async function buildDnsMutations(config: ProxyConfig): Promise<Mutation[]
   return buildDnsmasqMutations(config.hosts);
 }
 
-/** Reverse a hosts-fallback block. Used by install-journal's reverse_hosts_entries handler. */
-export async function revertHostsBlock(marker: string): Promise<void> {
+/**
+ * Reverse a hosts-fallback block. Used by install-journal's reverse_hosts_entries handler.
+ *
+ * `hostsPath` and `runner` are injectable purely for tests — real callers never pass them,
+ * so they default to the real `/etc/hosts` and the real privileged `sudo` runner.
+ */
+export async function revertHostsBlock(
+  marker: string,
+  opts: { hostsPath?: string; runner?: PrivilegedRunner } = {},
+): Promise<void> {
+  const hostsPath = opts.hostsPath ?? HOSTS_PATH;
   let existing = "";
   try {
-    existing = await readFile(HOSTS_PATH, "utf8");
+    existing = await readFile(hostsPath, "utf8");
   } catch {
     return;
   }
-  const start = existing.indexOf(marker);
+  const markerStart = existing.indexOf(marker);
   const end = existing.indexOf(HOSTS_BLOCK_END);
-  if (start === -1 || end === -1) return;
-  const next = existing.slice(0, start) + existing.slice(end + HOSTS_BLOCK_END.length).replace(/^\n+/, "");
-  // Writing /etc/hosts requires sudo — shell out via privileged tee.
-  await runPrivileged(["tee", HOSTS_PATH]).catch(() => undefined);
-  // Simpler path: write to a temp file + sudo mv. Left as-is for v1; exact privileged
-  // write mechanism depends on final packaging.
-  void next;
+  if (markerStart === -1 || end === -1) return;
+  // The appended block (see buildHostsMutations) is `\n${marker}\n...\n${HOSTS_BLOCK_END}\n` —
+  // it owns one leading and one trailing newline as separators. Consume both so the
+  // surrounding content is restored byte-for-byte, not left with a stray blank line.
+  const blockStart = existing[markerStart - 1] === "\n" ? markerStart - 1 : markerStart;
+  let blockEnd = end + HOSTS_BLOCK_END.length;
+  if (existing[blockEnd] === "\n") blockEnd += 1;
+  const next = existing.slice(0, blockStart) + existing.slice(blockEnd);
+  // Writing /etc/hosts requires sudo. Write the corrected content to a temp file first,
+  // then `sudo mv` it into place — atomic, never truncates the target, and needs no stdin.
+  await privilegedWriteFile(hostsPath, next, {
+    runner: opts.runner,
+    errorCode: "hosts_revert_failed",
+    hint: `Manually remove the block between '${HOSTS_BLOCK_MARKER}' and '${HOSTS_BLOCK_END}' in ${hostsPath}.`,
+  });
+}
+
+/**
+ * Write `content` to `path` via sudo, safely: the content is written to a private temp
+ * file first (no privilege needed for that), then moved into place with `sudo mv`. This
+ * is atomic and never truncates `path` without first having the full content ready to
+ * land there — unlike shelling out to a privileged `tee` with nothing piped to its stdin,
+ * which truncates the target on open and then writes nothing.
+ *
+ * On any failure (temp write fails, or the privileged move fails/exits non-zero) this
+ * throws a `ProxyError` — it never swallows the outcome, so a cleanup path that can't
+ * clean up says so instead of silently leaving the target untouched-but-unreported.
+ */
+async function privilegedWriteFile(
+  path: string,
+  content: string,
+  opts: { runner?: PrivilegedRunner; errorCode: string; hint?: string } = {
+    errorCode: "privileged_write_failed",
+  },
+): Promise<void> {
+  const runner = opts.runner ?? runPrivileged;
+  const dir = await mkdtemp(join(tmpdir(), "mockstar-proxy-"));
+  const tmpFile = join(dir, "content");
+  try {
+    await writeFile(tmpFile, content, "utf8");
+    const result = await runner(["mv", tmpFile, path]);
+    if (result.exitCode !== 0) {
+      throw new ProxyError(
+        `Failed to write ${path}: ${result.stderr.trim() || result.stdout.trim() || `mv exited with code ${result.exitCode}`}`,
+        opts.errorCode,
+        opts.hint,
+      );
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 /** Stop and remove the dnsmasq service installed by buildDnsmasqMutations. */
@@ -101,7 +157,14 @@ function buildHostsMutations(hosts: readonly HostConfig[]): Mutation[] {
 
 // --- DNSMASQ -------------------------------------------------------------
 
-function buildDnsmasqMutations(hosts: readonly HostConfig[]): Mutation[] {
+/**
+ * `overrides.runner` is injectable purely for tests — real callers never pass it, so
+ * privileged writes go through the real `sudo` runner.
+ */
+export function buildDnsmasqMutations(
+  hosts: readonly HostConfig[],
+  overrides: { runner?: PrivilegedRunner } = {},
+): Mutation[] {
   const os = platform();
   if (os !== "darwin" && os !== "linux") {
     throw new ProxyError(
@@ -153,12 +216,14 @@ function buildDnsmasqMutations(hosts: readonly HostConfig[]): Mutation[] {
         reverseCommand: { kind: "remove_file", path: resolverPath },
         async apply(): Promise<void> {
           // Writing under /etc/resolver requires sudo. The install CLI prompts for password once.
+          // Write via temp file + `sudo mv` (see privilegedWriteFile) — atomic, and the content
+          // that lands is exactly what was computed here, never an empty truncated file.
           const content = "nameserver 127.0.0.1\nport 53\n";
-          const result = await runPrivileged(["tee", resolverPath]);
-          if (result.exitCode !== 0) {
-            throw new ProxyError(`Failed to write ${resolverPath}`, "resolver_write_failed");
-          }
-          void content; // content piped to `tee` via stdin in a production impl
+          await privilegedWriteFile(resolverPath, content, {
+            runner: overrides.runner,
+            errorCode: "resolver_write_failed",
+            hint: `Manually create ${resolverPath} with:\n${content}`,
+          });
         },
       });
     }
