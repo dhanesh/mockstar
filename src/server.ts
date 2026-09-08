@@ -303,32 +303,34 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
     if (!tenantSnap) {
       response = notFoundUnknownTenant(tenant, method, matchPath);
     } else {
-      // Rate / size caps (S5) — cheap pre-check.
+      // Rate / size caps (S5) — cheap pre-check. Catches a declared-oversized body
+      // without reading it, but a chunked request carries no Content-Length, so this
+      // alone is not sufficient — see the streaming enforcement in safeParseBody below.
       const contentLength = Number.parseInt(ctx.req.header("content-length") ?? "0", 10);
       if (contentLength > tenantSnap.limits.maxBodyBytes) {
-        response = new Response(
-          JSON.stringify({ error: "body_too_large", limit: tenantSnap.limits.maxBodyBytes }),
-          {
-            status: 413,
-            headers: { "content-type": "application/json" },
-          },
-        );
+        response = bodyTooLargeResponse(tenantSnap.limits.maxBodyBytes);
       } else {
-        const result = await routeToMock(
-          ctx,
-          matchPath,
-          method,
-          tenant,
-          snapshot,
-          tenantSnap,
-          requestId,
-          deps,
-        );
-        response = result.response;
-        matchedMockId = response.headers.get("x-mockstar-matched") ?? null;
-        scenarioId = result.scenarioId;
-        scenarioMissReason = result.scenarioMissReason;
-        webhookTrigger = result.webhookTrigger;
+        const bodyResult = await safeParseBody(ctx, tenantSnap.limits.maxBodyBytes);
+        if (!bodyResult.ok) {
+          response = bodyTooLargeResponse(tenantSnap.limits.maxBodyBytes);
+        } else {
+          const result = await routeToMock(
+            ctx,
+            matchPath,
+            method,
+            tenant,
+            snapshot,
+            tenantSnap,
+            requestId,
+            deps,
+            bodyResult.body,
+          );
+          response = result.response;
+          matchedMockId = response.headers.get("x-mockstar-matched") ?? null;
+          scenarioId = result.scenarioId;
+          scenarioMissReason = result.scenarioMissReason;
+          webhookTrigger = result.webhookTrigger;
+        }
       }
     }
   } catch (err) {
@@ -443,10 +445,11 @@ async function routeToMock(
   tenantSnap: NonNullable<ReturnType<ConfigSnapshot["tenants"]["get"]>>,
   requestId: string,
   deps: DispatchDeps,
+  body: unknown,
 ): Promise<RouteResult> {
-  // Build the request view for matching discriminators.
+  // Build the request view for matching discriminators. `body` was already read (and
+  // size-capped) by safeParseBody in dispatch() before routing began.
   const url = new URL(ctx.req.url);
-  const body = await safeParseBody(ctx);
   const req = {
     query: new Map(Array.from(url.searchParams)),
     headers: new Map(Array.from(ctx.req.raw.headers).map(([k, v]) => [k.toLowerCase(), v])),
@@ -597,18 +600,67 @@ function notFoundUnknownTenant(tenant: string, method: string, path: string): Re
   });
 }
 
-async function safeParseBody(ctx: Context): Promise<unknown> {
+function bodyTooLargeResponse(limit: number): Response {
+  return new Response(JSON.stringify({ error: "body_too_large", limit }), {
+    status: 413,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+type SafeBodyResult = { ok: true; body: unknown } | { ok: false };
+
+/**
+ * S5: parse the JSON request body while enforcing the tenant's byte cap on the
+ * STREAM ITSELF — never by trusting Content-Length (a chunked request carries none,
+ * see issue #33) and never by buffering the whole body first and measuring after.
+ *
+ * We splice a byte-counting TransformStream in front of the request body and swap
+ * it into `ctx.req.raw` before anything reads it. `ctx.req.text()`/`.json()` (used
+ * here, and potentially again by a user-authored dynamic handler downstream) then
+ * consume the capped stream through Hono's normal body-cache path, so a request
+ * exactly at the cap round-trips identically to today and nothing downstream needs
+ * to change. Once the running total exceeds the cap we error the stream, which
+ * aborts the read immediately — the remainder of an oversized body is never pulled
+ * off the wire into memory.
+ */
+async function safeParseBody(ctx: Context, maxBodyBytes: number): Promise<SafeBodyResult> {
   const method = ctx.req.method;
-  if (method === "GET" || method === "HEAD") return null;
+  if (method === "GET" || method === "HEAD") return { ok: true, body: null };
   const contentType = ctx.req.header("content-type") ?? "";
-  if (!contentType.includes("json")) return null;
+  if (!contentType.includes("json")) return { ok: true, body: null };
+
+  const original = ctx.req.raw;
+  let tooLarge = false;
+  if (original.body) {
+    let total = 0;
+    const limited = original.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          total += chunk.byteLength;
+          if (total > maxBodyBytes) {
+            tooLarge = true;
+            controller.error(new Error("body_too_large"));
+            return;
+          }
+          controller.enqueue(chunk);
+        },
+      }),
+    );
+    ctx.req.raw = new Request(original, { body: limited, duplex: "half" } as RequestInit);
+  }
+
   try {
-    // Hono's req.json() clones; we use raw to avoid double-read issues downstream.
+    // Hono's req.json() clones; we use raw text to avoid double-read issues downstream.
     const text = await ctx.req.text();
-    if (text.length === 0) return null;
-    return JSON.parse(text);
-  } catch {
-    return null;
+    if (text.length === 0) return { ok: true, body: null };
+    try {
+      return { ok: true, body: JSON.parse(text) };
+    } catch {
+      return { ok: true, body: null };
+    }
+  } catch (err) {
+    if (tooLarge) return { ok: false };
+    throw err;
   }
 }
 
