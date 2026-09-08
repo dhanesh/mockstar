@@ -158,4 +158,33 @@ describe("isPrivateHost", () => {
   ])("isPrivateHost(%s) = %s", (host, expected) => {
     expect(isPrivateHost(host)).toBe(expected);
   });
+
+  // #36 — regression coverage in both directions: the ULA (fc00::/7) and
+  // link-local (fe80::/10) checks must apply only to genuine IPv6 literals
+  // (not hostnames that merely start with "fc"/"fd"/"fe80"), and the
+  // unspecified address ("::" and its expanded/embedded-IPv4 forms) must be
+  // rejected as a loopback-guard bypass.
+  describe("#36 regression: over/under-blocking table", () => {
+    it.each([
+      // --- must be ALLOWED (ordinary public hostnames, not IP literals) ---
+      ["fcm.googleapis.com", false],
+      ["fdn.example.com", false],
+      ["api.stripe.com", false],
+      ["hooks.slack.com", false],
+      ["2001:4860:4860::8888", false], // plain public IPv6 literal (Google DNS)
+      // --- must be REJECTED ---
+      ["::", true], // unspecified address — dual-stack loopback bypass
+      ["::0.0.0.0", true], // unspecified, IPv4-embedded form
+      ["::1", true], // loopback
+      ["127.0.0.1", true], // loopback (IPv4)
+      ["169.254.169.254", true], // link-local / cloud metadata (IPv4)
+      ["10.0.0.1", true], // private (IPv4)
+      ["192.168.1.1", true], // private (IPv4)
+      ["fc00::1", true], // genuine ULA literal
+      ["fd00::1", true], // genuine ULA literal
+      ["feb0::1", true], // fe80::/10, but NOT "fe80:"-prefixed
+    ])("isPrivateHost(%s) = %s", (host, expected) => {
+      expect(isPrivateHost(host)).toBe(expected);
+    });
+  });
 });

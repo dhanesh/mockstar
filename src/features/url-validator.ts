@@ -38,6 +38,10 @@ const PRIVATE_IPV4_RANGES: Array<[number, number, number, number]> = [
   [169, 254, 0, 16], // 169.254.0.0/16 (link-local / cloud metadata)
   [100, 64, 0, 10], // 100.64.0.0/10 (CGNAT)
   [0, 0, 0, 8], // 0.0.0.0/8
+  [192, 0, 0, 24], // 192.0.0.0/24 (IETF protocol assignments, incl. NAT64/DNS64 well-known prefix)
+  [198, 18, 0, 15], // 198.18.0.0/15 (benchmarking)
+  [224, 0, 0, 4], // 224.0.0.0/4 (multicast)
+  [240, 0, 0, 4], // 240.0.0.0/4 (reserved/future use, incl. 255.255.255.255 broadcast)
 ];
 
 /**
@@ -162,13 +166,11 @@ export function isPrivateHost(hostname: string): boolean {
   const lowered = stripped.toLowerCase();
   if (lowered === "localhost" || lowered === "ip6-localhost" || lowered === "ip6-loopback") return true;
 
-  // IPv6 loopback and link-local
-  if (
-    lowered === "::1" ||
-    lowered.startsWith("fe80:") ||
-    lowered.startsWith("fc") ||
-    lowered.startsWith("fd")
-  ) {
+  // IPv6 loopback / unspecified / unique-local / link-local / NAT64. Gated behind
+  // "this string is an IPv6 literal" (isIpLiteral) so a hostname that merely starts
+  // with "fc"/"fd"/"fe80" (e.g. fcm.googleapis.com, fdn.example.com) is never treated
+  // as an address — only reused notion of IP-literal-ness in this file.
+  if (isIpLiteral(stripped) && isPrivateIpv6(lowered)) {
     return true;
   }
 
@@ -199,6 +201,88 @@ export function isPrivateHost(hostname: string): boolean {
   return false;
 }
 
+/**
+ * Expand a (possibly "::"-compressed, possibly IPv4-tailed) IPv6 address string
+ * into its 8 16-bit groups. Returns null if the string isn't a parseable IPv6
+ * address. This lets range checks (ULA, link-local, NAT64) test actual address
+ * bits instead of string prefixes, which both over- and under-match.
+ */
+function expandIpv6(addr: string): number[] | null {
+  const halves = addr.split("::");
+  if (halves.length > 2) return null; // "::" may appear at most once
+
+  const parseGroups = (segment: string): number[] | null => {
+    if (segment === "") return [];
+    const pieces = segment.split(":");
+    const groups: number[] = [];
+    for (let i = 0; i < pieces.length; i++) {
+      const piece = pieces[i] ?? "";
+      if (i === pieces.length - 1 && piece.includes(".")) {
+        // Trailing embedded IPv4 (e.g. "64:ff9b::192.168.1.1" or "::ffff:127.0.0.1")
+        const octets = piece.split(".").map((o) => Number.parseInt(o, 10));
+        if (
+          octets.length !== 4 ||
+          octets.some((o) => Number.isNaN(o) || o < 0 || o > 255) ||
+          piece.split(".").some((o) => !/^\d{1,3}$/.test(o))
+        ) {
+          return null;
+        }
+        const [a = 0, b = 0, c = 0, d = 0] = octets;
+        groups.push((a << 8) | b, (c << 8) | d);
+        continue;
+      }
+      if (piece.length === 0 || piece.length > 4 || !/^[0-9a-f]+$/.test(piece)) return null;
+      const value = Number.parseInt(piece, 16);
+      if (Number.isNaN(value)) return null;
+      groups.push(value);
+    }
+    return groups;
+  };
+
+  if (halves.length === 1) {
+    const groups = parseGroups(halves[0] ?? "");
+    return groups && groups.length === 8 ? groups : null;
+  }
+
+  const head = parseGroups(halves[0] ?? "");
+  const tail = parseGroups(halves[1] ?? "");
+  if (!head || !tail) return null;
+  const missing = 8 - head.length - tail.length;
+  if (missing < 0) return null;
+  return [...head, ...Array(missing).fill(0), ...tail];
+}
+
+/** Does `groups` (8 x 16-bit) start with `prefixGroups`' top `prefixBits` bits? */
+function ipv6PrefixMatch(groups: number[], prefixGroups: number[], prefixBits: number): boolean {
+  let bitsLeft = prefixBits;
+  for (let i = 0; i < prefixGroups.length && bitsLeft > 0; i++) {
+    const bits = Math.min(16, bitsLeft);
+    const mask = bits === 16 ? 0xffff : (0xffff << (16 - bits)) & 0xffff;
+    if (((groups[i] ?? 0) & mask) !== ((prefixGroups[i] ?? 0) & mask)) return false;
+    bitsLeft -= bits;
+  }
+  return true;
+}
+
+/**
+ * Is `lowered` (already bracket-stripped, lowercased) a private/reserved IPv6
+ * literal: unspecified (::), loopback (::1), unique-local (fc00::/7, RFC 4193),
+ * link-local (fe80::/10), or NAT64 well-known prefix (64:ff9b::/96, RFC 6052)?
+ * Bit-level range checks, not string prefixes — see #36.
+ */
+function isPrivateIpv6(lowered: string): boolean {
+  const groups = expandIpv6(lowered);
+  if (!groups) return false;
+
+  if (groups.every((g) => g === 0)) return true; // :: — unspecified; reaches localhost on dual-stack
+  if (groups.slice(0, 7).every((g) => g === 0) && groups[7] === 1) return true; // ::1 — loopback
+  if (ipv6PrefixMatch(groups, [0xfc00], 7)) return true; // fc00::/7 — unique-local
+  if (ipv6PrefixMatch(groups, [0xfe80], 10)) return true; // fe80::/10 — link-local
+  if (ipv6PrefixMatch(groups, [0x0064, 0xff9b, 0, 0, 0, 0], 96)) return true; // 64:ff9b::/96 — NAT64
+
+  return false;
+}
+
 function isPrivateIpv4(ip: string): boolean {
   const parts = ip.split(".").map((p) => Number.parseInt(p, 10));
   if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return true;
@@ -211,18 +295,19 @@ function isPrivateIpv4(ip: string): boolean {
 
 function matchesIpv4(
   a: number,
-  _b: number,
-  _c: number,
-  _d: number,
+  b: number,
+  c: number,
+  d: number,
   ra: number,
-  _rb: number,
-  _rc: number,
+  rb: number,
+  rc: number,
   mask: number,
 ): boolean {
-  // Simple first-octet check for /8 networks; expand as needed.
-  if (mask === 8) return a === ra;
-  if (mask === 16) return a === ra && _b === _rb;
-  if (mask === 12) return a === ra && (_b & 0xf0) === (_rb & 0xf0);
-  if (mask === 10) return a === ra && (_b & 0xc0) === (_rb & 0xc0);
-  return false;
+  if (mask <= 0 || mask > 32) return false;
+  // Full CIDR prefix match over the 32-bit address, not per-mask special cases —
+  // supports arbitrary prefix lengths (/4, /7, /8, /10, /12, /15, /16, /24, ...).
+  const value = ((a << 24) | (b << 16) | (c << 8) | d) >>> 0;
+  const rangeValue = ((ra << 24) | (rb << 16) | (rc << 8) | 0) >>> 0;
+  const maskBits = mask === 32 ? 0xffffffff : (0xffffffff << (32 - mask)) >>> 0;
+  return (value & maskBits) >>> 0 === (rangeValue & maskBits) >>> 0;
 }
