@@ -1,7 +1,9 @@
 # Satisfies: G1 + G2 — live OS integration test harness for `mockstar proxy`.
 # Builds a minimal Ubuntu image with Bun + mkcert + dnsmasq + libcap2-bin. CI runs
-# `mockstar proxy install` inside this container, then exercises the full TLS path
-# with curl, then runs the bench harness.
+# `mockstar proxy install` inside this container against a packaged binary built in
+# this image (see below) — not `bun run src/cli.ts` — so the job exercises the same
+# install path real users take, then exercises the full TLS path with curl, then runs
+# the bench harness.
 #
 # This image is NOT a distribution artifact — it exists to give the tier-1 feature
 # an OS environment that actual `sudo setcap` / `dnsmasq` / `/etc/resolver` code paths
@@ -35,6 +37,17 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
+
+# Build the packaged binary the smoke test installs the proxy with (RT-9 target
+# matrix; see scripts/build-binaries.ts). This is the fix for the #39 follow-up: tier1
+# used to install via `bun run src/cli.ts proxy install ... --allow-interpreter-capability-grant`,
+# which exercised the opt-in escape hatch instead of the packaged-binary path the
+# refusal steers real users toward. `bun run build` must precede build-binaries.ts
+# (CLAUDE.md) — its outfile lands in the same dist/ directory `bun run build` populates.
+# GitHub-hosted ubuntu-24.04 runners are x86_64, and this image is built without
+# --platform (so it matches the runner's arch) — bun-linux-x64 is the correct target.
+RUN bun run build && bun run scripts/build-binaries.ts --target=bun-linux-x64
+ENV MOCKSTAR_PROXY_BIN=/app/dist/mockstar-bun-linux-x64
 
 # Run the test harness: install proxy, start mockstar-core in background, start proxy,
 # hit the tier-1 path via curl, run bench. Exits non-zero if any step fails.
