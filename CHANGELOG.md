@@ -1,3 +1,30 @@
+# [0.4.0](https://github.com/dhanesh/mockstar/compare/v0.3.0...v0.4.0) (2026-09-09)
+
+
+### Bug Fixes
+
+* **ci:** install the tier1 proxy via a packaged binary, not the [#39](https://github.com/dhanesh/mockstar/issues/39) opt-in ([ff99834](https://github.com/dhanesh/mockstar/commit/ff99834ab6f2ffa838d8609315e390e19a9ebae9))
+* **matching:** apply ReDoS guard to MatchPredicate, precompile discriminator regexes ([485b916](https://github.com/dhanesh/mockstar/commit/485b9167e73e46c8854181f1167653d7e23aaef4)), closes [#41](https://github.com/dhanesh/mockstar/issues/41)
+* **openapi:** honour NXX response range keys, stop scanning example data for $ref ([62a2910](https://github.com/dhanesh/mockstar/commit/62a2910970645afff5bd2b6cbb1026638ee828ae)), closes [#43](https://github.com/dhanesh/mockstar/issues/43)
+* **proxy:** add opt-in escape hatch for the [#39](https://github.com/dhanesh/mockstar/issues/39) interpreter refusal ([9b7521c](https://github.com/dhanesh/mockstar/commit/9b7521c6e895abd44d331d21d2f54d70a49a0867))
+* **proxy:** fall back to piped tee when mv can't replace a bind-mounted target ([2841183](https://github.com/dhanesh/mockstar/commit/284118383ddbefa9b3e612f93c094e579ca7f6f9)), closes [#32](https://github.com/dhanesh/mockstar/issues/32) [#32](https://github.com/dhanesh/mockstar/issues/32) [#32](https://github.com/dhanesh/mockstar/issues/32) [#32](https://github.com/dhanesh/mockstar/issues/32)
+* **proxy:** stop /etc/hosts uninstall from truncating the target file ([1341210](https://github.com/dhanesh/mockstar/commit/1341210061a0881472b76fe7aef320c5dd94c526)), closes [#32](https://github.com/dhanesh/mockstar/issues/32)
+* **scripts:** stop Postman importer from dropping {{var}} path segments ([08a6376](https://github.com/dhanesh/mockstar/commit/08a6376b693bf238a8bfc16947dcf92c1dc15bf0)), closes [#42](https://github.com/dhanesh/mockstar/issues/42)
+* **security:** correct SSRF guard IPv6 over/under-blocking (S6) ([a7daf63](https://github.com/dhanesh/mockstar/commit/a7daf6311ae35a609789fd6e4a7ff9b2bc6dab78)), closes [#36](https://github.com/dhanesh/mockstar/issues/36)
+* **security:** redact secret-bearing webhook URLs before journaling ([#38](https://github.com/dhanesh/mockstar/issues/38)) ([7cf13de](https://github.com/dhanesh/mockstar/commit/7cf13de2229bdf774ec3f19d4c5143ce9a3f6fb8)), closes [#37](https://github.com/dhanesh/mockstar/issues/37)
+* **security:** refuse to setcap the interpreter, not the mockstar binary (T7) ([e6ac0b1](https://github.com/dhanesh/mockstar/commit/e6ac0b145b5df3bf45100e370333702c9749fb61)), closes [#39](https://github.com/dhanesh/mockstar/issues/39)
+* **security:** revalidate SSRF guard on every redirect hop ([#37](https://github.com/dhanesh/mockstar/issues/37)) ([9029955](https://github.com/dhanesh/mockstar/commit/9029955565bb463d4d5f070e47f8f821fc5165b2))
+* **server:** bucket journal/metrics/log entries for unknown tenants (S5) ([fd91f31](https://github.com/dhanesh/mockstar/commit/fd91f31b531e0ff8504d9257d9fe956568d529fd)), closes [#34](https://github.com/dhanesh/mockstar/issues/34)
+* **server:** close the chunked-body S5 cap gap on pass-through routes ([08d9ab3](https://github.com/dhanesh/mockstar/commit/08d9ab3e52eccbe95f7fb633f879e87fcb126836)), closes [#33](https://github.com/dhanesh/mockstar/issues/33) [#33](https://github.com/dhanesh/mockstar/issues/33) [#33](https://github.com/dhanesh/mockstar/issues/33)
+* **server:** enforce body-size cap on the stream, not Content-Length (S5) ([eedfc64](https://github.com/dhanesh/mockstar/commit/eedfc64cb1a69e27cf47da76f7e1b76bd210d075)), closes [#33](https://github.com/dhanesh/mockstar/issues/33)
+* **webhooks:** stop() cancels retry/await timers so launch().stop() never hangs ([3a51f3d](https://github.com/dhanesh/mockstar/commit/3a51f3d57b1286263bcef01eacff7624c41dbcad)), closes [#40](https://github.com/dhanesh/mockstar/issues/40)
+
+
+### Features
+
+* **server:** enforce per-tenant requestsPerSecond rate cap (S5, 429 half) ([f3dab6e](https://github.com/dhanesh/mockstar/commit/f3dab6e660406d6ee22b6a51ef7bfea6e180d23b)), closes [#34](https://github.com/dhanesh/mockstar/issues/34) [#34](https://github.com/dhanesh/mockstar/issues/34) [#35](https://github.com/dhanesh/mockstar/issues/35)
+* **webhooks:** journal non-final failed attempts as 'retrying', not 'success' ([8d2954b](https://github.com/dhanesh/mockstar/commit/8d2954b42fff0888059a425bd87eaa232fc0304d)), closes [#44](https://github.com/dhanesh/mockstar/issues/44) [#44](https://github.com/dhanesh/mockstar/issues/44) [#44](https://github.com/dhanesh/mockstar/issues/44)
+
 # [0.3.0](https://github.com/dhanesh/mockstar/compare/v0.2.2...v0.3.0) (2026-09-04)
 
 
