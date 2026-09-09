@@ -135,8 +135,9 @@ export function portBindMutation(params: {
  */
 export function runPrivileged(
   argv: readonly string[],
+  opts: { stdin?: string } = {},
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  return runCmd("sudo", argv);
+  return runCmd("sudo", argv, opts);
 }
 
 /** Does the host OS support our port-443 binding strategy? */
@@ -238,15 +239,27 @@ function macosPlist(label: string, binaryPath: string): string {
 function runCmd(
   cmd: string,
   argv: readonly string[],
+  opts: { stdin?: string } = {},
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, argv as string[], { stdio: ["inherit", "pipe", "pipe"] });
+    // When `stdin` is supplied we pipe it; otherwise stdin is inherited so `sudo` can
+    // still prompt for a password on a TTY. Never pass a content-consuming command
+    // (`tee`, `dd`) without `stdin` — inheriting an empty stdin is what truncated
+    // /etc/hosts to zero bytes before #32.
+    const child = spawn(cmd, argv as string[], {
+      stdio: [opts.stdin === undefined ? "inherit" : "pipe", "pipe", "pipe"],
+    });
+    if (opts.stdin !== undefined) {
+      child.stdin?.end(opts.stdin, "utf8");
+    }
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (c: Buffer) => {
+    // Optional-chained because the conditional stdio tuple widens these to nullable;
+    // both are always "pipe" here, so the handlers do attach in practice.
+    child.stdout?.on("data", (c: Buffer) => {
       stdout += c.toString("utf8");
     });
-    child.stderr.on("data", (c: Buffer) => {
+    child.stderr?.on("data", (c: Buffer) => {
       stderr += c.toString("utf8");
     });
     child.on("error", reject);
