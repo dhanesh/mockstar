@@ -16,8 +16,15 @@
 ## For SDETs
 
 Mockstar ships a library embed (`import { launch } from '@dhaneshpurohit/mockstar'`) supported
-across Jest 30, Jest 29, Vitest, and `bun test`. See [docs/SDET.md](./docs/SDET.md)
-+ the [`examples/sdet-*`](./examples) directories.
+across Jest 30, Jest 29, Vitest, and `bun test`. `launch()` binds no port — tests talk to the
+server in-process — and `stop()` releases every watcher and timer, so a suite that calls it
+per file exits cleanly instead of hanging.
+
+The package root also exports the webhook signing helpers, so a test can verify a delivery the
+same way a real receiver would: `signPayload`, `verifySignature`, `withinReplayWindow`,
+`LEGACY_SCHEME`, and the `SigningScheme` / `DigestEncoding` types.
+
+See [docs/SDET.md](./docs/SDET.md) + the [`examples/sdet-*`](./examples) directories.
 
 ## Contributing
 
@@ -134,11 +141,29 @@ Capabilities at a glance:
 |---|---|
 | **Configuration channels** | Per-route `url`, `{{ env.NAME }}` interpolation, admin API, opt-in `X-Mockstar-Webhook-Url` request header (gated by `--allow-webhook-url-header`) |
 | **Delivery contract** | At-least-once within queue + circuit bounds, exponential backoff with jitter (default `[1s, 2s, 4s, 8s, 16s]`), idempotent `X-Mockstar-Delivery-Id` header |
-| **Signing** | Opt-in HMAC-SHA256, Stripe-style `${ts}.${rawBody}` payload, secrets via `{{ env.X }}` or `file:/path` (inline rejected at config-load) |
+| **Signing** | Opt-in HMAC-SHA256 with a **configurable wire format** — `signedPayload` (bytes signed) and `signatureTemplate` (header value) are independent, plus `digestEncoding: hex \| base64`. Ships verified shapes for GitHub, Slack, Stripe, Shopify and Razorpay. Secrets via `{{ env.X }}` or `file:/path` (inline rejected at config-load) |
+| **Request caps** | Per-tenant `maxBodyBytes` (413, enforced on the byte stream so chunked encoding can't bypass it) and `requestsPerSecond` (429 + `Retry-After`, token bucket so bursts aren't punished; default 10,000/s) |
 | **Reliability** | Per-webhook circuit breaker, drop-oldest queue cap, per-attempt `AbortSignal.timeout`, optional `expectResponse: { status, body }` body assertion |
 | **Observability** | `/__admin/tenants/:t/webhooks` list (secrets redacted), `/webhooks/journal` history, `POST /webhooks/await?id=…` for sync test assertions, `POST /webhooks/:id/replay` for recovery |
 | **Metrics** | `webhook_delivery_total{outcome}`, `webhook_delivery_latency_us`, `webhook_queue_depth`, `webhook_queue_dropped_total`, `webhook_circuit_state` |
 | **Distribution** | In-process (no Redis); single-binary and SDET-embed friendly |
+
+### Provider-accurate signatures
+
+The signed bytes and the header value vary independently across providers, so both are templates rather than a fixed format. Every row below is covered by a test that verifies the delivered header using receiver code taken from that provider's own documentation:
+
+| Provider | `signedPayload` | `signatureTemplate` | `digestEncoding` | `signatureHeader` |
+|---|---|---|---|---|
+| mockstar (default) | `{timestamp}.{body}` | `{algorithm}={signature}` | `hex` | `x-mockstar-signature` |
+| GitHub | `{body}` | `{algorithm}={signature}` | `hex` | `x-hub-signature-256` |
+| Slack | `v0:{timestampSeconds}:{body}` | `v0={signature}` | `hex` | `x-slack-signature` |
+| Stripe | `{timestampSeconds}.{body}` | `t={timestampSeconds},v1={signature}` | `hex` | `stripe-signature` |
+| Shopify | `{body}` | `{signature}` | `base64` | `x-shopify-hmac-sha256` |
+| Razorpay | `{body}` | `{signature}` | `hex` | `x-razorpay-signature` |
+
+Placeholders are single-brace (`{body}`), deliberately distinct from the `{{ }}` response-template engine — `{{ }}` in a signing template is rejected at config-load rather than silently mis-signing. Set `timestampHeader: null` to suppress the standalone timestamp header for schemes that carry it inside the signature (Stripe).
+
+Journal rows record one entry per attempt with outcome `success`, `retrying`, `failed`, `dropped` or `circuit-open` — a retried-but-not-yet-terminal attempt reads `retrying`, so asserting `outcome === "success"` means the delivery actually succeeded. Delivered URLs are redacted to their origin before journaling, since a provider webhook URL is often itself a credential.
 
 Full guide, decisions log, and security model: [docs/webhooks/README.md](./docs/webhooks/README.md), [docs/webhooks/DECISIONS.md](./docs/webhooks/DECISIONS.md), [docs/webhooks/SECURITY.md](./docs/webhooks/SECURITY.md). Worked example loadable via `bun run dev`: [examples/mocks/default/webhooks-example.json](./examples/mocks/default/webhooks-example.json).
 
