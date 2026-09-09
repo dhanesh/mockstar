@@ -431,7 +431,18 @@ export const TenantLimits = z
   .object({
     maxBodyBytes: z.number().int().positive().default(1_048_576), // S5: inbound request cap, 1 MB default
     maxResponseBytes: z.number().int().positive().default(1_048_576), // S4: outbound response cap (Tier 2 render), 1 MB default
-    requestsPerSecond: z.number().int().positive().default(1000), // S5: 1000 rps default. NOT CURRENTLY ENFORCED — declared and defaulted only; nothing in src/ reads this field or returns 429. See issue #35.
+    // S5 / #35: enforced by TenantRateLimiter (src/core/http/rate-limit.ts), a per-tenant
+    // token-bucket keyed in src/server.ts — exceeding it returns 429 with Retry-After.
+    // Default 10_000, NOT the historical 1000: this repo's own `bun run bench` targets
+    // exactly 1000 rps, so a 1000 default would throttle the project's own performance
+    // gate. Measured single-instance capacity (8-core, one static mock, concurrent
+    // clients over a real socket) peaks around ~25k req/s (partly load-generator-bound,
+    // so true capacity is at least that). 10_000 gives 10x headroom over the benchmark's
+    // 1000 rps target — comfortably above any realistic test-suite load; a suite that
+    // legitimately needs >10k rps against one mock is exactly the pathological case this
+    // cap exists to catch — while staying below measured peak so the ceiling is genuinely
+    // reachable rather than decorative.
+    requestsPerSecond: z.number().int().positive().default(10_000),
     journalSize: z.number().int().positive().default(1000), // O3: 1000 entries default
   })
   .strict();

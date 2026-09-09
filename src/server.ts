@@ -7,6 +7,7 @@ import type { ConfigSnapshot, SnapshotHolder } from "./core/config/snapshot.ts";
 import { installProcessHandlers } from "./core/errors/index.ts";
 import type { HandlerRegistry } from "./core/handlers/index.ts";
 import { bodyTooLargeResponse, capRequestBodyStream } from "./core/http/body-cap.ts";
+import { type RateLimitResult, TenantRateLimiter, rateLimitedResponse } from "./core/http/rate-limit.ts";
 import { type JournalEntry, JournalRegistry } from "./core/journal/index.ts";
 import { Metrics, type StructuredLogger, createLogger } from "./core/observability/index.ts";
 import { type ScenarioAttrs, evaluateScenarios } from "./core/scenarios/evaluator.ts";
@@ -49,6 +50,14 @@ import {
  */
 const UNKNOWN_TENANT_BUCKET = ":unknown:";
 
+/**
+ * S5 / #35: rate-cap fallback for requests bucketed under UNKNOWN_TENANT_BUCKET, which by
+ * definition has no TenantConfig (and so no configured `limits.requestsPerSecond`) to read.
+ * Mirrors `TenantLimits.requestsPerSecond`'s own default in src/core/config/schema.ts —
+ * keep the two literals in sync if that default ever changes.
+ */
+const DEFAULT_REQUESTS_PER_SECOND = 10_000;
+
 // Hono variable augmentation — all middleware reads typed `ctx.var.*`.
 declare module "hono" {
   interface ContextVariableMap {
@@ -74,12 +83,20 @@ export interface CreateServerOptions {
   allowWebhookUrlHeader?: boolean;
   /** INT-1: optional JSONL append-only log of webhook delivery attempts. */
   webhookJournalFile?: string;
+  /**
+   * S5 / #35: overridable time source for the per-tenant rate limiter (ms epoch). Defaults
+   * to `Date.now`. Test-only hook — lets the rate-limit test matrix advance the token-bucket
+   * window deterministically instead of relying on wall-clock sleeps.
+   */
+  rateLimiterNow?: () => number;
 }
 
 export interface RunningServer {
   readonly hono: Hono;
   readonly journal: JournalRegistry;
   readonly metrics: Metrics;
+  /** S5 / #35: per-tenant request-rate limiter. Exposed so tests can assert bucket count stays bounded (mirrors #34). */
+  readonly rateLimiter: TenantRateLimiter;
   readonly ready: { current: () => boolean; set: (v: boolean) => void };
   readonly uninstallCrashHandlers: () => void;
   /** Webhook delivery journal — separate ring buffer per tenant (RT-11). */
@@ -116,6 +133,9 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     const snap = opts.holder.get().tenants.get(tenant);
     return snap?.limits.journalSize ?? 1000;
   });
+  // S5 / #35: one rate limiter per server instance, keyed on the same bucketed tenant name
+  // (UNKNOWN_TENANT_BUCKET for unresolved tenants) the journal/metrics already use.
+  const rateLimiter = new TenantRateLimiter({ now: opts.rateLimiterNow });
 
   // Webhook infrastructure (RT-1, RT-11, RT-14, RT-4, INT-1).
   const webhookJournal = new WebhookJournalRegistry(
@@ -259,6 +279,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
       clock,
       journal,
       metrics,
+      rateLimiter,
       handlerTimeoutMs,
       genRequestId,
       webhookJournal,
@@ -278,6 +299,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     hono: app,
     journal,
     metrics,
+    rateLimiter,
     ready,
     uninstallCrashHandlers,
     webhookJournal,
@@ -294,6 +316,7 @@ interface DispatchDeps {
   clock: Clock;
   journal: JournalRegistry;
   metrics: Metrics;
+  rateLimiter: TenantRateLimiter;
   handlerTimeoutMs: number;
   genRequestId: () => string;
   // Webhook fan-out (T4: post-response microtask).
@@ -325,6 +348,11 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   const matchPath = effectivePath(ctx);
   const method = ctx.req.method;
 
+  // Issue #34: bucket unresolved-tenant state under one fixed key instead of the
+  // attacker-supplied string. Computed once, shared by the rate limiter below AND the
+  // journal/metrics/log recording at the bottom of this function.
+  const observedTenant = tenantSnap ? tenant : UNKNOWN_TENANT_BUCKET;
+
   let response: Response;
   let matchedMockId: string | null = null;
   let scenarioId: string | undefined;
@@ -332,10 +360,19 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   let webhookTrigger: WebhookTrigger | undefined;
 
   try {
-    if (!tenantSnap) {
+    // Rate cap (S5 / #35) — cheapest possible check, first thing in the try block, before
+    // we even know whether the tenant is configured. Token-bucket keyed on `observedTenant`
+    // so an unresolved tenant shares the single #34 bucket (with a fallback capacity, since
+    // there is no TenantConfig to read a limit from) rather than getting its own bucket per
+    // distinct attacker-supplied header value. A known tenant uses its own configured cap.
+    const rpsLimit = tenantSnap?.limits.requestsPerSecond ?? DEFAULT_REQUESTS_PER_SECOND;
+    const rateResult: RateLimitResult = deps.rateLimiter.tryAcquire(observedTenant, rpsLimit);
+    if (!rateResult.allowed) {
+      response = rateLimitedResponse(rpsLimit, rateResult.retryAfterSeconds);
+    } else if (!tenantSnap) {
       response = notFoundUnknownTenant(tenant, method, matchPath);
     } else {
-      // Rate / size caps (S5) — cheap pre-check. Catches a declared-oversized body
+      // Body size cap (S5) — cheap pre-check. Catches a declared-oversized body
       // without reading it, but a chunked request carries no Content-Length, so this
       // alone is not sufficient — see the streaming enforcement in safeParseBody below.
       const contentLength = Number.parseInt(ctx.req.header("content-length") ?? "0", 10);
@@ -381,12 +418,13 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   }
 
   // Defer observability writes to after the response goes out (RT-6.3).
-  // Issue #34: bucket unknown-tenant traffic under one fixed key rather than the
-  // attacker-supplied string, so it costs one ring buffer / one label set to see that
-  // unknown-tenant traffic is arriving, not one per distinct probed value. This changes
-  // ONLY what gets journaled/metered/logged — the response itself (computed above) is
-  // untouched, so an unknown tenant still gets exactly the 404 it got before.
-  const observedTenant = tenantSnap ? tenant : UNKNOWN_TENANT_BUCKET;
+  // Issue #34: `observedTenant` (computed above, shared with the rate limiter) buckets
+  // unknown-tenant traffic under one fixed key rather than the attacker-supplied string,
+  // so it costs one ring buffer / one label set to see that unknown-tenant traffic is
+  // arriving, not one per distinct probed value. This changes ONLY what gets
+  // journaled/metered/logged — the response itself (computed above) is untouched, so an
+  // unknown tenant still gets exactly the 404 it got before (unless the shared rate-limit
+  // bucket itself is exhausted, in which case it gets a 429 instead — see the rate check).
   queueMicrotask(() => {
     const durationUs = Math.round(performance.now() * 1000 - startedUs);
     const entry: JournalEntry = {

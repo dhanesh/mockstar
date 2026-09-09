@@ -113,7 +113,7 @@ Upstream URLs are validated against the SSRF guard (RT-8 / S6). Private ranges a
   "limits": {
     "maxBodyBytes": 1048576,      // S5 — inbound request cap, 1 MB
     "maxResponseBytes": 1048576,  // S4 — outbound Tier 2 render cap, 1 MB
-    "requestsPerSecond": 1000,     // S5 — declared and defaulted only; NOT currently enforced (no code path reads it or returns 429). Tracked in #35.
+    "requestsPerSecond": 10000,    // S5 — per-tenant token-bucket rate cap, enforced. Exceeding it returns 429 with a Retry-After header and `{ "error": "rate_limited", "limit": n }`. Default 10_000 (not the historical 1000): this repo's own `bun run bench` targets 1000 rps, so a 1000 default would throttle the project's own performance gate. Measured single-instance capacity peaks around ~25k req/s; 10_000 gives 10x headroom over the benchmark target while staying below measured peak.
     "journalSize": 1000            // O3 — bounded ring buffer
   }
 }

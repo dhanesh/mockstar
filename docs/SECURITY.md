@@ -13,7 +13,7 @@
 | Admin endpoints | Network exposure | Disabled unless `MOCKSTAR_ADMIN_TOKEN` set (S3). Default bind is `127.0.0.1` (S4) — public binding requires explicit config. |
 | Admin tokens | Timing side-channel | `crypto.timingSafeEqual` on length-normalised buffers (RT-7.3). |
 | Server availability | Handler crash | Three-tier isolation: per-request try/catch + process-level hooks + orchestrator restart (TN2, RT-2, RT-3). |
-| Tenant resource exhaustion | Oversized bodies / floods | Per-tenant body-size cap (S5), per-tenant journal bounded at configured size (O3). `limits.requestsPerSecond` is declared and defaulted in config but **not currently enforced** — no request-rate check exists in `src/`, so it provides no flood protection today. Tracked in #35. |
+| Tenant resource exhaustion | Oversized bodies / floods | Per-tenant body-size cap (S5), per-tenant journal bounded at configured size (O3). `limits.requestsPerSecond` (default 10,000, per tenant) is enforced by a token-bucket rate limiter — exceeding it returns 429 with a `Retry-After` header. Requests from an unresolved tenant share one fixed bucket (mirrors the #34 journal/metrics bucketing) so they cannot allocate unbounded rate-limiter state either. |
 
 ## Out of scope
 
