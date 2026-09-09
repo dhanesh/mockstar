@@ -81,6 +81,9 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
     holder,
     async stop(): Promise<void> {
       watcher?.stop();
+      // Issue #40: cancel webhook backoff timers and settle any pending await()
+      // caller BEFORE tearing down crash handlers, so no live handle survives stop().
+      server.stopWebhooks();
       server.uninstallCrashHandlers();
     },
   };

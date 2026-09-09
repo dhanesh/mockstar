@@ -15,13 +15,16 @@
 // testing on each platform. The structure + signatures are stable; the shell-outs are
 // scaffolded with clear intent.
 
-import { appendFile, readFile, writeFile } from "node:fs/promises";
-import { platform } from "node:os";
+import { appendFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Mutation } from "./install-journal.ts";
 import { runPrivileged } from "./port-bind.ts";
 import type { HostConfig, ProxyConfig, ReverseCommand } from "./types.ts";
 import { ProxyError } from "./types.ts";
+
+/** Signature of {@link runPrivileged} — injectable so tests never shell out to real `sudo`. */
+type PrivilegedRunner = typeof runPrivileged;
 
 // --- PUBLIC API ----------------------------------------------------------
 
@@ -41,23 +44,126 @@ export async function buildDnsMutations(config: ProxyConfig): Promise<Mutation[]
   return buildDnsmasqMutations(config.hosts);
 }
 
-/** Reverse a hosts-fallback block. Used by install-journal's reverse_hosts_entries handler. */
-export async function revertHostsBlock(marker: string): Promise<void> {
+/**
+ * Reverse a hosts-fallback block. Used by install-journal's reverse_hosts_entries handler.
+ *
+ * `hostsPath` and `runner` are injectable purely for tests — real callers never pass them,
+ * so they default to the real `/etc/hosts` and the real privileged `sudo` runner.
+ */
+export async function revertHostsBlock(
+  marker: string,
+  opts: { hostsPath?: string; runner?: PrivilegedRunner } = {},
+): Promise<void> {
+  const hostsPath = opts.hostsPath ?? HOSTS_PATH;
   let existing = "";
   try {
-    existing = await readFile(HOSTS_PATH, "utf8");
+    existing = await readFile(hostsPath, "utf8");
   } catch {
     return;
   }
-  const start = existing.indexOf(marker);
+  const markerStart = existing.indexOf(marker);
   const end = existing.indexOf(HOSTS_BLOCK_END);
-  if (start === -1 || end === -1) return;
-  const next = existing.slice(0, start) + existing.slice(end + HOSTS_BLOCK_END.length).replace(/^\n+/, "");
-  // Writing /etc/hosts requires sudo — shell out via privileged tee.
-  await runPrivileged(["tee", HOSTS_PATH]).catch(() => undefined);
-  // Simpler path: write to a temp file + sudo mv. Left as-is for v1; exact privileged
-  // write mechanism depends on final packaging.
-  void next;
+  if (markerStart === -1 || end === -1) return;
+  // The appended block (see buildHostsMutations) is `\n${marker}\n...\n${HOSTS_BLOCK_END}\n` —
+  // it owns one leading and one trailing newline as separators. Consume both so the
+  // surrounding content is restored byte-for-byte, not left with a stray blank line.
+  const blockStart = existing[markerStart - 1] === "\n" ? markerStart - 1 : markerStart;
+  let blockEnd = end + HOSTS_BLOCK_END.length;
+  if (existing[blockEnd] === "\n") blockEnd += 1;
+  const next = existing.slice(0, blockStart) + existing.slice(blockEnd);
+  // Writing /etc/hosts requires sudo. Write the corrected content to a temp file first,
+  // then `sudo mv` it into place — atomic, never truncates the target, and needs no stdin.
+  await privilegedWriteFile(hostsPath, next, {
+    runner: opts.runner,
+    errorCode: "hosts_revert_failed",
+    hint: `Manually remove the block between '${HOSTS_BLOCK_MARKER}' and '${HOSTS_BLOCK_END}' in ${hostsPath}.`,
+  });
+}
+
+/**
+ * Write `content` to `path` via sudo, safely: the content is written to a private temp
+ * file first (no privilege needed for that), then moved into place with `sudo mv`. This
+ * is atomic and never truncates `path` without first having the full content ready to
+ * land there — unlike shelling out to a privileged `tee` with nothing piped to its stdin,
+ * which truncates the target on open and then writes nothing.
+ *
+ * `mv` replaces the directory entry for `path` with the temp file's inode. That's correct
+ * (and preferred) on an ordinary filesystem, but it's exactly what fails when `path` is a
+ * bind-mounted file — e.g. `/etc/hosts` inside a Docker container — because the mount
+ * pins that specific inode in place and the rename can't swap it out. `mv` there fails
+ * with something like "Device or resource busy" (EBUSY).
+ *
+ * When `mv` fails, fall back to `sudo cp <tmpfile> <path>`. `cp` opens the *existing*
+ * inode and writes the new content into it in place, rather than trying to replace the
+ * inode — so it succeeds against a bind mount where `mv` can't. It also preserves the
+ * same safety property #32 cares about: `cp`'s source is always the fully-written temp
+ * file, so — unlike a bare `tee` invoked with nothing piped to its stdin — there is no
+ * way for it to open/truncate the target and then have no content to write. (Piping the
+ * temp file into `tee`'s stdin would share that same safety property, but `cp` gets it
+ * with a plain two-argument argv and no change to how commands are run — no need to wire
+ * a file descriptor into `runPrivileged`/`runCmd`'s stdio — so it's the simpler choice
+ * for the same guarantee.)
+ *
+ * Which mechanism actually wrote the file is logged to stderr so a CI failure is
+ * diagnosable from the job output alone, without needing to reproduce locally.
+ *
+ * If *both* `mv` and `cp` fail, this throws a `ProxyError` — it never swallows the
+ * outcome, and it never leaves a partially-written or truncated file: neither command
+ * runs unless the temp file is fully written first, and a failed command never touches
+ * `path`.
+ */
+async function privilegedWriteFile(
+  path: string,
+  content: string,
+  opts: { runner?: PrivilegedRunner; errorCode: string; hint?: string } = {
+    errorCode: "privileged_write_failed",
+  },
+): Promise<void> {
+  const runner = opts.runner ?? runPrivileged;
+  const dir = await mkdtemp(join(tmpdir(), "mockstar-proxy-"));
+  const tmpFile = join(dir, "content");
+  try {
+    await writeFile(tmpFile, content, "utf8");
+
+    const mvResult = await runner(["mv", tmpFile, path]);
+    if (mvResult.exitCode === 0) {
+      process.stderr.write(`mockstar-proxy: wrote ${path} via 'mv' (atomic rename).\n`);
+      return;
+    }
+    const mvError =
+      mvResult.stderr.trim() || mvResult.stdout.trim() || `mv exited with code ${mvResult.exitCode}`;
+
+    // Fallback: `tee` with the content piped to its stdin. This writes THROUGH the
+    // existing inode instead of replacing it, so it succeeds against a bind mount.
+    //
+    // `cp` was the obvious candidate and is wrong: busybox `cp` refuses with
+    // "can't create '<path>': File exists" on a bind-mounted target, so it works on
+    // GNU coreutils and fails on Alpine — which is what mockstar's own runtime image
+    // is built on. Verified in both, plus `tee`, against a real Docker bind mount.
+    //
+    // This is `tee` used correctly, and is NOT a return of the #32 bug: that bug was
+    // `tee` with NOTHING supplied on an inherited stdin, so it truncated and then read
+    // EOF. Here the content is piped explicitly, and `runPrivileged` only inherits
+    // stdin when no `stdin` option is passed.
+    const teeResult = await runner(["tee", path], { stdin: content });
+    if (teeResult.exitCode === 0) {
+      const why = "target is likely a bind mount, e.g. inside a container";
+      process.stderr.write(
+        `mockstar-proxy: 'mv' failed for ${path} (${mvError}); wrote via piped 'tee' instead (${why}).\n`,
+      );
+      return;
+    }
+    const teeError =
+      teeResult.stderr.trim() || teeResult.stdout.trim() || `tee exited with code ${teeResult.exitCode}`;
+
+    throw new ProxyError(
+      `Failed to write ${path}: mv failed (${mvError}); piped tee fallback also failed (${teeError})`,
+      opts.errorCode,
+      opts.hint,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 /** Stop and remove the dnsmasq service installed by buildDnsmasqMutations. */
@@ -101,7 +207,14 @@ function buildHostsMutations(hosts: readonly HostConfig[]): Mutation[] {
 
 // --- DNSMASQ -------------------------------------------------------------
 
-function buildDnsmasqMutations(hosts: readonly HostConfig[]): Mutation[] {
+/**
+ * `overrides.runner` is injectable purely for tests — real callers never pass it, so
+ * privileged writes go through the real `sudo` runner.
+ */
+export function buildDnsmasqMutations(
+  hosts: readonly HostConfig[],
+  overrides: { runner?: PrivilegedRunner } = {},
+): Mutation[] {
   const os = platform();
   if (os !== "darwin" && os !== "linux") {
     throw new ProxyError(
@@ -153,12 +266,14 @@ function buildDnsmasqMutations(hosts: readonly HostConfig[]): Mutation[] {
         reverseCommand: { kind: "remove_file", path: resolverPath },
         async apply(): Promise<void> {
           // Writing under /etc/resolver requires sudo. The install CLI prompts for password once.
+          // Write via temp file + `sudo mv` (see privilegedWriteFile) — atomic, and the content
+          // that lands is exactly what was computed here, never an empty truncated file.
           const content = "nameserver 127.0.0.1\nport 53\n";
-          const result = await runPrivileged(["tee", resolverPath]);
-          if (result.exitCode !== 0) {
-            throw new ProxyError(`Failed to write ${resolverPath}`, "resolver_write_failed");
-          }
-          void content; // content piped to `tee` via stdin in a production impl
+          await privilegedWriteFile(resolverPath, content, {
+            runner: overrides.runner,
+            errorCode: "resolver_write_failed",
+            hint: `Manually create ${resolverPath} with:\n${content}`,
+          });
         },
       });
     }

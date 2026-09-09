@@ -6,6 +6,8 @@ import { type Context, Hono } from "hono";
 import type { ConfigSnapshot, SnapshotHolder } from "./core/config/snapshot.ts";
 import { installProcessHandlers } from "./core/errors/index.ts";
 import type { HandlerRegistry } from "./core/handlers/index.ts";
+import { bodyTooLargeResponse, capRequestBodyStream } from "./core/http/body-cap.ts";
+import { type RateLimitResult, TenantRateLimiter, rateLimitedResponse } from "./core/http/rate-limit.ts";
 import { type JournalEntry, JournalRegistry } from "./core/journal/index.ts";
 import { Metrics, type StructuredLogger, createLogger } from "./core/observability/index.ts";
 import { type ScenarioAttrs, evaluateScenarios } from "./core/scenarios/evaluator.ts";
@@ -30,6 +32,31 @@ import {
   WebhookJournalRegistry,
   dispatchWebhooks,
 } from "./features/webhooks/index.ts";
+
+/**
+ * S5 / issue #34: bucket for journal/metrics/log entries recorded for a resolved tenant
+ * that does NOT exist in the current snapshot. In header-mode tenancy, `ctx.var.tenant`
+ * is only regex-validated (see TENANT_REGEX in core/tenancy/extractor.ts) — it is never
+ * checked against configured tenants — so without this bucket an attacker can allocate
+ * one unbounded JournalRegistry ring buffer and one unbounded Metrics label set per
+ * distinct header value they send.
+ *
+ * The colon makes this value impossible to collide with a real tenant: every tenant
+ * name that can ever reach this point either passed TENANT_REGEX (`^[a-zA-Z0-9_-]{1,64}$`,
+ * which excludes ':') or is the literal fallback "default". A plain word like
+ * "unknown" would NOT be safe here — tenant directory names are unrestricted basenames
+ * (see loadSnapshot in core/config/loader.ts), so an operator could legally name a
+ * tenant directory "unknown", and header-mode extraction could resolve a request to it.
+ */
+const UNKNOWN_TENANT_BUCKET = ":unknown:";
+
+/**
+ * S5 / #35: rate-cap fallback for requests bucketed under UNKNOWN_TENANT_BUCKET, which by
+ * definition has no TenantConfig (and so no configured `limits.requestsPerSecond`) to read.
+ * Mirrors `TenantLimits.requestsPerSecond`'s own default in src/core/config/schema.ts —
+ * keep the two literals in sync if that default ever changes.
+ */
+const DEFAULT_REQUESTS_PER_SECOND = 10_000;
 
 // Hono variable augmentation — all middleware reads typed `ctx.var.*`.
 declare module "hono" {
@@ -56,12 +83,20 @@ export interface CreateServerOptions {
   allowWebhookUrlHeader?: boolean;
   /** INT-1: optional JSONL append-only log of webhook delivery attempts. */
   webhookJournalFile?: string;
+  /**
+   * S5 / #35: overridable time source for the per-tenant rate limiter (ms epoch). Defaults
+   * to `Date.now`. Test-only hook — lets the rate-limit test matrix advance the token-bucket
+   * window deterministically instead of relying on wall-clock sleeps.
+   */
+  rateLimiterNow?: () => number;
 }
 
 export interface RunningServer {
   readonly hono: Hono;
   readonly journal: JournalRegistry;
   readonly metrics: Metrics;
+  /** S5 / #35: per-tenant request-rate limiter. Exposed so tests can assert bucket count stays bounded (mirrors #34). */
+  readonly rateLimiter: TenantRateLimiter;
   readonly ready: { current: () => boolean; set: (v: boolean) => void };
   readonly uninstallCrashHandlers: () => void;
   /** Webhook delivery journal — separate ring buffer per tenant (RT-11). */
@@ -74,6 +109,14 @@ export interface RunningServer {
    * fresh delivery. Returns the new deliveryId on success or an error code.
    */
   readonly replayWebhook: (tenant: string, deliveryId: string) => ReplayResult;
+  /**
+   * Issue #40: stop every per-tenant webhook queue (cancels live backoff timers,
+   * settles any promise awaiting one, terminates never-run deliveries) AND the
+   * delivery-event registry (settles every pending `await()` caller with null).
+   * Called from `launch().stop()` so a library-embed test process never hangs on
+   * a webhook retry timer after the server it started has "stopped".
+   */
+  readonly stopWebhooks: () => void;
 }
 
 export type ReplayResult =
@@ -90,6 +133,9 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     const snap = opts.holder.get().tenants.get(tenant);
     return snap?.limits.journalSize ?? 1000;
   });
+  // S5 / #35: one rate limiter per server instance, keyed on the same bucketed tenant name
+  // (UNKNOWN_TENANT_BUCKET for unresolved tenants) the journal/metrics already use.
+  const rateLimiter = new TenantRateLimiter({ now: opts.rateLimiterNow });
 
   // Webhook infrastructure (RT-1, RT-11, RT-14, RT-4, INT-1).
   const webhookJournal = new WebhookJournalRegistry(
@@ -233,6 +279,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
       clock,
       journal,
       metrics,
+      rateLimiter,
       handlerTimeoutMs,
       genRequestId,
       webhookJournal,
@@ -243,15 +290,22 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     }),
   );
 
+  const stopWebhooks = (): void => {
+    for (const q of webhookQueues.values()) q.stop();
+    webhookEvents.stop();
+  };
+
   return {
     hono: app,
     journal,
     metrics,
+    rateLimiter,
     ready,
     uninstallCrashHandlers,
     webhookJournal,
     webhookEvents,
     replayWebhook,
+    stopWebhooks,
   };
 }
 
@@ -262,6 +316,7 @@ interface DispatchDeps {
   clock: Clock;
   journal: JournalRegistry;
   metrics: Metrics;
+  rateLimiter: TenantRateLimiter;
   handlerTimeoutMs: number;
   genRequestId: () => string;
   // Webhook fan-out (T4: post-response microtask).
@@ -293,6 +348,11 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   const matchPath = effectivePath(ctx);
   const method = ctx.req.method;
 
+  // Issue #34: bucket unresolved-tenant state under one fixed key instead of the
+  // attacker-supplied string. Computed once, shared by the rate limiter below AND the
+  // journal/metrics/log recording at the bottom of this function.
+  const observedTenant = tenantSnap ? tenant : UNKNOWN_TENANT_BUCKET;
+
   let response: Response;
   let matchedMockId: string | null = null;
   let scenarioId: string | undefined;
@@ -300,35 +360,46 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   let webhookTrigger: WebhookTrigger | undefined;
 
   try {
-    if (!tenantSnap) {
+    // Rate cap (S5 / #35) — cheapest possible check, first thing in the try block, before
+    // we even know whether the tenant is configured. Token-bucket keyed on `observedTenant`
+    // so an unresolved tenant shares the single #34 bucket (with a fallback capacity, since
+    // there is no TenantConfig to read a limit from) rather than getting its own bucket per
+    // distinct attacker-supplied header value. A known tenant uses its own configured cap.
+    const rpsLimit = tenantSnap?.limits.requestsPerSecond ?? DEFAULT_REQUESTS_PER_SECOND;
+    const rateResult: RateLimitResult = deps.rateLimiter.tryAcquire(observedTenant, rpsLimit);
+    if (!rateResult.allowed) {
+      response = rateLimitedResponse(rpsLimit, rateResult.retryAfterSeconds);
+    } else if (!tenantSnap) {
       response = notFoundUnknownTenant(tenant, method, matchPath);
     } else {
-      // Rate / size caps (S5) — cheap pre-check.
+      // Body size cap (S5) — cheap pre-check. Catches a declared-oversized body
+      // without reading it, but a chunked request carries no Content-Length, so this
+      // alone is not sufficient — see the streaming enforcement in safeParseBody below.
       const contentLength = Number.parseInt(ctx.req.header("content-length") ?? "0", 10);
       if (contentLength > tenantSnap.limits.maxBodyBytes) {
-        response = new Response(
-          JSON.stringify({ error: "body_too_large", limit: tenantSnap.limits.maxBodyBytes }),
-          {
-            status: 413,
-            headers: { "content-type": "application/json" },
-          },
-        );
+        response = bodyTooLargeResponse(tenantSnap.limits.maxBodyBytes);
       } else {
-        const result = await routeToMock(
-          ctx,
-          matchPath,
-          method,
-          tenant,
-          snapshot,
-          tenantSnap,
-          requestId,
-          deps,
-        );
-        response = result.response;
-        matchedMockId = response.headers.get("x-mockstar-matched") ?? null;
-        scenarioId = result.scenarioId;
-        scenarioMissReason = result.scenarioMissReason;
-        webhookTrigger = result.webhookTrigger;
+        const bodyResult = await safeParseBody(ctx, tenantSnap.limits.maxBodyBytes);
+        if (!bodyResult.ok) {
+          response = bodyTooLargeResponse(tenantSnap.limits.maxBodyBytes);
+        } else {
+          const result = await routeToMock(
+            ctx,
+            matchPath,
+            method,
+            tenant,
+            snapshot,
+            tenantSnap,
+            requestId,
+            deps,
+            bodyResult.body,
+          );
+          response = result.response;
+          matchedMockId = response.headers.get("x-mockstar-matched") ?? null;
+          scenarioId = result.scenarioId;
+          scenarioMissReason = result.scenarioMissReason;
+          webhookTrigger = result.webhookTrigger;
+        }
       }
     }
   } catch (err) {
@@ -347,11 +418,18 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
   }
 
   // Defer observability writes to after the response goes out (RT-6.3).
+  // Issue #34: `observedTenant` (computed above, shared with the rate limiter) buckets
+  // unknown-tenant traffic under one fixed key rather than the attacker-supplied string,
+  // so it costs one ring buffer / one label set to see that unknown-tenant traffic is
+  // arriving, not one per distinct probed value. This changes ONLY what gets
+  // journaled/metered/logged — the response itself (computed above) is untouched, so an
+  // unknown tenant still gets exactly the 404 it got before (unless the shared rate-limit
+  // bucket itself is exhausted, in which case it gets a 429 instead — see the rate check).
   queueMicrotask(() => {
     const durationUs = Math.round(performance.now() * 1000 - startedUs);
     const entry: JournalEntry = {
       timestamp: Date.now(),
-      tenant,
+      tenant: observedTenant,
       requestId,
       method,
       path: matchPath,
@@ -363,15 +441,15 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
     };
     deps.journal.record(entry);
     deps.metrics.incCounter("mockstar_requests_total", {
-      tenant,
+      tenant: observedTenant,
       method,
       status: String(response.status),
       matched: matchedMockId ? "1" : "0",
     });
-    deps.metrics.observeLatencyUs("mockstar_request_latency_us", { tenant }, durationUs);
+    deps.metrics.observeLatencyUs("mockstar_request_latency_us", { tenant: observedTenant }, durationUs);
     deps.logger.info({
       event: "request",
-      tenant,
+      tenant: observedTenant,
       method,
       path: matchPath,
       status: response.status,
@@ -443,10 +521,11 @@ async function routeToMock(
   tenantSnap: NonNullable<ReturnType<ConfigSnapshot["tenants"]["get"]>>,
   requestId: string,
   deps: DispatchDeps,
+  body: unknown,
 ): Promise<RouteResult> {
-  // Build the request view for matching discriminators.
+  // Build the request view for matching discriminators. `body` was already read (and
+  // size-capped) by safeParseBody in dispatch() before routing began.
   const url = new URL(ctx.req.url);
-  const body = await safeParseBody(ctx);
   const req = {
     query: new Map(Array.from(url.searchParams)),
     headers: new Map(Array.from(ctx.req.raw.headers).map(([k, v]) => [k.toLowerCase(), v])),
@@ -577,6 +656,7 @@ async function routeToMock(
       response = await renderPassThrough(hit.entry, ctx, {
         allowPrivateUpstreams: tenantSnap.allowPrivateUpstreams,
         logger: deps.logger,
+        maxBodyBytes: tenantSnap.limits.maxBodyBytes,
       });
       break;
   }
@@ -597,18 +677,41 @@ function notFoundUnknownTenant(tenant: string, method: string, path: string): Re
   });
 }
 
-async function safeParseBody(ctx: Context): Promise<unknown> {
+type SafeBodyResult = { ok: true; body: unknown } | { ok: false };
+
+/**
+ * S5: parse the JSON request body while enforcing the tenant's byte cap on the
+ * STREAM ITSELF — never by trusting Content-Length (a chunked request carries none,
+ * see issue #33) and never by buffering the whole body first and measuring after.
+ *
+ * The cap itself lives in `capRequestBodyStream` (core/http/body-cap.ts), shared with
+ * the pass-through forwarding path (#33 follow-up: a non-JSON body never reaches this
+ * function's cap at all, since we return before touching the stream below — pass-through
+ * applies the same helper directly before its own `.arrayBuffer()` read). `ctx.req.text()`
+ * (used here, and potentially again by a user-authored dynamic handler downstream) then
+ * consumes the capped stream through Hono's normal body-cache path, so a request exactly
+ * at the cap round-trips identically to today and nothing downstream needs to change.
+ */
+async function safeParseBody(ctx: Context, maxBodyBytes: number): Promise<SafeBodyResult> {
   const method = ctx.req.method;
-  if (method === "GET" || method === "HEAD") return null;
+  if (method === "GET" || method === "HEAD") return { ok: true, body: null };
   const contentType = ctx.req.header("content-type") ?? "";
-  if (!contentType.includes("json")) return null;
+  if (!contentType.includes("json")) return { ok: true, body: null };
+
+  const { tooLarge } = capRequestBodyStream(ctx, maxBodyBytes);
+
   try {
-    // Hono's req.json() clones; we use raw to avoid double-read issues downstream.
+    // Hono's req.json() clones; we use raw text to avoid double-read issues downstream.
     const text = await ctx.req.text();
-    if (text.length === 0) return null;
-    return JSON.parse(text);
-  } catch {
-    return null;
+    if (text.length === 0) return { ok: true, body: null };
+    try {
+      return { ok: true, body: JSON.parse(text) };
+    } catch {
+      return { ok: true, body: null };
+    }
+  } catch (err) {
+    if (tooLarge()) return { ok: false };
+    throw err;
   }
 }
 

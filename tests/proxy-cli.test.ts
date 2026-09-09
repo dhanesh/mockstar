@@ -7,7 +7,11 @@
 // validated by the integration test (G3) and CI workflow (G1/G2).
 
 import { afterEach, describe, expect, it } from "bun:test";
-import { dispatchProxyCommand } from "../src/features/proxy/cli.ts";
+import { dispatchProxyCommand, resolveAllowInterpreterGrant } from "../src/features/proxy/cli.ts";
+import {
+  ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV,
+  ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG,
+} from "../src/features/proxy/port-bind.ts";
 
 type Sink = { stdout: string[]; stderr: string[]; restore: () => void };
 
@@ -53,6 +57,9 @@ describe("dispatchProxyCommand — help and routing (G5)", () => {
     expect(out).toContain("start");
     expect(out).toContain("uninstall");
     expect(out).toContain("status");
+    // #39 escape hatch must be discoverable from --help, not just from the refusal error.
+    expect(out).toContain(ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG);
+    expect(out).toContain(ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV);
   });
 
   it("returns 0 on `help` and `--help`", async () => {
@@ -113,5 +120,29 @@ describe("dispatchProxyCommand — status (G6)", () => {
     expect(out).toContain("CAROOT:");
     expect(out).toContain("Config:");
     expect(out).toContain("Journal:");
+  });
+});
+
+describe("resolveAllowInterpreterGrant — #39 escape hatch resolution (pure)", () => {
+  it("is false when neither the flag nor the env var is set", () => {
+    expect(resolveAllowInterpreterGrant([], {})).toBe(false);
+    expect(resolveAllowInterpreterGrant(["--force"], { PATH: "/usr/bin" })).toBe(false);
+  });
+
+  it("is true when the CLI flag is present", () => {
+    expect(resolveAllowInterpreterGrant([ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG], {})).toBe(true);
+    expect(resolveAllowInterpreterGrant(["--force", ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG], {})).toBe(true);
+  });
+
+  it('is true when the env var is exactly "1"', () => {
+    expect(resolveAllowInterpreterGrant([], { [ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV]: "1" })).toBe(true);
+  });
+
+  it('is false when the env var is set but not exactly "1" (no accidental opt-in)', () => {
+    expect(resolveAllowInterpreterGrant([], { [ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV]: "true" })).toBe(
+      false,
+    );
+    expect(resolveAllowInterpreterGrant([], { [ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV]: "0" })).toBe(false);
+    expect(resolveAllowInterpreterGrant([], { [ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV]: "" })).toBe(false);
   });
 });

@@ -13,6 +13,12 @@
 #   8. bun run bench/proxy.bench.ts           (RT-11)
 #   9. mockstar proxy uninstall               (verifies U2 reversal)
 #  10. Assert no residual entries (CA removed, dnsmasq stopped)
+#
+# Steps 3/5/9 invoke `mockstar` via the helper function defined below: when
+# MOCKSTAR_PROXY_BIN is set (Dockerfile.tier1-proxy builds a packaged binary and
+# exports it), those steps run against that binary — the real path #39's interpreter
+# refusal steers users toward. Otherwise they fall back to `bun run src/cli.ts` with
+# the #39 escape hatch (e.g. the macOS job, which runs from a bare checkout).
 
 set -euo pipefail
 
@@ -25,6 +31,20 @@ PROXY_PORT=443
 MOCK_PORT=3000
 
 cd /app
+
+# -----------------------------------------------------------------------------
+# Resolve how to invoke mockstar's proxy subcommands (see header comment above).
+# -----------------------------------------------------------------------------
+# `proxy install` grants cap_net_bind_service to the exact binary file it's run as
+# (setcap is per-inode, not per-command), so `proxy start` must run as that SAME file
+# to inherit the capability — hence routing both through the same `mockstar` helper.
+mockstar() {
+  if [ -n "${MOCKSTAR_PROXY_BIN:-}" ]; then
+    "${MOCKSTAR_PROXY_BIN}" "$@"
+  else
+    bun run src/cli.ts "$@"
+  fi
+}
 
 # -----------------------------------------------------------------------------
 # Step 1: mkcert -install + manual CA wiring for Debian base images
@@ -57,9 +77,27 @@ cat > "$HOME/.mockstar/proxy.json" <<EOF
 EOF
 
 # -----------------------------------------------------------------------------
-# Step 3: install the proxy (writes /etc/hosts entry, setcap on Bun binary)
+# Step 3: install the proxy (writes /etc/hosts entry, setcap on the mockstar binary)
 # -----------------------------------------------------------------------------
-bun run src/cli.ts proxy install --force --dns-mode=hosts
+if [ -n "${MOCKSTAR_PROXY_BIN:-}" ]; then
+  # Packaged binary present (Dockerfile.tier1-proxy built it) — the real path #39's
+  # interpreter refusal steers users toward. No escape hatch needed: process.execPath
+  # resolves to the packaged binary, not an interpreter.
+  mockstar proxy install --force --dns-mode=hosts
+else
+  # --allow-interpreter-capability-grant (#39): no packaged binary was built for this
+  # caller (e.g. the macOS job, which runs from a bare checkout), so the `mockstar`
+  # helper above falls back to `bun run src/cli.ts`, and process.execPath resolves to
+  # the `bun` interpreter itself, not a packaged mockstar binary — the refusal
+  # `portBindMutation` added for #39 would otherwise reject this. That refusal exists
+  # because granting cap_net_bind_service to a general-purpose interpreter hands every
+  # program it runs the ability to bind privileged ports, persistently, on the machine
+  # that's granted it. Here that concern doesn't apply: this runs inside a throwaway,
+  # single-purpose CI container/runner destroyed immediately after the job, so there is
+  # no persistent "every Bun program on this machine" to worry about. Do not copy this
+  # flag onto a developer's own machine.
+  mockstar proxy install --force --dns-mode=hosts --allow-interpreter-capability-grant
+fi
 
 # -----------------------------------------------------------------------------
 # Step 4: start mockstar-core on :3000
@@ -96,7 +134,7 @@ done
 # -----------------------------------------------------------------------------
 # Step 5: start the proxy on :443
 # -----------------------------------------------------------------------------
-bun run src/cli.ts proxy start &
+mockstar proxy start &
 PROXY_PID=$!
 sleep 2
 
@@ -122,7 +160,7 @@ bun run bench/proxy.bench.ts || echo "WARN: bench returned non-zero; continuing"
 # Step 9: uninstall + Step 10: assert clean
 # -----------------------------------------------------------------------------
 kill $PROXY_PID || true
-bun run src/cli.ts proxy uninstall
+mockstar proxy uninstall
 if grep -q "$TEST_HOST" /etc/hosts; then
   echo "FAIL: /etc/hosts still contains $TEST_HOST after uninstall"
   exit 1

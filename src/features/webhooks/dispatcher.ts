@@ -6,7 +6,7 @@
 
 import type { Metrics } from "../../core/observability/metrics.ts";
 import type { TemplateContext } from "../../core/templating/index.ts";
-import { validateUpstreamUrlResolved } from "../url-validator.ts";
+import { UrlValidationError, fetchWithRedirectGuard, validateUpstreamUrlResolved } from "../url-validator.ts";
 import type { CircuitBreaker } from "./circuit-breaker.ts";
 import type { DeliveryEventRegistry } from "./event-registry.ts";
 import type { WebhookJournalRegistry } from "./journal.ts";
@@ -129,20 +129,22 @@ async function performAttempt(
   const attemptStart = performance.now();
 
   // Resolve URL: header override (if allowed) wins, otherwise the per-route template.
-  let urlString: string;
   const headerUrl =
     _deps.allowWebhookUrlHeader && spec.acceptHeaderOverride
       ? input.requestHeaders.get("x-mockstar-webhook-url")
       : undefined;
-  urlString = headerUrl ?? spec.urlTemplate.render(input.templateContext);
+  const urlString = headerUrl ?? spec.urlTemplate.render(input.templateContext);
 
   // S2: re-validate the URL each attempt (it may template differently per request).
   // Resolves DNS and rejects hostnames whose A/AAAA records point at private ranges (F1 SSRF guard).
-  const allowedSchemes = spec.allowHttp ? ["http", "https"] : ["https"];
-  await validateUpstreamUrlResolved(urlString, {
-    allowedSchemes,
+  // `validationOpts` is reused verbatim (never defaults) to re-validate any redirect Location
+  // below, so a webhook that legitimately opted into allowHttp/allowPrivateNetworks doesn't
+  // break on its first redirect (#37).
+  const validationOpts = {
+    allowedSchemes: spec.allowHttp ? (["http", "https"] as const) : (["https"] as const),
     allowPrivateUpstreams: spec.allowPrivateNetworks,
-  });
+  };
+  const validatedUrl = await validateUpstreamUrlResolved(urlString, validationOpts);
   // validateUpstreamUrlResolved throws on rejection; if we got here, the URL is safe.
 
   // Render headers and body.
@@ -191,14 +193,31 @@ async function performAttempt(
   const signal = AbortSignal.timeout(spec.timeoutMs);
 
   let response: Response;
+  let finalUrl: URL;
   try {
-    response = await fetch(urlString, {
-      method: spec.method,
-      headers: renderedHeaders,
-      body: spec.method === "GET" || spec.method === "DELETE" ? undefined : rawBody,
-      signal,
-    });
+    // redirect: "manual" + fetchWithRedirectGuard (#37): the default redirect: "follow"
+    // would otherwise let a permitted public receiver 3xx the delivery to a private/loopback/
+    // metadata address with no revalidation. Every redirect hop is re-validated with the
+    // SAME validationOpts used above, up to a bounded hop count.
+    const result = await fetchWithRedirectGuard(
+      validatedUrl,
+      {
+        method: spec.method,
+        headers: renderedHeaders,
+        body: spec.method === "GET" || spec.method === "DELETE" ? null : rawBody,
+        signal,
+      },
+      validationOpts,
+    );
+    response = result.response;
+    finalUrl = result.finalUrl;
   } catch (err) {
+    if (err instanceof UrlValidationError) {
+      // A redirect hop (or the hop cap) was rejected by the SSRF guard. Distinct message
+      // from a plain network error so operators can tell "receiver tried to pivot us
+      // somewhere disallowed" apart from "receiver was unreachable" (#37).
+      throw new Error(`webhook delivery redirect rejected: ${err.message}`);
+    }
     // Network error / timeout / abort — classified as transient failure.
     throw new Error(`webhook delivery network error: ${(err as Error).message ?? err}`);
   }
@@ -219,7 +238,10 @@ async function performAttempt(
   return {
     httpStatus: response.status,
     durationUs: Math.round((performance.now() - attemptStart) * 1000),
-    resolvedUrl: urlString,
+    // The FINAL (post-redirect-chain) URL, not the pre-redirect `urlString` — otherwise a
+    // redirect pivot is invisible in the journal after the fact (#37). Every hop leading here
+    // was independently re-validated by fetchWithRedirectGuard above.
+    resolvedUrl: finalUrl.href,
   };
 }
 

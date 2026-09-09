@@ -5,12 +5,26 @@
 import type { CompiledTemplate } from "../../core/templating/index.ts";
 import type { DigestEncoding } from "./scheme.ts";
 
-/** Terminal outcome of a delivery — every delivery resolves to exactly one of these. */
+/**
+ * Outcome recorded against a single attempt row in the webhook journal, OR the
+ * terminal outcome of a whole delivery (every delivery resolves to exactly one
+ * of the terminal members below via DeliverySummary.outcome).
+ *
+ * 'retrying' (#44) is attempt-scoped only — it can appear on a per-attempt
+ * WebhookJournalEntry row, but NEVER on a DeliverySummary: a delivery's terminal
+ * state is always one of success/failed/dropped/circuit-open. Before #44, a
+ * failed-but-will-retry attempt was journaled as outcome:"success" (with an
+ * `error` field populated) because DeliveryOutcome had no member for "this
+ * attempt failed but the delivery isn't done yet" — an SDET asserting
+ * `entries.some(e => e.outcome === "success")` got a false green on a webhook
+ * that never actually succeeded. 'retrying' closes that gap.
+ */
 export type DeliveryOutcome =
   | "success" // attempt returned matching status (and matching body if expectResponse set)
   | "failed" // retry budget exhausted, last attempt non-2xx or threw
   | "dropped" // queue cap overflow evicted before delivery (TN2)
-  | "circuit-open"; // breaker open at attempt time, no HTTP call made (O3)
+  | "circuit-open" // breaker open at attempt time, no HTTP call made (O3)
+  | "retrying"; // attempt failed but more attempts remain (#44) — attempt-scoped, never terminal
 
 /** Signing config for a single webhook. Off unless explicitly enabled (S1). */
 export interface WebhookSigningSpec {

@@ -24,8 +24,9 @@ export interface DeliveryEventRegistryOptions {
 }
 
 interface Deferred {
-  resolve: (summary: DeliverySummary) => void;
-  /** Used by sweep to clear stale waiters on shutdown / TTL. */
+  /** Accepts null too — stop() force-settles every pending awaiter the same way a natural timeout does. */
+  resolve: (summary: DeliverySummary | null) => void;
+  /** Used by stop() / natural timeout to clear the pending timer. */
   timeout?: ReturnType<typeof setTimeout>;
 }
 
@@ -91,6 +92,21 @@ export class DeliveryEventRegistry {
       if (entry.expiresAt > now) break;
       this.#completed.delete(id);
     }
+  }
+
+  /**
+   * Stop the registry: cancel every live await-timeout timer and settle every pending
+   * awaiter with `null` — the same value a natural timeout produces — so a caller
+   * blocked on `await(deliveryId, ...)` at server-stop time returns instead of hanging
+   * forever (issue #40). Idempotent-safe to call with no pending awaiters.
+   */
+  stop(): void {
+    const pending = Array.from(this.#pending.values());
+    for (const deferred of pending) {
+      // deferred.resolve clears its own timeout and deletes itself from #pending (see await()).
+      deferred.resolve(null);
+    }
+    this.#pending.clear();
   }
 
   /** Test-helper: number of awaiters currently waiting. */

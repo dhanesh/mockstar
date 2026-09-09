@@ -332,6 +332,69 @@ describe("timestampHeader: null suppresses the standalone timestamp header", () 
   });
 });
 
+describe("makeTestServer runs fixtures through the real MockEntry Zod parse (seam closed)", () => {
+  // Proves the fix to tests/webhooks/_helpers.ts: makeTestServer used to hand `opts.entries`
+  // straight to compileWebhookSpecs() with no Zod parse, so a `signing` override that only sets
+  // `enabled` + `secretRef` type-checked (via webhookSpec()'s `as WebhookSpecInput` cast) but
+  // reached the dispatcher with every other signing field `undefined` instead of Zod-defaulted —
+  // the exact seam that made dispatcher-level tests throw a TypeError inside createHmac, and
+  // forced the "default timestampHeader (unset)" test above to spell out all ten signing fields
+  // by hand. This test supplies ONLY `enabled` + `secretRef` and asserts delivery is signed
+  // exactly as if every default (mode: "hmac", algorithm: "sha256", signedPayload:
+  // DEFAULT_SIGNED_PAYLOAD, signatureTemplate: DEFAULT_SIGNATURE_TEMPLATE, digestEncoding: "hex",
+  // signatureHeader: "x-mockstar-signature", timestampHeader: "x-mockstar-timestamp",
+  // replayWindowMs: 300_000) had been spelled out — including a real HMAC verification, not just
+  // header-shape regexes. Fails at the pre-fix HEAD (makeTestServer without the MockEntry.parse
+  // call): the dispatcher throws `TypeError: The "hmac" argument must be of type... Received
+  // undefined` from inside createHmac (scheme.algorithm is undefined) and no delivery reaches
+  // the receiver, so `receiver.hits.length` is 0, not 1.
+  test("a partial signing override ({ enabled, secretRef } only) is delivered signed under schema defaults", async () => {
+    const receiver = spawnReceiver(() => new Response("{}", { status: 200 }));
+    process.env.MOCKSTAR_TEST_SIG_SECRET = "shhh";
+    const entries: Entry[] = [
+      {
+        id: "mock1",
+        match: { method: "POST", path: "/orders", priority: 0 },
+        response: { kind: "static", status: 201, body: { ok: true } },
+        webhooks: [
+          webhookSpec({
+            url: receiver.url,
+            signing: {
+              enabled: true,
+              secretRef: "{{ env.MOCKSTAR_TEST_SIG_SECRET }}",
+            },
+          }),
+        ],
+      },
+    ];
+    const { server } = makeTestServer({ entries });
+    await server.hono.fetch(
+      new Request("http://localhost/orders", {
+        method: "POST",
+        body: "{}",
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    await tick(200);
+    receiver.close();
+
+    expect(receiver.hits.length).toBe(1);
+    const hit = receiver.hits[0];
+    const headers = hit?.headers ?? {};
+
+    // Default signatureHeader/timestampHeader names, default signatureTemplate shape.
+    expect(headers["x-mockstar-signature"]).toMatch(/^sha256=[0-9a-f]{64}$/);
+    expect(headers["x-mockstar-timestamp"]).toMatch(/^\d{13}$/);
+
+    // Not just shape — the digest is a genuine HMAC over the default signedPayload
+    // ("{timestamp}.{body}") under the resolved secret, verified independently of the
+    // production signing code that produced it.
+    const digest = headers["x-mockstar-signature"]?.replace(/^sha256=/, "") ?? "";
+    const timestampMs = Number(headers["x-mockstar-timestamp"]);
+    expect(verifySignature(hit?.body ?? "", "shhh", timestampMs, digest)).toBe(true);
+  });
+});
+
 describe("verifySignature's catch path (review round 2, item 4)", () => {
   // d816b4d moved `signPayload(...)` inside the try so a malformed scheme throws through the
   // catch as the "never throws" docstring promises, rather than escaping past it. Coverage

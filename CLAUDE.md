@@ -56,7 +56,7 @@ src/
   features/
     admin/                     # Admin API (/_mockstar/...) for scenario switching, journal query
     enhance/                   # Response enhancement hooks
-    openapi/                   # OpenAPI spec generation from mock configs
+    openapi/                   # OpenAPI import — converts an OpenAPI doc into mock configs (no generator; import direction only)
     proxy/                     # Pass-through proxy for unmatched routes
     spec/                      # Mock spec validation
 
@@ -102,13 +102,13 @@ curl -X POST http://localhost:3000/_mockstar/scenarios \
 
 **Response templating gotcha**: whole-string placeholders in a JSON body preserve source type — `{{ request.body.amount }}` stays a number, not a string. Only interpolated (partial) strings always coerce to string.
 
-**Path trie matching**: more-specific routes win; query params are matched as optional by default. If two routes have the same specificity, first-defined wins — order matters in config files.
+**Path trie matching**: candidates are ordered strictly by `match.priority` (higher wins), with declaration order as the tiebreaker when priority is equal — there is no path-specificity scoring (`/users/:id` does not automatically lose to `/users/active`). If you need a more-specific route to win, set `priority` explicitly. Query params are matched as optional by default.
 
 **Multi-tenancy**: each tenant is an isolated directory; the `Host` header (or `X-Mockstar-Tenant` override) determines which tenant's mocks are served.
 
 ## Gotchas
 
 - `bun run build` must precede `bun run build:binary` — binaries are built from `dist/`, not `src/`
-- Handlers are hot-reloaded in dev mode but **not** in Docker — rebuild the image to pick up handler changes
+- Handler changes are **not** hot-reloaded, in dev mode or Docker — `buildHandlerRegistry()` runs once in `launch()` and the file watcher only watches tenant mock-config directories, never `handlersDir`. Restart the process (or rebuild the image) to pick up handler changes
 - The journal is in-memory only; it resets on server restart. For persistent replay, use the `--journal-file` flag
 - Biome replaces ESLint + Prettier — don't add `.eslintrc` or `.prettierrc`

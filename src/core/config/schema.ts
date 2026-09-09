@@ -18,21 +18,14 @@ import {
 
 export const MatchMethod = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "*"]);
 
-const StringMatch = z.union([
-  z.string(),
-  z.object({ equals: z.string() }).strict(),
-  z.object({ regex: z.string() }).strict(),
-  z.object({ startsWith: z.string() }).strict(),
-  z.object({ contains: z.string() }).strict(),
-]);
-
 // Detects nested quantifier patterns that cause catastrophic backtracking (S1/TN3 resolution).
 // Rejects: (a+)+, (a{1,3})+, (a|b)+ etc. Accepts bounded patterns like /^[A-Z]{2,4}$/.
 function isUnsafeRegex(pattern: string): boolean {
   return /\([^)]*[*+{][^)]*\)[*+{]/.test(pattern) || /\([^)]*\|[^)]*\)[*+{]/.test(pattern);
 }
 
-// StringMatch with a ReDoS guard on the regex variant (S1/TN3). Same inferred TS type.
+// StringMatch with a ReDoS guard on the regex variant (S1/TN3, and — since #41 — MatchPredicate
+// too). Same inferred TS type as the unguarded union used to be.
 const StringMatchWithRegexGuard = z.union([
   z.string(),
   z.object({ equals: z.string() }).strict(),
@@ -42,7 +35,7 @@ const StringMatchWithRegexGuard = z.union([
     .refine(
       (v) => !isUnsafeRegex(v.regex),
       (v) => ({
-        message: `scenario regex '${v.regex}' may cause catastrophic backtracking — use exact/startsWith/contains instead`,
+        message: `regex '${v.regex}' may cause catastrophic backtracking — use exact/startsWith/contains instead`,
       }),
     ),
   z.object({ startsWith: z.string() }).strict(),
@@ -61,8 +54,8 @@ export const MatchPredicate = z
   .object({
     method: MatchMethod.default("*"),
     path: z.string().min(1), // hono-style: /users/:id
-    query: z.record(StringMatch).optional(),
-    headers: z.record(StringMatch).optional(),
+    query: z.record(StringMatchWithRegexGuard).optional(),
+    headers: z.record(StringMatchWithRegexGuard).optional(),
     body: BodyMatch.optional(),
     priority: z.number().int().default(0),
   })
@@ -438,7 +431,18 @@ export const TenantLimits = z
   .object({
     maxBodyBytes: z.number().int().positive().default(1_048_576), // S5: inbound request cap, 1 MB default
     maxResponseBytes: z.number().int().positive().default(1_048_576), // S4: outbound response cap (Tier 2 render), 1 MB default
-    requestsPerSecond: z.number().int().positive().default(1000), // S5: 1000 rps default
+    // S5 / #35: enforced by TenantRateLimiter (src/core/http/rate-limit.ts), a per-tenant
+    // token-bucket keyed in src/server.ts — exceeding it returns 429 with Retry-After.
+    // Default 10_000, NOT the historical 1000: this repo's own `bun run bench` targets
+    // exactly 1000 rps, so a 1000 default would throttle the project's own performance
+    // gate. Measured single-instance capacity (8-core, one static mock, concurrent
+    // clients over a real socket) peaks around ~25k req/s (partly load-generator-bound,
+    // so true capacity is at least that). 10_000 gives 10x headroom over the benchmark's
+    // 1000 rps target — comfortably above any realistic test-suite load; a suite that
+    // legitimately needs >10k rps against one mock is exactly the pathological case this
+    // cap exists to catch — while staying below measured peak so the ceiling is genuinely
+    // reachable rather than decorative.
+    requestsPerSecond: z.number().int().positive().default(10_000),
     journalSize: z.number().int().positive().default(1000), // O3: 1000 entries default
   })
   .strict();

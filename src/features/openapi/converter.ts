@@ -58,12 +58,12 @@ export function convertOpenApi(doc: unknown, opts: ConvertOptions = {}): Array<R
   }
 
   // 1. Scan for external $refs and bail before we process anything else (RT-8.3).
-  const refs = findRefs(doc);
-  for (const ref of refs) {
+  const refs = findRefs(doc, "$");
+  for (const { ref, path } of refs) {
     if (!ref.startsWith("#")) {
       throw new OpenApiImportError(
-        `External $ref rejected: '${ref}'. Only in-document ($ref starting with '#') references are permitted.`,
-        { ref },
+        `External $ref rejected: '${ref}' at ${path}. Only in-document ($ref starting with '#') references are permitted.`,
+        { ref, path },
       );
     }
   }
@@ -119,15 +119,59 @@ export function convertOpenApi(doc: unknown, opts: ConvertOptions = {}): Array<R
   return entries;
 }
 
-function findRefs(value: unknown, acc: string[] = []): string[] {
+interface RefHit {
+  ref: string;
+  /** JSON-path-ish breadcrumb to the object containing the offending $ref (#43c). */
+  path: string;
+}
+
+/**
+ * Walk the document for `$ref` values, restricted to schema-shaped subtrees — i.e.
+ * everywhere EXCEPT the two constructs the OpenAPI 3.x spec defines as opaque, arbitrary
+ * instance data rather than JSON-Schema/Reference-Object structure (#43b):
+ *
+ *   - MediaTypeObject/Parameter/Header/Schema `example` (singular): always literal data.
+ *   - `examples` map member `.value` (the Example Object's own payload field): literal data.
+ *     The Example Object itself may still legitimately be `{ $ref: ... }` (a reference to a
+ *     reusable Example Object) — that is scanned; only its nested `.value` is skipped.
+ *
+ * Every other object in an OpenAPI document — Schema Objects (incl. anything reachable via
+ * `properties`/`items`/`allOf`/`oneOf`/`anyOf`/nested `$ref`), Parameter/Header/Response/
+ * RequestBody/PathItem/Link/Callback Objects, and the whole `components` section — is walked
+ * exhaustively, exactly as before. A field named `$ref` in those locations is always the
+ * OpenAPI Reference Object mechanism (RT-8.3's actual attack surface: `synthesizeFromSchema`
+ * follows in-document schema `$ref`s via `resolveRef`, which will walk to any JSON pointer in
+ * the document — so every subtree a schema `$ref` could point to must stay covered here too).
+ */
+function findRefs(value: unknown, path: string, acc: RefHit[] = []): RefHit[] {
   if (value === null || typeof value !== "object") return acc;
   if (Array.isArray(value)) {
-    for (const v of value) findRefs(v, acc);
+    value.forEach((v, i) => findRefs(v, `${path}[${i}]`, acc));
     return acc;
   }
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (k === "$ref" && typeof v === "string") acc.push(v);
-    findRefs(v, acc);
+  const obj = value as Record<string, unknown>;
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === "$ref" && typeof v === "string") {
+      acc.push({ ref: v, path: `${path}.$ref` });
+      continue;
+    }
+    if (k === "example") continue; // literal instance data — never a Reference Object
+    if (k === "examples" && v !== null && typeof v === "object" && !Array.isArray(v)) {
+      for (const [name, member] of Object.entries(v as Record<string, unknown>)) {
+        const memberPath = `${path}.examples.${name}`;
+        if (member === null || typeof member !== "object" || Array.isArray(member)) continue;
+        for (const [mk, mv] of Object.entries(member as Record<string, unknown>)) {
+          if (mk === "value") continue; // Example Object payload — literal instance data
+          if (mk === "$ref" && typeof mv === "string") {
+            acc.push({ ref: mv, path: `${memberPath}.$ref` });
+            continue;
+          }
+          findRefs(mv, `${memberPath}.${mk}`, acc);
+        }
+      }
+      continue;
+    }
+    findRefs(v, `${path}.${k}`, acc);
   }
   return acc;
 }
@@ -139,7 +183,11 @@ function pickExemplar(
   const responses = op.responses ?? {};
   const preferred = ["200", "201", "202", "204", "default"];
   for (const code of preferred) {
-    const res = responses[code];
+    // OpenAPI 3.x Responses Object also permits range keys (`2XX`, `4XX`, `5XX`) in place of
+    // an exact status code. Fall back to the matching NXX range key when the exact code is
+    // absent — otherwise a doc whose only success response is keyed "2XX" silently degrades
+    // to the `{note: ...}` placeholder below, discarding a real, hand-written example (#43a).
+    const res = responses[code] ?? (code === "default" ? undefined : responses[`${code[0]}XX`]);
     if (!res) continue;
     const status = code === "default" ? 200 : Number.parseInt(code, 10);
     const content = res.content ?? {};

@@ -2,7 +2,7 @@
 // Keeping fixture boilerplate out of individual test files.
 
 import type { Entry } from "../../src/core/config/schema.ts";
-import { TenantLimits } from "../../src/core/config/schema.ts";
+import { MockEntry, TenantLimits } from "../../src/core/config/schema.ts";
 import { SnapshotHolder } from "../../src/core/config/snapshot.ts";
 import type { HandlerRegistry } from "../../src/core/handlers/index.ts";
 import { buildMatchIndex } from "../../src/core/matching/index.ts";
@@ -29,6 +29,19 @@ export interface TestServerOptions {
 }
 
 export function makeTestServer(opts: TestServerOptions): { server: RunningServer; holder: SnapshotHolder } {
+  // Run fixtures through the real MockEntry Zod parse, exactly as production
+  // config-loading does (src/core/config/loader.ts's loadTenant: `MockEntry.parse(raw)`
+  // per entry). Without this, schema defaults never applied in tests — a partial
+  // `signing` object (e.g. just `enabled` + `secretRef`) type-checked via the
+  // `WebhookSpecInput` cast below but reached the dispatcher with `undefined` fields
+  // instead of the Zod-defaulted ones, which is exactly the seam that bit the signing
+  // work twice (dispatcher TypeErrors inside createHmac, then a provider-fidelity suite
+  // that had to spell out all ten signing fields by hand). `opts.entries` is already the
+  // parsed `Entry[]` output type; re-parsing it is idempotent (MockEntry is `.strict()`,
+  // and a previously-parsed entry only carries schema-known keys), so this is safe for
+  // callers that already pass fully-shaped entries and additive for the ones that don't.
+  const entries: Entry[] = opts.entries.map((e) => MockEntry.parse(e));
+
   const holder = new SnapshotHolder({
     version: 1,
     server: {
@@ -44,11 +57,11 @@ export function makeTestServer(opts: TestServerOptions): { server: RunningServer
         "default",
         {
           name: "default",
-          entries: opts.entries,
-          matchIndex: buildMatchIndex(opts.entries),
-          compiledResponses: compileEntryResponses(opts.entries),
+          entries,
+          matchIndex: buildMatchIndex(entries),
+          compiledResponses: compileEntryResponses(entries),
           compiledScenarios: new Map(),
-          compiledWebhooks: compileWebhookSpecs(opts.entries),
+          compiledWebhooks: compileWebhookSpecs(entries),
           limits: TenantLimits.parse({}),
           adminToken: ADMIN_TOKEN,
           allowPrivateUpstreams: opts.allowPrivateUpstreams ?? true,

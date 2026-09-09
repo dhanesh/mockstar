@@ -1,5 +1,7 @@
-// @constraint RT-3 — SNI allowlist exclusive
-// @constraint T3, T4
+// @constraint T3, T4 — sniGate()/explainSni() pure-function coverage. NOT an
+// end-to-end RT-3 test: these helpers are not wired into the live TLS server
+// (see src/features/proxy/sni-gate.ts's header comment). For the runtime gate,
+// see proxy-integration.test.ts / proxy-config.test.ts.
 
 import { describe, expect, it } from "bun:test";
 import { SnapshotHolder } from "../src/features/proxy/cert-cache.ts";

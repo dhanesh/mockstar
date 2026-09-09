@@ -3,13 +3,21 @@
 // Priority: binding — central to RT-6 hot path
 
 import type { Entry } from "../config/schema.ts";
-import { type PredicateFailure, type RequestView, evaluateDiscriminators } from "./discriminators.ts";
+import {
+  type CompiledPredicate,
+  type PredicateFailure,
+  type RequestView,
+  compilePredicate,
+  evaluateCompiledDiscriminators,
+} from "./discriminators.ts";
 import { type PathMatchHit, type PathPatternNode, createNode, findPath, insertPattern } from "./path-trie.ts";
 
 export interface IndexedEntry {
   entry: Entry;
   /** Position in the source list — used as a tiebreaker after priority. */
   order: number;
+  /** #41: discriminator regexes precompiled once here, not per request. */
+  compiled: CompiledPredicate;
 }
 
 export interface MatchResult {
@@ -36,7 +44,7 @@ export function buildMatchIndex(entries: readonly Entry[]): MatchIndex {
   const wildcardMethodRoot = createNode<IndexedEntry>();
 
   entries.forEach((e, i) => {
-    const indexed: IndexedEntry = { entry: e, order: i };
+    const indexed: IndexedEntry = { entry: e, order: i, compiled: compilePredicate(e.match) };
     if (e.match.method === "*") {
       insertPattern(wildcardMethodRoot, e.match.path, indexed);
       return;
@@ -72,7 +80,7 @@ export function buildMatchIndex(entries: readonly Entry[]): MatchIndex {
     match(method: string, path: string, req: RequestView): MatchResult | null {
       const hits = orderCandidates(candidates(method, path));
       for (const hit of hits) {
-        const failure = evaluateDiscriminators(hit.value.entry.match, req);
+        const failure = evaluateCompiledDiscriminators(hit.value.compiled, req);
         if (!failure) {
           return { entry: hit.value.entry, params: hit.params };
         }
@@ -84,7 +92,7 @@ export function buildMatchIndex(entries: readonly Entry[]): MatchIndex {
       const out: NearestMatch[] = [];
       for (const hit of hits) {
         if (out.length >= limit) break;
-        const failure = evaluateDiscriminators(hit.value.entry.match, req);
+        const failure = evaluateCompiledDiscriminators(hit.value.compiled, req);
         if (failure) out.push({ entry: hit.value.entry, params: hit.params, failure });
       }
       return out;
