@@ -39,7 +39,21 @@ Mockstar targets three personas equally:
 
 > Built on [Hono](https://hono.dev/) on [Bun](https://bun.sh/). Targets p99 < 5ms for static mock responses. See [DECISIONS.md](./docs/DECISIONS.md) for the constraint-first design record.
 
-## Quick start
+## Install
+
+Website: <https://dhanesh.github.io/mockstar/>
+
+```bash
+brew install dhanesh/tap/mockstar     # macOS + Linux, standalone binary
+mockstar init . && mockstar serve ./mocks
+
+brew services start mockstar          # optional: serve $(brew --prefix)/var/mockstar/mocks in the background
+```
+
+Also available via `bunx @dhaneshpurohit/mockstar`, the `ghcr.io/dhanesh/mockstar` image, and
+per-platform binaries on the [releases page](https://github.com/dhanesh/mockstar/releases/latest).
+
+## Quick start (from source)
 
 ```bash
 bun install

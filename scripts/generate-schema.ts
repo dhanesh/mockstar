@@ -2,8 +2,8 @@
 // Satisfies: RT-2 (dual-URL JSON Schema hosting — generate artifact)
 //
 // Generates JSON Schema for the MocksFile root type and writes it to
-// `schema/mock.json`. The CI workflow (`.github/workflows/schema-publish.yml`)
-// copies this under two paths on GitHub Pages:
+// `schema/mock.json`. semantic-release commits it on each release; the pages CI
+// workflow (`.github/workflows/pages.yml`) then copies it under two paths on GitHub Pages:
 //
 //   https://schemas.mockstar.dev/v0/mock.json       (rolling minor, latest v0.x)
 //   https://schemas.mockstar.dev/v0.<N>/mock.json   (pinned minor — immutable)

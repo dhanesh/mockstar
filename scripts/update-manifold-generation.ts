@@ -57,7 +57,7 @@ const artifacts: Artifact[] = [
   // RT-2 — dual-URL schema hosting + migrate CLI
   { path: 'docs/SCHEMA-HOSTING.md', type: 'docs', satisfies: ['RT-2'], status: 'generated', artifact_class: 'substantive' },
   { path: 'scripts/generate-schema.ts', type: 'code', satisfies: ['RT-2'], status: 'generated', artifact_class: 'substantive' },
-  { path: '.github/workflows/schema-publish.yml', type: 'ops', satisfies: ['RT-2'], status: 'generated', artifact_class: 'substantive' },
+  { path: '.github/workflows/pages.yml', type: 'ops', satisfies: ['RT-2'], status: 'generated', artifact_class: 'substantive' },
   { path: 'src/cli/commands/migrate.ts', type: 'code', satisfies: ['RT-2'], status: 'generated', artifact_class: 'substantive' },
   { path: 'tests/cli/migrate-schema.test.ts', type: 'test', satisfies: ['RT-2'], status: 'generated', artifact_class: 'substantive' },
   { path: 'tests/schema/generate-schema.test.ts', type: 'test', satisfies: ['RT-2'], status: 'generated', artifact_class: 'substantive' },

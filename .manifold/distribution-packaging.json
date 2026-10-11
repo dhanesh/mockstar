@@ -1506,7 +1506,7 @@
         "artifact_class": "substantive"
       },
       {
-        "path": ".github/workflows/schema-publish.yml",
+        "path": ".github/workflows/pages.yml",
         "type": "ops",
         "satisfies": [
           "RT-2"

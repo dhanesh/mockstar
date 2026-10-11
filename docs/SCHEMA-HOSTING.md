@@ -43,19 +43,23 @@ first to preview the affected files.
 
 ## Publishing flow
 
-`.github/workflows/schema-publish.yml` runs on every tagged release:
+1. On each release, semantic-release runs `bun run scripts/generate-schema.ts`,
+   which writes `schema/mock.json` (with the current `$id`) and
+   `schema/VERSION`, and commits both to `main`.
+2. `.github/workflows/pages.yml` then deploys the GitHub Pages site
+   (<https://dhanesh.github.io/mockstar/>): the landing page from `site/` plus
+   the schema under both `/v0.<N>/mock.json` and `/v0/mock.json`. Previously
+   published minors are carried forward from the live site (listed in
+   `/schemas.json`), because each Pages deploy replaces the whole site.
+3. The schema shares the Pages site with the landing page, so it is served at
+   `https://dhanesh.github.io/mockstar/v0.<N>/mock.json` today. The
+   `schemas.mockstar.dev` hostname in `$id` / `$schema` does not resolve yet;
+   a repo has one Pages domain, so pointing that hostname here would move the
+   landing page with it — host the schemas from a separate repo instead.
 
-1. `bun run scripts/generate-schema.ts` produces `schema/mock.json` with the
-   current `$id`.
-2. The workflow uploads `schema/` to `gh-pages` under both
-   `/v0.<N>/mock.json` and `/v0/mock.json` (the rolling path is rewritten;
-   the pinned path is only written if it does not already exist — a hard
-   guard against breaking the immutability contract).
-3. A CNAME record on `schemas.mockstar.dev` points at the Pages site.
-
-If the workflow detects that a prior `v0.<N>/mock.json` differs from the one it
-is about to upload, it fails the release — this catches accidental reuse of a
-minor tag for a breaking change.
+If the workflow detects that a previously published `v0.<N>/mock.json` differs
+from the one it is about to upload, it fails the deploy — this catches
+accidental reuse of a minor for a breaking change.
 
 ## Verification
 

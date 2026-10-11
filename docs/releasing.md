@@ -70,6 +70,25 @@ Conventional-commit → version bump: `fix:` → patch, `feat:` → minor,
 3. **GHCR** — no setup needed; `release.yml` logs in with `GITHUB_TOKEN`
    (`packages: write`) and pushes to `ghcr.io/dhanesh/...`.
 
+4. **Homebrew tap (optional)** — `update-homebrew-tap` rewrites `Formula/mockstar.rb` in
+   [`dhanesh/homebrew-tap`](https://github.com/dhanesh/homebrew-tap) after each stable
+   release, so `brew install dhanesh/tap/mockstar` tracks the latest version. It needs the
+   `HOMEBREW_TAP_TOKEN` secret: a fine-grained PAT scoped to `dhanesh/homebrew-tap` with
+   **Contents: read & write**. Without it the job no-ops with a notice. A tap failure never
+   fails or unpublishes the release. To bump the tap by hand instead:
+
+   ```bash
+   V=0.4.0; mkdir -p /tmp/sha && for t in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+     curl -fsSLo /tmp/sha/mockstar-bun-$t.sha256 \
+       https://github.com/dhanesh/mockstar/releases/download/v$V/mockstar-bun-$t.sha256
+   done
+   bun run scripts/brew-formula.ts $V /tmp/sha > ../homebrew-tap/Formula/mockstar.rb
+   ```
+
+5. **GitHub Pages** — `pages.yml` deploys <https://dhanesh.github.io/mockstar/> (landing page
+   from `site/` + the JSON Schema). Pages must be set to **Source: GitHub Actions**
+   (Settings → Pages). It redeploys after every release and on `site/` changes to `main`.
+
 ## First release (seeds the version baseline)
 
 semantic-release with **no prior tag defaults the first release to `1.0.0`**. To keep

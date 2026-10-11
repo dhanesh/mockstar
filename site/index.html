@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mockstar — Bun mock server</title>
+  <meta name="description" content="Bun-based mock server: static + dynamic mocking from JSON, named JS handlers, pass-through, multi-tenancy, outbound webhooks and test-data templating.">
+  <meta property="og:title" content="Mockstar">
+  <meta property="og:description" content="Bun-based mock server for SDETs, developers and DevOps.">
+  <meta property="og:url" content="https://dhanesh.github.io/mockstar/">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>★</text></svg>">
+  <style>
+    :root {
+      --bg: #fbfaf7;
+      --surface: #ffffff;
+      --text: #1d1c1a;
+      --muted: #5f5c55;
+      --border: #e6e2d9;
+      --accent: #c2410c;
+      --accent-soft: #fff1e8;
+      --code-bg: #f3f0ea;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141311;
+        --surface: #1c1b18;
+        --text: #ece9e2;
+        --muted: #a7a297;
+        --border: #2f2d29;
+        --accent: #fb923c;
+        --accent-soft: #2a1d14;
+        --code-bg: #23211d;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 var(--sans);
+    }
+    a { color: var(--accent); text-underline-offset: 2px; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+    header.top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 0; gap: 16px;
+    }
+    .brand { font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
+    .brand span { color: var(--accent); }
+    nav a { color: var(--muted); text-decoration: none; margin-left: 18px; font-size: 15px; }
+    nav a:hover { color: var(--text); }
+    .hero { padding: 56px 0 40px; }
+    .hero h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -0.02em; }
+    .hero p.lede { font-size: 19px; color: var(--muted); max-width: 640px; margin: 0 0 28px; }
+    .pill {
+      display: inline-block; font-size: 13px; color: var(--accent); background: var(--accent-soft);
+      border-radius: 999px; padding: 3px 12px; margin-bottom: 18px; font-weight: 600;
+    }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+    .btn {
+      display: inline-block; padding: 10px 18px; border-radius: 8px; font-weight: 600;
+      text-decoration: none; border: 1px solid var(--border); color: var(--text); background: var(--surface);
+    }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    pre, code { font-family: var(--mono); font-size: 14px; }
+    pre {
+      background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px 16px; overflow-x: auto; margin: 0; line-height: 1.5;
+    }
+    :not(pre) > code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+    section { padding: 36px 0; border-top: 1px solid var(--border); }
+    h2 { font-size: 26px; margin: 0 0 8px; letter-spacing: -0.01em; }
+    h3 { font-size: 17px; margin: 0 0 6px; }
+    .sub { color: var(--muted); margin: 0 0 22px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .tabs button {
+      font: inherit; font-size: 14px; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+    }
+    .tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .panel[hidden] { display: none; }
+    .panel p { color: var(--muted); font-size: 14px; margin: 10px 0 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+    }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+    .steps { display: grid; gap: 14px; }
+    .demo { margin-top: 28px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .demo img { display: block; width: 100%; height: auto; }
+    ul.docs { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 24px; }
+    ul.docs li a { text-decoration: none; }
+    ul.docs li span { display: block; color: var(--muted); font-size: 14px; }
+    footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--border); }
+    @media (max-width: 560px) {
+      nav a:not(:last-child) { display: none; }
+      .hero { padding-top: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="./">mock<span>star</span></a>
+      <nav>
+        <a href="#install">Install</a>
+        <a href="#quickstart">Quick start</a>
+        <a href="#docs">Docs</a>
+        <a href="https://github.com/dhanesh/mockstar">GitHub</a>
+      </nav>
+    </header>
+
+    <div class="hero">
+      <span class="pill">pre-1.0 · pin <code>$schema</code> per minor</span>
+      <h1>Mock any HTTP API from a folder of JSON.</h1>
+      <p class="lede">Mockstar is a Bun-based mock server: static and dynamic responses from JSON config, named JS handlers, pass-through routing, multi-tenancy, scenarios, outbound webhooks and Faker-powered templating — as a CLI, a library embed, or a container.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">Install</a>
+        <a class="btn" href="https://github.com/dhanesh/mockstar">View on GitHub</a>
+        <a class="btn" href="https://github.com/dhanesh/mockstar/releases/latest">Latest release</a>
+      </div>
+    </div>
+
+    <section id="install">
+      <h2>Install</h2>
+      <p class="sub">Pick the channel that fits your workflow. All of them run the same server.</p>
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" aria-controls="p-brew" id="t-brew">Homebrew</button>
+        <button role="tab" aria-selected="false" aria-controls="p-bun" id="t-bun">bunx / npm</button>
+        <button role="tab" aria-selected="false" aria-controls="p-docker" id="t-docker">Docker</button>
+        <button role="tab" aria-selected="false" aria-controls="p-helm" id="t-helm">Helm</button>
+        <button role="tab" aria-selected="false" aria-controls="p-binary" id="t-binary">Binary</button>
+      </div>
+      <div class="panel" role="tabpanel" id="p-brew" aria-labelledby="t-brew">
+<pre>brew install dhanesh/tap/mockstar
+mockstar serve ./mocks
+
+# or keep it running in the background (serves $(brew --prefix)/var/mockstar/mocks)
+brew services start mockstar</pre>
+        <p>macOS and Linux, Apple Silicon and Intel. Standalone binary — no Bun install needed.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-bun" aria-labelledby="t-bun" hidden>
+<pre>bunx @dhaneshpurohit/mockstar ./mocks
+
+# or as a dev dependency for library embed
+bun add -d @dhaneshpurohit/mockstar</pre>
+        <p>Requires Bun 1.3.0+.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-docker" aria-labelledby="t-docker" hidden>
+<pre>docker run --rm -p 3000:3000 \
+  -v "$PWD/mocks:/config/mocks:ro" \
+  ghcr.io/dhanesh/mockstar:latest</pre>
+        <p>Multi-arch (amd64 + arm64), non-root, cosign-signed. The image ships no mocks — mount yours.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-helm" aria-labelledby="t-helm" hidden>
+<pre>helm install mockstar oci://ghcr.io/dhanesh/charts/mockstar \
+  --namespace mockstar --create-namespace</pre>
+        <p>Single replica by design — journal, scenarios and webhook queue are in-memory.</p>
+      </div>
+      <div class="panel" role="tabpanel" id="p-binary" aria-labelledby="t-binary" hidden>
+<pre>curl -fsSLo mockstar \
+  https://github.com/dhanesh/mockstar/releases/latest/download/mockstar-bun-linux-x64
+chmod +x mockstar && ./mockstar --version</pre>
+        <p>Targets: <code>darwin-arm64</code>, <code>darwin-x64</code>, <code>linux-arm64</code>, <code>linux-x64</code>. Each has a <code>.sha256</code> beside it.</p>
+      </div>
+    </section>
+
+    <section id="quickstart">
+      <h2>Quick start</h2>
+      <p class="sub">Scaffold a mocks folder, serve it, and edit with hot reload.</p>
+      <div class="steps">
+<pre>mockstar init .            # writes mocks/default/example.json + mockstar.config.json
+mockstar serve ./mocks     # http://127.0.0.1:3000
+
+curl localhost:3000/hello      # {"message":"Hello from mockstar"}
+curl localhost:3000/users/42   # {"id":"42","name":"…","email":"…"}</pre>
+<pre>{
+  "$schema": "https://schemas.mockstar.dev/v0.4/mock.json",
+  "mocks": [{
+    "id": "get-user-by-id",
+    "match": { "method": "GET", "path": "/users/:id" },
+    "response": {
+      "kind": "static",
+      "status": 200,
+      "body": { "id": "{{request.params.id}}", "email": "{{faker.email}}" }
+    }
+  }]
+}</pre>
+      </div>
+      <div class="demo"><img src="media/demo.svg" alt="Terminal recording: starting mockstar and curling mocked endpoints" loading="lazy"></div>
+    </section>
+
+    <section id="features">
+      <h2>What it does</h2>
+      <p class="sub">Built on Hono on Bun. Targets p99 &lt; 5 ms for static responses.</p>
+      <div class="grid">
+        <div class="card"><h3>Static + dynamic mocks</h3><p>JSON config per resource, with named JS/TS handlers when a response needs logic.</p></div>
+        <div class="card"><h3>Templating</h3><p><code>{{ }}</code> request reflection, Faker data, provider-shape IDs and timestamps — deterministic mode for byte-identical CI.</p></div>
+        <div class="card"><h3>Multi-tenancy</h3><p>One directory per tenant, routed by <code>Host</code> or <code>X-Mockstar-Tenant</code>.</p></div>
+        <div class="card"><h3>Scenarios</h3><p>Switch a tenant into an error or edge-case state through the admin API.</p></div>
+        <div class="card"><h3>Outbound webhooks</h3><p>Retries, circuit breaking and provider-accurate signatures for GitHub, Slack, Stripe, Shopify and Razorpay.</p></div>
+        <div class="card"><h3>Pass-through + proxy</h3><p>Forward unmatched routes upstream, or intercept real HTTPS hosts locally with <code>mockstar proxy</code>.</p></div>
+        <div class="card"><h3>OpenAPI import</h3><p>Turn an OpenAPI 3.x spec into mock configs, then enhance them with realistic placeholders.</p></div>
+        <div class="card"><h3>Library embed</h3><p><code>launch()</code> in-process for Jest, Vitest and <code>bun test</code> — no port, clean <code>stop()</code>.</p></div>
+      </div>
+    </section>
+
+    <section id="docs">
+      <h2>Documentation</h2>
+      <p class="sub">The guides live in the repository.</p>
+      <ul class="docs">
+        <li><a href="https://github.com/dhanesh/mockstar#readme">README</a><span>Overview, templating, Docker</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/docs/CONFIG.md">Config</a><span>Mock file format</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/docs/HANDLERS.md">Handlers</a><span>Dynamic JS/TS responses</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/docs/SCENARIOS.md">Scenarios</a><span>State switching per tenant</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/docs/SDET.md">SDET guide</a><span>Library embed in test suites</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/docs/webhooks/README.md">Webhooks</a><span>Delivery, signing, journal</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/docs/PROXY.md">Proxy</a><span>HTTPS transparent upstream</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/docs/DEPLOYMENT.md">Deployment</a><span>Docker, Helm, per persona</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/docs/VERSIONING.md">Versioning</a><span>Schema pinning contract</span></li>
+        <li><a href="https://github.com/dhanesh/mockstar/blob/main/CHANGELOG.md">Changelog</a><span>Release history</span></li>
+      </ul>
+    </section>
+
+    <footer>
+      MIT licensed · <a href="https://github.com/dhanesh/mockstar">dhanesh/mockstar</a> · JSON Schema: <a href="v0/mock.json">v0/mock.json</a>
+    </footer>
+  </div>
+  <script>
+    const tabs = document.querySelectorAll('[role="tab"]');
+    tabs.forEach((tab) => tab.addEventListener("click", () => {
+      tabs.forEach((t) => {
+        const selected = t === tab;
+        t.setAttribute("aria-selected", String(selected));
+        document.getElementById(t.getAttribute("aria-controls")).hidden = !selected;
+      });
+    }));
+  </script>
+</body>
+</html>
