@@ -72,9 +72,17 @@ Conventional-commit → version bump: `fix:` → patch, `feat:` → minor,
 
 4. **Homebrew tap (optional)** — `update-homebrew-tap` rewrites `Formula/mockstar.rb` in
    [`dhanesh/homebrew-tap`](https://github.com/dhanesh/homebrew-tap) after each stable
-   release, so `brew install dhanesh/tap/mockstar` tracks the latest version. It needs the
-   `HOMEBREW_TAP_TOKEN` secret: a fine-grained PAT scoped to `dhanesh/homebrew-tap` with
-   **Contents: read & write**. Without it the job no-ops with a notice. A tap failure never
+   release, so `brew install dhanesh/tap/mockstar` tracks the latest version. It pushes with an
+   SSH deploy key, which can write to the tap and nothing else, and never expires:
+
+   ```bash
+   ssh-keygen -q -t ed25519 -N "" -f tapkey
+   gh repo deploy-key add tapkey.pub -R dhanesh/homebrew-tap --allow-write --title "mockstar release workflow"
+   gh secret set HOMEBREW_TAP_DEPLOY_KEY -R dhanesh/mockstar < tapkey
+   rm tapkey tapkey.pub
+   ```
+
+   Without the secret the job no-ops with a notice. A tap failure never
    fails or unpublishes the release. To bump the tap by hand instead:
 
    ```bash

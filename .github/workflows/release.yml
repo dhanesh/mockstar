@@ -449,9 +449,10 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   # Homebrew: bump Formula/mockstar.rb in dhanesh/homebrew-tap — STABLE TAGS ONLY.
   #
-  # OPT-IN: GITHUB_TOKEN can't write to another repo, so this needs the
-  # HOMEBREW_TAP_TOKEN secret (fine-grained PAT, contents:write on
-  # dhanesh/homebrew-tap). Without it the job no-ops with a notice. It runs after
+  # OPT-IN: GITHUB_TOKEN can't write to another repo, so this pushes with an SSH
+  # deploy key: the private half in the HOMEBREW_TAP_DEPLOY_KEY secret, the public
+  # half a write-enabled deploy key on dhanesh/homebrew-tap. Without the secret the
+  # job no-ops with a notice. It runs after
   # the GitHub Release exists and is deliberately absent from halt-clean's needs,
   # so a tap failure never unpublishes a release. See docs/releasing.md.
   # ─────────────────────────────────────────────────────────────────────
@@ -460,16 +461,16 @@ jobs:
     needs: [preflight, release-notes]
     if: ${{ needs.preflight.outputs.is_stable == 'true' && needs.preflight.outputs.dry_run != 'true' }}
     steps:
-      - name: gate on HOMEBREW_TAP_TOKEN
+      - name: gate on HOMEBREW_TAP_DEPLOY_KEY
         id: gate
         env:
-          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
         run: |
-          if [ -n "$TAP_TOKEN" ]; then
+          if [ -n "$TAP_KEY" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::HOMEBREW_TAP_TOKEN not set — Homebrew tap not updated. See docs/releasing.md."
+            echo "::notice::HOMEBREW_TAP_DEPLOY_KEY not set — Homebrew tap not updated. See docs/releasing.md."
           fi
       - uses: actions/checkout@v4
         if: steps.gate.outputs.ready == 'true'
@@ -486,10 +487,14 @@ jobs:
       - name: render formula + push to tap
         if: steps.gate.outputs.ready == 'true'
         env:
-          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           VERSION: ${{ needs.preflight.outputs.version }}
         run: |
-          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/dhanesh/homebrew-tap.git" tap
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$TAP_KEY" > ~/.ssh/homebrew_tap
+          chmod 600 ~/.ssh/homebrew_tap
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/homebrew_tap -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          git clone --depth 1 git@github.com:dhanesh/homebrew-tap.git tap
           mkdir -p tap/Formula
           bun run scripts/brew-formula.ts "$VERSION" ./artifacts > tap/Formula/mockstar.rb
           cd tap
