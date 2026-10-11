@@ -46,7 +46,6 @@ function render(version: string, hashes: Record<Target, string>): string {
 class Mockstar < Formula
   desc "Bun-based mock server with static + dynamic mocking and multi-tenancy"
   homepage "https://dhanesh.github.io/mockstar/"
-  version "${version}"
   license "MIT"
 
   on_macos do
@@ -71,14 +70,12 @@ ${resource("linux-x64", "      ")}
     bin.install Dir["mockstar-bun-*"].first => "mockstar"
   end
 
-  def post_install
-    # Starter mocks for \`brew services\`; init never overwrites existing files.
-    system bin/"mockstar", "init", var/"mockstar"
-  end
-
   service do
-    run [opt_bin/"mockstar", "serve", var/"mockstar/mocks"]
-    working_dir var/"mockstar"
+    # Scaffold starter mocks on first start (init never overwrites existing files),
+    # then serve them. Done here rather than in post_install, which Homebrew deprecates.
+    run ["/bin/sh", "-c", "\\"$0\\" init \\"$1\\" >/dev/null && exec \\"$0\\" serve \\"$1/mocks\\"",
+         opt_bin/"mockstar", var/"mockstar"]
+    working_dir var
     keep_alive true
     log_path var/"log/mockstar.log"
     error_log_path var/"log/mockstar.log"
