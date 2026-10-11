@@ -1,0 +1,104 @@
+# Publishes https://dhanesh.github.io/mockstar/ — the landing page (site/) plus the
+# mocks-file JSON Schema at /v0/mock.json (rolling) and /v0.<N>/mock.json (immutable).
+#
+# Satisfies: RT-2 (dual-URL JSON Schema hosting — CI publish path). Replaces the
+# former schema-publish.yml: a repo has ONE Pages site and every deploy-pages run
+# replaces it wholesale, so the landing page and the schemas must be built into a
+# single tree here.
+#
+# schema/mock.json + schema/VERSION on main are only rewritten by the
+# semantic-release commit, so main always carries the latest RELEASED schema.
+# That release commit is [skip ci] (no push trigger), hence workflow_run on the
+# release workflows.
+
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'schema/**', 'docs/media/**', '.github/workflows/pages.yml']
+  workflow_run:
+    workflows: [semantic-release, release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://dhanesh.github.io/mockstar
+
+jobs:
+  deploy:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Read schema version tags
+        id: ver
+        run: |
+          echo "major=$(sed -n '1p' schema/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "minor=$(sed -n '2p' schema/VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Stage site
+        run: |
+          mkdir -p publish/media
+          cp -r site/. publish/
+          cp docs/media/demo.svg publish/media/demo.svg
+          touch publish/.nojekyll
+
+      # Pages artifacts don't accumulate, so previously published minors are pulled
+      # back from the live site (listed in schemas.json) and carried forward.
+      - name: Carry forward published minors
+        run: |
+          if curl -fsS "${SITE_URL}/schemas.json" -o prior.json; then
+            for minor in $(jq -r '.minors[]' prior.json); do
+              mkdir -p "publish/${minor}"
+              curl -fsS "${SITE_URL}/${minor}/mock.json" -o "publish/${minor}/mock.json"
+            done
+          else
+            echo "No schemas.json on the live site yet — first publish."
+          fi
+
+      - name: Enforce minor immutability
+        run: |
+          MINOR="${{ steps.ver.outputs.minor }}"
+          EXISTING="publish/${MINOR}/mock.json"
+          if [[ -f "${EXISTING}" ]] && ! diff -q "${EXISTING}" schema/mock.json > /dev/null; then
+            echo "::error::Minor ${MINOR} already published with different content."
+            echo "::error::Schemas must be immutable once released under a minor — bump the minor."
+            diff "${EXISTING}" schema/mock.json || true
+            exit 1
+          fi
+
+      - name: Stage schemas
+        run: |
+          MAJOR="${{ steps.ver.outputs.major }}"
+          MINOR="${{ steps.ver.outputs.minor }}"
+          mkdir -p "publish/${MAJOR}" "publish/${MINOR}"
+          cp schema/mock.json "publish/${MAJOR}/mock.json"
+          cp schema/mock.json "publish/${MINOR}/mock.json"
+          ls -d publish/v*.*/ | xargs -n1 basename | sort -V \
+            | jq -R . | jq -s '{minors: .}' > publish/schemas.json
+          cat publish/schemas.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: publish
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -11,7 +11,7 @@ const SCHEMA_PATH = resolve(import.meta.dir, "..", "..", "schema", "mock.json");
 const VERSION_PATH = resolve(import.meta.dir, "..", "..", "schema", "VERSION");
 
 // generate-schema.ts has no out-dir option — it always writes schema/mock.json and
-// schema/VERSION in place, because that is also how the schema-publish CI workflow invokes
+// schema/VERSION in place, because that is also how semantic-release's prepareCmd invokes
 // it (see the script's header comment). Adding an out-dir flag would change a contract another
 // workflow depends on just to make this test tidier. Instead, this suite snapshots the tracked
 // files before running the script and restores them in afterAll, so every test below still

@@ -525,7 +525,7 @@
     "Dockerfile": "0e9bf560e8cdcbcdadd638b5a4c976ebd21fa13211a32cf2a692c815e0e90232",
     "docs/SCHEMA-HOSTING.md": "8f706b4b8389681c29b9efcb118b0b81b53ba5bad8db3ed32c652e3a9c9eeeab",
     "scripts/generate-schema.ts": "35edcfeb3ddd9447a64760054da717c25956531047f29bf0fc780dd7b6e0b427",
-    ".github/workflows/schema-publish.yml": "84f31ec722cf030c7c0f6a1b760551453f6e012c73ed0ad6aec8633dd64208b1",
+    ".github/workflows/pages.yml": "84f31ec722cf030c7c0f6a1b760551453f6e012c73ed0ad6aec8633dd64208b1",
     "src/cli/commands/migrate.ts": "d6a869f80aa0d337c33459fd4639f233e86b290f9a1d2ea34af6f002e973f115",
     "tests/cli/migrate-schema.test.ts": "a225e95729b3d144329b70db6204e8485e3a916f8becb062056bccf0cb554909",
     "tests/schema/generate-schema.test.ts": "b493b8b825728a3aa754b614a3e75c01650b05d06a8f2505faef76531939dff7",
