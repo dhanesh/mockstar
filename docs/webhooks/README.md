@@ -14,7 +14,7 @@ Outbound webhook delivery for matched mock requests. Per-route configuration, HM
     "response": { "kind": "static", "status": 201, "body": { "id": "{{ id(\"ord_\", 12) }}" } },
     "webhooks": [{
       "id": "order-created",
-      "url": "https://api.partner.com/hooks/order-created",
+      "url": "https://api.partner.example/hooks/order-created",
       "method": "POST",
       "headers": { "content-type": "application/json" },
       "body": { "orderId": "{{ request.body.orderId }}", "tenant": "{{ tenant }}" }
@@ -23,7 +23,7 @@ Outbound webhook delivery for matched mock requests. Per-route configuration, HM
 }
 ```
 
-When a `POST /orders` request matches this mock, Mockstar serves the 201 response immediately, then **after the response flushes** fires the webhook to `https://api.partner.com/hooks/order-created` with the templated body. Delivery runs on a per-tenant queue; retries follow `[1s, 2s, 4s, 8s, 16s] ±20%` with up to 6 attempts by default.
+When a `POST /orders` request matches this mock, Mockstar serves the 201 response immediately, then **after the response flushes** fires the webhook to `https://api.partner.example/hooks/order-created` with the templated body. Delivery runs on a per-tenant queue; retries follow `[1s, 2s, 4s, 8s, 16s] ±20%` with up to 6 attempts by default.
 
 Webhooks fire for every response of the entry, including a matched [scenario](../SCENARIOS.md) response.
 

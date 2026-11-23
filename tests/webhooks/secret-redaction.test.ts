@@ -45,7 +45,7 @@ beforeAll(() => {
       webhooks: [
         {
           id: "wh-signed",
-          url: "https://api.partner.com/hook",
+          url: "https://api.partner.example/hook",
           method: "POST",
           headers: { "content-type": "application/json" },
           body: { event: "sensitive" },
