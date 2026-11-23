@@ -465,10 +465,18 @@ jobs:
           )
           sbom=./artifacts/sbom-cyclonedx/sbom.cdx.json
           [[ -f "$sbom" ]] && assets+=("$sbom")
-          gh release create "${{ needs.preflight.outputs.tag }}" \
-            ${prerelease_flag} \
-            --notes-file CHANGELOG.md \
-            "${assets[@]}"
+          TAG="${{ needs.preflight.outputs.tag }}"
+          # Idempotent: a backfill re-run for a tag that already has a release refreshes its
+          # assets instead of failing `gh release create` (which would also skip the tap).
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release ${TAG} exists — uploading assets with --clobber."
+            gh release upload "$TAG" --clobber "${assets[@]}"
+          else
+            gh release create "$TAG" \
+              ${prerelease_flag} \
+              --notes-file CHANGELOG.md \
+              "${assets[@]}"
+          fi
       # O3: warn when release wall-clock exceeds p99 budget of 15 min (900s).
       - name: pipeline timing guard (O3)
         run: |
@@ -493,7 +501,10 @@ jobs:
   update-homebrew-tap:
     runs-on: ubuntu-24.04
     needs: [preflight, release-notes]
-    if: ${{ needs.preflight.outputs.is_stable == 'true' && needs.preflight.outputs.dry_run != 'true' }}
+    # `!cancelled() && !failure()`: without a status function the implicit success()
+    # is false whenever ANY upstream job was skipped — backfill skips the publish jobs
+    # above release-notes, which silently skipped this job for the v0.4.1 backfill.
+    if: ${{ !cancelled() && !failure() && needs.release-notes.result == 'success' && needs.preflight.outputs.is_stable == 'true' && needs.preflight.outputs.dry_run != 'true' }}
     steps:
       - name: gate on HOMEBREW_TAP_DEPLOY_KEY
         id: gate

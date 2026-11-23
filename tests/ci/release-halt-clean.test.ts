@@ -64,6 +64,20 @@ describe("RT-6: release workflow retry + halt-clean wiring", () => {
     }
   });
 
+  it("update-homebrew-tap still runs when backfill skipped jobs upstream of release-notes", () => {
+    // Implicit success() is false if ANY upstream job was skipped; the v0.4.1 backfill
+    // silently skipped the tap because this job had no status function.
+    const block = (yml.split(/^\s{2}update-homebrew-tap:/m)[1] ?? "").split(/^\s{2}[a-z-]+:\s*$/m)[0];
+    expect(block).toMatch(/if:\s*\$\{\{\s*!cancelled\(\)\s*&&\s*!failure\(\)/);
+    expect(block).toContain("needs.release-notes.result == 'success'");
+  });
+
+  it("release-notes is idempotent for a tag that already has a release", () => {
+    const block = (yml.split(/^\s{2}release-notes:/m)[1] ?? "").split(/^\s{2}[a-z-]+:\s*$/m)[0];
+    expect(block).toMatch(/gh release view "\$TAG"/);
+    expect(block).toMatch(/gh release upload "\$TAG" --clobber/);
+  });
+
   it("release-notes still runs when backfill skipped the publish jobs", () => {
     const block = (yml.split(/^\s{2}release-notes:/m)[1] ?? "").split(/^\s{2}[a-z-]+:\s*$/m)[0];
     expect(block).toMatch(/if:\s*\$\{\{\s*!cancelled\(\)\s*&&\s*!failure\(\)\s*\}\}/);
