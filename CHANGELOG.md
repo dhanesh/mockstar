@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/dhanesh/mockstar/compare/v0.4.0...v0.4.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **deps:** bump hono to clear CVE-2026-54290 and apk-upgrade the runner base ([1bb7bc9](https://github.com/dhanesh/mockstar/commit/1bb7bc9e55d68b5679fe11ae777c7bb340ae712d)), closes [#50](https://github.com/dhanesh/mockstar/issues/50)
+
 # [0.4.0](https://github.com/dhanesh/mockstar/compare/v0.3.0...v0.4.0) (2026-09-09)
 
 
