@@ -38,6 +38,12 @@ RUN bun install --frozen-lockfile --production
 FROM oven/bun:${BUN_VERSION}-alpine AS runner
 WORKDIR /app
 
+# Pull Alpine security fixes released after the pinned bun base tag was built
+# (e.g. libssl3/libcrypto3, musl, zlib — #50). Without this, fixable OS HIGHs
+# stay in the image until oven/bun republishes the tag, and downstream images
+# built FROM mockstar fail fixable-HIGH scanner gates.
+RUN apk upgrade --no-cache
+
 # Non-root identity with uid/gid > 10000 (avoids host-uid collisions; K8s
 # runAsNonRoot friendly). alpine ships adduser/addgroup via busybox.
 RUN addgroup -g 10001 -S mockstar \
