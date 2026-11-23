@@ -1,3 +1,15 @@
+# [0.6.0](https://github.com/dhanesh/mockstar/compare/v0.5.0...v0.6.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **webhooks:** give each webhook its own seeded stream, rebuilt per attempt ([d5bb4a0](https://github.com/dhanesh/mockstar/commit/d5bb4a016994296f1b50ae28ad2cb7200fff560c)), closes [#57](https://github.com/dhanesh/mockstar/issues/57) [#53](https://github.com/dhanesh/mockstar/issues/53)
+
+
+### Features
+
+* **templating:** seed deterministic values per tenant and mock entry ([939934e](https://github.com/dhanesh/mockstar/commit/939934e6015cf4374ed67cc7988161ee8b4c56b4)), closes [#53](https://github.com/dhanesh/mockstar/issues/53)
+
 # [0.5.0](https://github.com/dhanesh/mockstar/compare/v0.4.1...v0.5.0) (2026-11-23)
 
 
