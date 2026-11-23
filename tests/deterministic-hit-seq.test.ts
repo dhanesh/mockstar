@@ -22,7 +22,16 @@ async function setup(): Promise<string> {
     await mkdir(join(root, "mocks", tenant), { recursive: true });
     await writeFile(
       join(root, "mocks", tenant, "mocks.json"),
-      JSON.stringify({ mocks: [entry("user", "/user"), entry("other", "/other")] }),
+      JSON.stringify({
+        mocks: [
+          entry("user", "/user"),
+          entry("other", "/other"),
+          {
+            ...(entry("scn", "/scn") as object),
+            scenarios: [{ id: "alt", when: { query: { alt: "1" } }, response: { status: 200, body: BODY } }],
+          },
+        ],
+      }),
     );
   }
   return root;
@@ -94,5 +103,18 @@ describe("#53 deterministic seeds are per (tenant, mock entry)", () => {
     await get(a, "acme", "/user");
     const ids = a.server.journal.snapshot("acme").map((e) => e.requestId);
     expect(ids).toEqual(["req-00000002"]);
+  });
+
+  it("the scenario path uses the same per-entry sequence", async () => {
+    const root = await setup();
+    a = await boot(root);
+    b = await boot(root);
+    await get(a, "beta", "/scn?alt=1"); // other-tenant traffic on A only
+    await get(a, "acme", "/other");
+    const onA = await get(a, "acme", "/scn?alt=1");
+    const onB = await get(b, "acme", "/scn?alt=1");
+    expect(onA).toEqual(onB);
+    // Base and scenario responses of one entry share its counter: hit #2 differs from hit #1.
+    expect(await get(b, "acme", "/scn?alt=1")).not.toEqual(onB);
   });
 });

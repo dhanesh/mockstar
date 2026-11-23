@@ -72,9 +72,16 @@ on every run and test assertions that compare against fixtures will flake.
   the same mock of the same tenant, the hit numbers depend on which request
   arrives first. Give each parallel worker its own tenant, or start one
   mockstar per test file.
-- **Webhooks** use a separate stream seeded by the same hit number as the
-  response that triggered them, so each delivery gets new `{{id()}}` values.
-  A webhook replay re-renders the original values.
+- **Webhooks** use a separate stream per webhook, seeded by the same hit
+  number as the response that triggered them. Each delivery gets new
+  `{{id()}}` values, and a retry sends the same values again. A webhook replay
+  re-renders the same `{{faker.*}}` and `{{id()}}` values. It does not keep
+  `{{request.*}}` values or an `X-Mockstar-Webhook-Url` override, because
+  replay has no request.
+- **Counters start at server start and never reset.** A config reload does not
+  reset them, and there is no admin reset. A mock's values depend on how many
+  earlier tests hit that mock on the same server. To make a test independent
+  of test order, give it its own tenant or its own mockstar.
 - **`{{requestId}}` is not per mock.** The request id (`req-00000001`, ...) in
   templates, handler `helpers.requestId`, the journal and logs counts all
   requests to the server. Do not

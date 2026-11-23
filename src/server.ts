@@ -16,6 +16,7 @@ import {
   renderScenario,
   scenarioResponseForNonStatic,
 } from "./core/scenarios/merger.ts";
+import type { TemplateContext } from "./core/templating/compiler.ts";
 import { type FakerFactory, createFakerFactory } from "./core/templating/faker.ts";
 import { createIdHelpers } from "./core/templating/tier2/id.ts";
 import { type Clock, createClock } from "./core/templating/tier2/now.ts";
@@ -212,24 +213,26 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     if (!spec) return { ok: false, code: "webhook_spec_removed" };
 
     // Re-seed with the original delivery's hit number so a deterministic replay reproduces it.
-    const replayHit = original.triggerSeq ?? 0;
-    // Build a minimal template context. Replay uses the CURRENT snapshot's spec
-    // and an EMPTY request snapshot — templates referencing request data render
-    // as empty strings. Documented in DECISIONS.md INT-2.
-    const replayCtx = {
-      // Same scope as the original fan-out, so a deterministic replay re-renders the same values.
-      faker: fakerFor({ tenant, endpoint: `${original.entryId}#webhooks`, hit: replayHit }),
-      request: { method: "GET", path: "/__replay", query: {}, headers: {}, body: null, params: {} },
-      tenant,
-      requestId: original.triggerRequestId,
-      clock,
-      idHelpers: createIdHelpers({
-        deterministic: opts.deterministic ?? false,
-        tenant,
-        endpoint: `${original.entryId}#webhooks`,
-        requestCounter: replayHit,
-      }),
+    // Replay uses the CURRENT snapshot's spec and an EMPTY request snapshot — templates
+    // referencing request data render as empty strings. Documented in DECISIONS.md INT-2.
+    const replayRequest = {
+      method: "GET",
+      path: "/__replay",
+      query: {},
+      headers: {},
+      body: null,
+      params: {},
     };
+    const templateContextFor = webhookContextFactory({
+      deterministic: opts.deterministic ?? false,
+      fakerFor,
+      clock,
+      tenant,
+      entryId: original.entryId,
+      hit: original.triggerSeq ?? 0,
+      requestId: original.triggerRequestId,
+      request: replayRequest,
+    });
 
     const enqueued = dispatchWebhooks(
       {
@@ -247,7 +250,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
         ...(original.triggerSeq !== undefined && { triggerSeq: original.triggerSeq }),
         entryId: original.entryId,
         webhooks: [spec],
-        templateContext: replayCtx,
+        templateContextFor,
         requestHeaders: new Map(),
         replay: true,
       },
@@ -470,15 +473,6 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
 
     // Webhook fan-out (T4: still in the post-response microtask, never on hot path).
     if (webhookTrigger) {
-      // Own `#webhooks` stream, seeded by the same hit number as the response (#53), so the
-      // response's draws never shift webhook values and each delivery gets fresh ids.
-      const webhookEndpoint = `${webhookTrigger.entryId}#webhooks`;
-      const idHelpers = createIdHelpers({
-        deterministic: deps.opts.deterministic ?? false,
-        tenant,
-        endpoint: webhookEndpoint,
-        requestCounter: webhookTrigger.hit,
-      });
       dispatchWebhooks(
         {
           metrics: deps.metrics,
@@ -496,8 +490,14 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
           entryId: webhookTrigger.entryId,
           webhooks: webhookTrigger.webhooks,
           requestHeaders: new Map(Object.entries(webhookTrigger.headers)),
-          templateContext: {
-            faker: deps.fakerFor({ tenant, endpoint: webhookEndpoint, hit: webhookTrigger.hit }),
+          templateContextFor: webhookContextFactory({
+            deterministic: deps.opts.deterministic ?? false,
+            fakerFor: deps.fakerFor,
+            clock: deps.clock,
+            tenant,
+            entryId: webhookTrigger.entryId,
+            hit: webhookTrigger.hit,
+            requestId,
             request: {
               method,
               path: matchPath,
@@ -506,11 +506,7 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
               body: webhookTrigger.body,
               params: webhookTrigger.params,
             },
-            tenant,
-            requestId,
-            clock: deps.clock,
-            idHelpers,
-          },
+          }),
         },
       );
     }
@@ -741,11 +737,38 @@ async function safeParseBody(ctx: Context, maxBodyBytes: number): Promise<SafeBo
 }
 
 /**
- * Per-server request-ID generator. The deterministic counter lives in closure scope so each
- * `createServer()` call gets an isolated counter — two back-to-back launches in the same process
- * produce byte-identical IDs for matching request sequences (prevents flaky cross-launch replay
- * assertions).
+ * Template-context factory for webhook deliveries. Each spec gets its own stream
+ * (`<entry>#webhooks#<spec>`) seeded by the triggering hit number, built fresh per call: the
+ * dispatcher calls it once per attempt, and replay builds the same one from the journal (#53).
  */
+function webhookContextFactory(o: {
+  deterministic: boolean;
+  fakerFor: FakerFactory;
+  clock: Clock;
+  tenant: string;
+  entryId: string;
+  hit: number;
+  requestId: string;
+  request: TemplateContext["request"];
+}): (specId: string) => TemplateContext {
+  return (specId) => {
+    const endpoint = `${o.entryId}#webhooks#${specId}`;
+    return {
+      faker: o.fakerFor({ tenant: o.tenant, endpoint, hit: o.hit }),
+      request: o.request,
+      tenant: o.tenant,
+      requestId: o.requestId,
+      clock: o.clock,
+      idHelpers: createIdHelpers({
+        deterministic: o.deterministic,
+        tenant: o.tenant,
+        endpoint,
+        requestCounter: o.hit,
+      }),
+    };
+  };
+}
+
 /**
  * Deterministic seed counter per (tenant, mock entry) — #53. The public request id is one
  * counter for the whole server, so seeding from it made a tenant's fixtures depend on every
@@ -768,6 +791,12 @@ function createHitCounter(deterministic: boolean): (tenant: string, entryId: str
   };
 }
 
+/**
+ * Per-server request-ID generator. The deterministic counter lives in closure scope so each
+ * `createServer()` call gets an isolated counter — two back-to-back launches in the same process
+ * produce byte-identical IDs for matching request sequences (prevents flaky cross-launch replay
+ * assertions).
+ */
 function createRequestIdGenerator(deterministic: boolean): () => string {
   if (!deterministic) return (): string => crypto.randomUUID();
   let counter = 0;
