@@ -108,7 +108,7 @@ Any string value inside `response.body` or `response.headers` can contain `{{ â€
 | `{{faker.integer(min, max)}}` | Random integer in `[min, max]` |
 | `{{faker.pick(["a","b","c"])}}` | Random element from the array |
 | `{{faker.boolean}}` | `true` or `false` |
-| `{{faker.dateIso}}` | Random recent date as ISO 8601 string |
+| `{{faker.dateIso}}` | Random recent date as ISO 8601 string (in deterministic mode: a fixed date in the 24 h before 2026-01-01T00:00:00Z) |
 
 ### Provider-shape IDs
 

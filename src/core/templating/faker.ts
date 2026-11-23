@@ -8,6 +8,7 @@
 // bump that changes deterministic fixtures fails CI instead of shipping silently (#50).
 
 import { Faker, en } from "@faker-js/faker";
+import { fnv1a } from "./tier2/id.ts";
 import { DEFAULT_FIXED_EPOCH_MS } from "./tier2/now.ts";
 
 export interface FakerInstance {
@@ -25,18 +26,55 @@ export interface FakerInstance {
  * this set so a template cannot reach Object.prototype members (`faker.constructor`,
  * `faker.hasOwnProperty`, ...) and so typos render literally instead of throwing per request.
  */
-export const FAKER_METHODS: ReadonlySet<keyof FakerInstance> = new Set<keyof FakerInstance>([
-  "uuid",
-  "email",
-  "name",
-  "integer",
-  "pick",
-  "boolean",
-  "dateIso",
-] satisfies (keyof FakerInstance)[]);
+// A Record over keyof FakerInstance makes a missing entry a type error: adding a method to
+// FakerInstance without allowlisting it fails `tsc`, not just a hand-maintained test list.
+const FAKER_METHOD_FLAGS: Record<keyof FakerInstance, true> = {
+  uuid: true,
+  email: true,
+  name: true,
+  integer: true,
+  pick: true,
+  boolean: true,
+  dateIso: true,
+};
+
+export const FAKER_METHODS: ReadonlySet<keyof FakerInstance> = new Set(
+  Object.keys(FAKER_METHOD_FLAGS) as (keyof FakerInstance)[],
+);
 
 export function isFakerMethod(name: string): name is keyof FakerInstance {
   return (FAKER_METHODS as ReadonlySet<string>).has(name);
+}
+
+/** Identifies one rendering stream: a request (or its webhook fan-out) against one mock entry. */
+export interface FakerScope {
+  tenant: string;
+  /** Mock entry id; suffix it (e.g. `#webhooks`) to give a second stream for the same request. */
+  endpoint: string;
+  requestId: string;
+}
+
+export type FakerFactory = (scope: FakerScope) => FakerInstance;
+
+/**
+ * Per-request faker (TN8, same model as `createIdHelpers`). In deterministic mode every scope
+ * gets a FRESH instance seeded from FNV-1a(seed | tenant | endpoint | requestId), so a
+ * request's faker values depend only on its own identity — not on how many faker calls other
+ * requests, tenants or concurrent handlers made before it. (Deterministic request ids are an
+ * arrival counter, so arrival ORDER still matters; interleaving and other traffic's templates
+ * do not.) Non-deterministic mode shares one unseeded instance: there is nothing to isolate.
+ */
+export function createFakerFactory(opts: { deterministic: boolean; seed?: number }): FakerFactory {
+  if (!opts.deterministic) {
+    const shared = createFaker({ deterministic: false });
+    return () => shared;
+  }
+  const base = opts.seed ?? 0;
+  return (scope) =>
+    createFaker({
+      deterministic: true,
+      seed: fnv1a(`${base}|${scope.tenant}|${scope.endpoint}|${scope.requestId}`),
+    });
 }
 
 export function createFaker(opts: { deterministic: boolean; seed?: number }): FakerInstance {

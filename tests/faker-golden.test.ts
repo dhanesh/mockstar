@@ -3,15 +3,16 @@
 //
 // @faker-js/faker does not promise stable seeded output across releases — it changed between
 // 9.x -> 10.x AND between 10.5 -> 10.6. MOCKSTAR_DETERMINISTIC users commit fixtures built from
-// this output, so this test pins the exact seed-0 sequence. If a faker bump fails here, the
-// bump changes user fixtures: update the golden values deliberately and say so in the
-// release notes (a `feat:` commit, not a silent `fix:`).
+// this output, so package.json pins faker exactly and this test pins the seed-0 sequence. If a
+// faker bump fails here, the bump changes user fixtures: update the golden values deliberately,
+// add a note to docs/SDET.md, and use a `feat:` commit (semantic-release puts only the subject
+// line in the release notes — the docs carry the detail).
 
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, setSystemTime } from "bun:test";
 import { type TemplateContext, compileTemplate } from "../src/core/templating/compiler.ts";
 import { FAKER_METHODS, createFaker } from "../src/core/templating/faker.ts";
 import { createIdHelpers } from "../src/core/templating/tier2/id.ts";
-import { createClock } from "../src/core/templating/tier2/now.ts";
+import { DEFAULT_FIXED_EPOCH_MS, createClock } from "../src/core/templating/tier2/now.ts";
 
 const GOLDEN_SEED_0 = [
   "8b986a7e-f6c8-49e1-910d-cdfc7c1a2f86",
@@ -42,12 +43,22 @@ describe("deterministic faker golden output", () => {
   });
 
   it("dateIso is independent of wall-clock time (anchored to the deterministic epoch)", () => {
-    const realNow = Date.now;
+    // setSystemTime, not a Date.now override: faker calls `new Date()`, which in Bun ignores
+    // a reassigned Date.now. Two far-apart system times must give the same value, and that
+    // value must sit in the 24 h before DEFAULT_FIXED_EPOCH_MS (date.recent's default window).
+    const dateAt = (ms: number): string => {
+      setSystemTime(new Date(ms));
+      return createFaker({ deterministic: true, seed: 0 }).dateIso();
+    };
     try {
-      Date.now = () => Date.UTC(2031, 5, 15);
-      expect(seed0Sequence()[6]).toBe(GOLDEN_SEED_0[6]);
+      const a = dateAt(Date.UTC(2020, 0, 1));
+      const b = dateAt(Date.UTC(2031, 5, 15));
+      expect(a).toBe(b);
+      const ms = Date.parse(a);
+      expect(ms).toBeLessThanOrEqual(DEFAULT_FIXED_EPOCH_MS);
+      expect(ms).toBeGreaterThanOrEqual(DEFAULT_FIXED_EPOCH_MS - 24 * 60 * 60 * 1000);
     } finally {
-      Date.now = realNow;
+      setSystemTime();
     }
   });
 });
