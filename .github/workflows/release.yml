@@ -33,6 +33,13 @@ on:
         description: 'Skip actual publish steps'
         type: boolean
         default: false
+      backfill:
+        description: >-
+          Backfill an ALREADY-PUBLISHED tag: build binaries, create the GitHub Release,
+          update the Homebrew tap. Skips npm, container, helm, provenance and halt-clean,
+          so it never republishes or deletes what is already out.
+        type: boolean
+        default: false
 
 concurrency:
   group: release-${{ github.ref }}
@@ -59,6 +66,7 @@ jobs:
       tag: ${{ steps.detect.outputs.tag }}
       version: ${{ steps.detect.outputs.version }}
       dry_run: ${{ steps.detect.outputs.dry_run }}
+      backfill: ${{ steps.detect.outputs.backfill }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,12 +80,19 @@ jobs:
           # and we fall back to the pushed ref / a real (non-dry) publish.
           IN_TAG: ${{ inputs.tag }}
           IN_DRY: ${{ inputs.dry_run }}
+          # workflow_dispatch only; empty on workflow_call / tag push.
+          IN_BACKFILL: ${{ inputs.backfill }}
         run: |
           TAG="${IN_TAG:-$GITHUB_REF_NAME}"
           DRY="${IN_DRY:-false}"
+          BACKFILL="${IN_BACKFILL:-false}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "dry_run=${DRY}" >> "$GITHUB_OUTPUT"
+          echo "backfill=${BACKFILL}" >> "$GITHUB_OUTPUT"
+          if [[ "$BACKFILL" == "true" ]]; then
+            echo "::notice::Backfill mode for ${TAG}: binaries + GitHub Release + Homebrew only."
+          fi
           if [[ "$TAG" =~ -(alpha|beta|rc)\. ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
             echo "is_stable=false" >> "$GITHUB_OUTPUT"
@@ -118,6 +133,7 @@ jobs:
   publish-npm:
     runs-on: ubuntu-24.04
     needs: [preflight]
+    if: ${{ needs.preflight.outputs.backfill != 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -170,10 +186,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # macos-14 was retired by GitHub ("configuration 'macos-14-arm64-us-default'
+          # is not supported"), which failed the v0.4.1 and v0.5.0 releases.
           - target: bun-darwin-arm64
-            runner: macos-14
+            runner: macos-15
           - target: bun-darwin-x64
-            runner: macos-14
+            runner: macos-15
           - target: bun-linux-arm64
             runner: ubuntu-24.04-arm
           - target: bun-linux-x64
@@ -200,7 +218,7 @@ jobs:
       - name: smoke test
         run: ./dist/mockstar-${{ matrix.target }} --version || exit 1
         # Skip the cross-arch case: the darwin-x64 binary can't execute on the
-        # arm64 macos-14 runner (Illegal instruction). All other targets run natively.
+        # arm64 macos-15 runner (Illegal instruction). All other targets run natively.
         if: ${{ matrix.target != 'bun-darwin-x64' }}
       # T5/TN6: record binary hash for reproducibility verification (evidence for RT-1).
       - name: record binary sha256 (T5)
@@ -226,6 +244,7 @@ jobs:
   publish-container:
     runs-on: ubuntu-24.04
     needs: [preflight]
+    if: ${{ needs.preflight.outputs.backfill != 'true' }}
     outputs:
       digest: ${{ steps.build.outputs.digest }}
       image: ghcr.io/${{ github.repository }}
@@ -309,6 +328,7 @@ jobs:
   publish-helm:
     runs-on: ubuntu-24.04
     needs: [preflight, publish-container]
+    if: ${{ needs.preflight.outputs.backfill != 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -367,7 +387,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   slsa-provenance:
     needs: [preflight, publish-container]
-    if: ${{ needs.preflight.outputs.is_stable == 'true' }}
+    if: ${{ needs.preflight.outputs.is_stable == 'true' && needs.preflight.outputs.backfill != 'true' }}
     permissions:
       id-token: write
       contents: read
@@ -389,7 +409,8 @@ jobs:
   halt-clean:
     runs-on: ubuntu-24.04
     needs: [preflight, publish-npm, build-binaries, publish-container, publish-helm]
-    if: ${{ failure() }}
+    # Never in backfill: the container tag being backfilled is already signed and live.
+    if: ${{ failure() && needs.preflight.outputs.backfill != 'true' }}
     steps:
       - name: delete unsigned container tag on failure (RT-6, S1)
         continue-on-error: true
@@ -405,6 +426,8 @@ jobs:
   release-notes:
     runs-on: ubuntu-24.04
     needs: [preflight, publish-npm, build-binaries, publish-container, publish-helm]
+    # Runs when no need failed or was cancelled; skipped needs (backfill mode) are fine.
+    if: ${{ !cancelled() && !failure() }}
     # `gh release create` needs contents:write; the workflow default is contents:read.
     permissions:
       contents: write
@@ -419,6 +442,9 @@ jobs:
           path: ./artifacts
           pattern: binary-*
       - uses: actions/download-artifact@v4
+        # publish-container produces the SBOM; backfill skips it (the SBOM is still
+        # attached to the image as a build attestation).
+        if: ${{ needs.preflight.outputs.backfill != 'true' }}
         with:
           path: ./artifacts
           pattern: sbom-cyclonedx
@@ -431,14 +457,18 @@ jobs:
           if [[ "${{ needs.preflight.outputs.is_prerelease }}" == "true" ]]; then
             prerelease_flag="--prerelease"
           fi
+          assets=(
+            ./artifacts/binary-bun-darwin-arm64/*
+            ./artifacts/binary-bun-darwin-x64/*
+            ./artifacts/binary-bun-linux-arm64/*
+            ./artifacts/binary-bun-linux-x64/*
+          )
+          sbom=./artifacts/sbom-cyclonedx/sbom.cdx.json
+          [[ -f "$sbom" ]] && assets+=("$sbom")
           gh release create "${{ needs.preflight.outputs.tag }}" \
             ${prerelease_flag} \
             --notes-file CHANGELOG.md \
-            ./artifacts/binary-bun-darwin-arm64/* \
-            ./artifacts/binary-bun-darwin-x64/* \
-            ./artifacts/binary-bun-linux-arm64/* \
-            ./artifacts/binary-bun-linux-x64/* \
-            ./artifacts/sbom-cyclonedx/sbom.cdx.json
+            "${assets[@]}"
       # O3: warn when release wall-clock exceeds p99 budget of 15 min (900s).
       - name: pipeline timing guard (O3)
         run: |
