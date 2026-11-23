@@ -1,0 +1,9 @@
+# Trivy exceptions for the release image gate (.github/workflows/release.yml).
+# Every entry needs a reason, a tracking link, and an exp: date — Trivy stops
+# ignoring the finding after that date, so an exception cannot outlive its fix.
+
+# @faker-js/faker 9.9.0 — arbitrary code execution via attacker-controlled fake()
+# templates. Not reachable: mockstar templates only call an allowlist of faker
+# helpers, never fake()/helpers.fake. Fix (faker 10) changes deterministic output,
+# so it ships as a minor in #52, which MUST delete this entry. Tracking: #50.
+CVE-2026-73231 exp:2027-01-31

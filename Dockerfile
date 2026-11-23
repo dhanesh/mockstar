@@ -4,7 +4,8 @@
 
 # RT-1: the default matches .bun-version; CI overrides via --build-arg to keep
 # the container image and the binary build on the same pinned toolchain.
-# Pinned to a concrete patch tag (>=1.3.0 per engines) for reproducible builds.
+# Pinned to a concrete patch tag (>=1.3.0 per engines) for a reproducible
+# toolchain; Alpine OS packages float on purpose (see the runner stage).
 ARG BUN_VERSION=1.3.14
 
 # ---------------------------------------------------------------------------
@@ -37,6 +38,15 @@ RUN bun install --frozen-lockfile --production
 # ---------------------------------------------------------------------------
 FROM oven/bun:${BUN_VERSION}-alpine AS runner
 WORKDIR /app
+
+# Pull Alpine security fixes released after the pinned bun base tag was built
+# (e.g. libssl3/libcrypto3, musl, zlib — #50). Without this, fixable OS HIGHs
+# stay in the image until oven/bun republishes the tag, and downstream images
+# built FROM mockstar fail fixable-HIGH scanner gates.
+# Trade-off, deliberate: the OS layer floats (bun stays pinned via BUN_VERSION),
+# so two builds of the same commit can carry different Alpine patch levels.
+# The release SBOM + provenance record what each published digest contains.
+RUN apk upgrade --no-cache
 
 # Non-root identity with uid/gid > 10000 (avoids host-uid collisions; K8s
 # runAsNonRoot friendly). alpine ships adduser/addgroup via busybox.

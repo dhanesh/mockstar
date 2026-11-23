@@ -89,6 +89,9 @@ jobs:
           tags: mockstar:ci-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Rebuild the runner stage every time so its `apk upgrade` layer is never
+          # served stale from the GHA cache; builder/deps stages still cache.
+          no-cache-filters: runner
       - name: Smoke-test the built image
         run: |
           # The hardened image is lean (examples are NOT baked in); mock content is
