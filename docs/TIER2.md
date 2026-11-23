@@ -73,8 +73,9 @@ of provider-specific shapes — you pick the shape per-fixture. Examples from `e
 | PayPal order | `{{id("", 17, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")}}` | `OHNM9O0VBR17U1CIF` | `^[A-Z0-9]{17}$` |
 
 The ID generator is an inline, nanoid-compatible rejection-sampling algorithm. In deterministic
-mode (`--deterministic` or `MOCKSTAR_DETERMINISTIC=1`) the seed is `(tenant, endpoint, requestId)` —
-so replays produce byte-identical IDs.
+mode (`--deterministic` or `MOCKSTAR_DETERMINISTIC=1`) the seed is `(tenant, endpoint, hit number)`,
+where the hit number counts the requests that matched this mock for this tenant. Replays produce
+byte-identical IDs, and traffic to other tenants or mocks does not change them.
 
 > **Alphabet size** — the draw indexes by a single byte, so `alphabet.length` must be between 2
 > and 256 inclusive. Values outside that range throw at call time. No realistic provider alphabet

@@ -5,7 +5,8 @@
 // Design:
 //   - Non-deterministic mode: nanoid-style pool draw backed by `crypto.getRandomValues`.
 //   - Deterministic mode: same algorithm, but random bytes are drawn from a seeded Mulberry32 PRNG.
-//     Seed = FNV-1a(tenant | endpoint | requestCounter).
+//     Seed = FNV-1a(tenant | endpoint | requestCounter). The server passes the mock entry's
+//     per-tenant hit number as requestCounter, not the global request id (#53).
 //   - Per-request isolation (TN8): `createIdHelpers(seed)` is called fresh for every request,
 //     so PRNG state never leaks across concurrent requests even in deterministic mode.
 

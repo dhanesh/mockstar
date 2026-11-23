@@ -74,7 +74,7 @@ describe("S4 — admin/health paths skip webhooks unconditionally", () => {
       matchPath,
       triggerRequestId: "req-1",
       webhooks: [dummySpec],
-      templateContext: dummyTemplateCtx,
+      templateContextFor: () => dummyTemplateCtx,
       requestHeaders: new Map(),
     });
     expect(ids).toEqual([]);
@@ -89,7 +89,7 @@ describe("S4 — admin/health paths skip webhooks unconditionally", () => {
       matchPath: "/api/users",
       triggerRequestId: "req-1",
       webhooks: [dummySpec],
-      templateContext: dummyTemplateCtx,
+      templateContextFor: () => dummyTemplateCtx,
       requestHeaders: new Map(),
     });
     expect(ids).toHaveLength(1);
@@ -104,7 +104,7 @@ describe("S4 — admin/health paths skip webhooks unconditionally", () => {
       matchPath: "/api/healthcheck", // distinct path; not a prefix-match for /health
       triggerRequestId: "req-1",
       webhooks: [dummySpec],
-      templateContext: dummyTemplateCtx,
+      templateContextFor: () => dummyTemplateCtx,
       requestHeaders: new Map(),
     });
     expect(ids).toHaveLength(1);

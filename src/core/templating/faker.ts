@@ -51,18 +51,22 @@ export interface FakerScope {
   tenant: string;
   /** Mock entry id; suffix it (e.g. `#webhooks`) to give a second stream for the same request. */
   endpoint: string;
-  requestId: string;
+  /**
+   * Deterministic hit number of this mock entry for this tenant (1, 2, 3, ...). Not the public
+   * request id: that is a server-wide arrival counter, so other tenants' traffic would shift it.
+   */
+  hit: number;
 }
 
 export type FakerFactory = (scope: FakerScope) => FakerInstance;
 
 /**
  * Per-request faker (TN8, same model as `createIdHelpers`). In deterministic mode every scope
- * gets a FRESH instance seeded from FNV-1a(seed | tenant | endpoint | requestId), so a
- * request's faker values depend only on its own identity — not on how many faker calls other
- * requests, tenants or concurrent handlers made before it. (Deterministic request ids are an
- * arrival counter, so arrival ORDER still matters; interleaving and other traffic's templates
- * do not.) Non-deterministic mode shares one unseeded instance: there is nothing to isolate.
+ * gets a FRESH instance seeded from FNV-1a(seed | tenant | endpoint | hit), so a request's
+ * faker values depend only on which hit of that mock entry it is — not on other tenants' or
+ * other mocks' traffic, nor on how many faker calls earlier requests made (#52, #53). Repeat
+ * hits on the SAME entry are still ordered. Non-deterministic mode shares one unseeded
+ * instance: there is nothing to isolate.
  */
 export function createFakerFactory(opts: { deterministic: boolean; seed?: number }): FakerFactory {
   if (!opts.deterministic) {
@@ -73,7 +77,7 @@ export function createFakerFactory(opts: { deterministic: boolean; seed?: number
   return (scope) =>
     createFaker({
       deterministic: true,
-      seed: fnv1a(`${base}|${scope.tenant}|${scope.endpoint}|${scope.requestId}`),
+      seed: fnv1a(`${base}|${scope.tenant}|${scope.endpoint}|${scope.hit}`),
     });
 }
 

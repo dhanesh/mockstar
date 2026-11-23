@@ -9,7 +9,7 @@ import type { Entry } from "../core/config/schema.ts";
 import type { CompiledResponse, TemplateContext } from "../core/templating/compiler.ts";
 import { renderCompiledJson } from "../core/templating/compiler.ts";
 import type { FakerInstance } from "../core/templating/faker.ts";
-import { createIdHelpers, fnv1a } from "../core/templating/tier2/id.ts";
+import { createIdHelpers } from "../core/templating/tier2/id.ts";
 import type { Clock } from "../core/templating/tier2/now.ts";
 import { RenderBudget, Tier2RenderError } from "../core/templating/tier2/walker.ts";
 
@@ -21,6 +21,8 @@ export interface StaticRenderInput {
   faker: FakerInstance;
   tenant: string;
   requestId: string;
+  /** Deterministic hit number of this mock entry for this tenant; seeds `{{id()}}` (#53). */
+  hit: number;
   body: unknown;
   /** Injected clock — wall in prod, fixed-epoch in deterministic mode. */
   clock: Clock;
@@ -42,13 +44,13 @@ export async function renderStatic(input: StaticRenderInput): Promise<Response> 
   }
 
   // Per-request idHelpers (TN8): fresh closure for every request, so seeded PRNG state never
-  // leaks across concurrent handlers. Seed combines tenant + endpoint + requestId hash so two
-  // replays of the same test produce byte-identical IDs.
+  // leaks across concurrent handlers. Seed is tenant + endpoint + the entry's hit number, so two
+  // replays of the same test produce byte-identical IDs whatever other traffic arrives (#53).
   const idHelpers = createIdHelpers({
     deterministic: input.deterministic,
     tenant: input.tenant,
     endpoint: input.entry.id,
-    requestCounter: fnv1a(input.requestId),
+    requestCounter: input.hit,
   });
 
   const templateCtx: TemplateContext = {

@@ -3,7 +3,7 @@
 // Before #52 one seeded faker instance served every request, tenant and webhook, so a
 // request's values depended on how many faker calls every EARLIER request made. Changing an
 // unrelated mock's template (or sending a different earlier request) shifted every later
-// fixture. Now each request draws from its own stream seeded by (seed, tenant, entry, requestId).
+// fixture. Now each request draws from its own stream seeded by (seed, tenant, entry, hit #).
 
 import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -91,7 +91,7 @@ describe("deterministic faker is per request", () => {
 });
 
 describe("createFakerFactory", () => {
-  const scope = { tenant: "acme", endpoint: "user", requestId: "req-00000001" };
+  const scope = { tenant: "acme", endpoint: "user", hit: 1 };
 
   it("deterministic: same scope → same sequence; any scope field changes it", () => {
     const f = createFakerFactory({ deterministic: true });
@@ -102,7 +102,7 @@ describe("createFakerFactory", () => {
     expect(seq(scope)).toEqual(seq(scope));
     expect(seq({ ...scope, tenant: "beta" })).not.toEqual(seq(scope));
     expect(seq({ ...scope, endpoint: "user#webhooks" })).not.toEqual(seq(scope));
-    expect(seq({ ...scope, requestId: "req-00000002" })).not.toEqual(seq(scope));
+    expect(seq({ ...scope, hit: 2 })).not.toEqual(seq(scope));
   });
 
   it("deterministic: base seed participates", () => {
@@ -113,6 +113,6 @@ describe("createFakerFactory", () => {
 
   it("non-deterministic: one shared instance (no per-request allocation)", () => {
     const f = createFakerFactory({ deterministic: false });
-    expect(f(scope)).toBe(f({ ...scope, requestId: "req-2" }));
+    expect(f(scope)).toBe(f({ ...scope, hit: 2 }));
   });
 });

@@ -45,12 +45,19 @@ export interface DispatcherTriggerInput {
   matchPath: string;
   /** The inbound request id (RT-15 — links inbound request to outbound deliveries). */
   triggerRequestId: string;
+  /** Deterministic hit number that seeded `templateContext`; journaled for replay (#53). */
+  triggerSeq?: number;
   /** Mock-entry id whose match scheduled these webhooks (used for journal entry → spec lookup at replay time, INT-2). */
   entryId: string;
   /** Webhook specs attached to the matched mock entry (post-config-load compiled form). */
   webhooks: readonly CompiledWebhookSpec[];
-  /** Templating context for rendering URL/body/headers — same shape as response rendering. */
-  templateContext: TemplateContext;
+  /**
+   * Builds the templating context for one webhook spec — same shape as response rendering.
+   * Called afresh for EVERY attempt, so each spec has its own seeded stream (another spec on
+   * the same entry cannot shift it) and a retry re-renders byte-identical ids. Replay uses the
+   * same factory shape, so it reproduces what was delivered (#53).
+   */
+  templateContextFor: (specId: string) => TemplateContext;
   /** Inbound headers, lowercased — for the optional X-Mockstar-Webhook-Url override. */
   requestHeaders: ReadonlyMap<string, string>;
   /** True when this dispatch was triggered by an admin /replay call rather than an inbound match. */
@@ -127,13 +134,18 @@ async function performAttempt(
   _deps: DispatcherDeps,
 ): Promise<{ httpStatus: number; durationUs: number; resolvedUrl: string }> {
   const attemptStart = performance.now();
+  // Fresh per attempt: retries and replays draw the same values in the same order.
+  const templateContext = input.templateContextFor(spec.id);
 
-  // Resolve URL: header override (if allowed) wins, otherwise the per-route template.
+  // Resolve URL: header override (if allowed) wins, otherwise the per-route template. The
+  // template is rendered even when overridden, so the body's faker/id draws come at the same
+  // stream position as in a replay (which has no request headers).
+  const templatedUrl = spec.urlTemplate.render(templateContext);
   const headerUrl =
     _deps.allowWebhookUrlHeader && spec.acceptHeaderOverride
       ? input.requestHeaders.get("x-mockstar-webhook-url")
       : undefined;
-  const urlString = headerUrl ?? spec.urlTemplate.render(input.templateContext);
+  const urlString = headerUrl ?? templatedUrl;
 
   // S2: re-validate the URL each attempt (it may template differently per request).
   // Resolves DNS and rejects hostnames whose A/AAAA records point at private ranges (F1 SSRF guard).
@@ -150,9 +162,9 @@ async function performAttempt(
   // Render headers and body.
   const renderedHeaders = new Headers();
   for (const [key, tmpl] of spec.headers) {
-    renderedHeaders.set(key, tmpl.render(input.templateContext));
+    renderedHeaders.set(key, tmpl.render(templateContext));
   }
-  const rawBody = spec.body ? spec.body.render(input.templateContext) : "";
+  const rawBody = spec.body ? spec.body.render(templateContext) : "";
 
   // Sign if enabled (S1 opt-in). Wire format comes from config, not code (#30).
   if (spec.signing?.enabled) {
@@ -283,6 +295,7 @@ function recordAttempt(
     entryId: input.entryId,
     webhookId: spec.id,
     triggerRequestId: input.triggerRequestId,
+    ...(input.triggerSeq !== undefined && { triggerSeq: input.triggerSeq }),
     attempt: record.attempt,
     outcome: record.outcome,
     durationUs: record.durationUs,

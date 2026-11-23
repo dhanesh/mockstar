@@ -62,21 +62,48 @@ on every run and test assertions that compare against fixtures will flake.
 - **Same mockstar version, same request sequence → same output.** mockstar
   bundles a pinned `@faker-js/faker`, so your own lockfile does not change the
   values.
-- **Each request has its own faker stream**, seeded from the tenant, the mock
-  entry and the request id. A request's values do not depend on the templates
-  of other mocks or on how many faker calls earlier requests made. Webhooks get
-  a separate stream, and a webhook replay re-renders the original values.
-- **Arrival order still matters.** Deterministic request ids are a counter
-  (`req-00000001`, `req-00000002`, ...) shared by all tenants. If parallel
-  tests send requests in a different order, each request gets a different id
-  and different values. For stable fixtures, send requests one at a time, or
-  start one mockstar per test file.
+- **Each mock has its own sequence per tenant.** faker and `{{id()}}` values
+  are seeded from the tenant, the mock entry and the hit number of that entry
+  for that tenant: the 1st, 2nd, 3rd ... request that matched it. Traffic to
+  other tenants or to other mocks does not change them, and neither do the
+  templates of other mocks. So two test files that use different mocks, or
+  different tenants, can share one mockstar and run in parallel.
+- **Repeat hits on the same mock are still ordered.** If parallel tests call
+  the same mock of the same tenant, the hit numbers depend on which request
+  arrives first. Give each parallel worker its own tenant, or start one
+  mockstar per test file.
+- **Webhooks** use a separate stream per webhook, seeded by the same hit
+  number as the response that triggered them. Each delivery gets new
+  `{{id()}}` values, and a retry sends the same values again. A webhook replay
+  re-renders the same `{{faker.*}}` and `{{id()}}` values. It does not keep
+  `{{request.*}}` values or an `X-Mockstar-Webhook-Url` override, because
+  replay has no request.
+- **Counters start at server start and never reset.** A config reload does not
+  reset them, and there is no admin reset. A mock's values depend on how many
+  earlier tests hit that mock on the same server. To make a test independent
+  of test order, give it its own tenant or its own mockstar.
+- **`{{requestId}}` is not per mock.** The request id (`req-00000001`, ...) in
+  templates, handler `helpers.requestId`, the journal and logs counts all
+  requests to the server. Do not
+  assert on it in fixtures that must not depend on other traffic.
 - **Not across mockstar versions that change the bundled faker.** Faker does
   not keep seeded output stable between its releases. When mockstar upgrades
   faker, the release notes say so, and you must regenerate committed fixtures.
 - `{{faker.dateIso}}` does not follow the wall clock in deterministic mode. It
   returns a fixed date in the 24 hours before `2026-01-01T00:00:00Z`, which is
   the same epoch as `{{now.iso}}`. Expect a 2025 date in fixtures.
+
+### Upgrading to 0.6.0: regenerate deterministic fixtures
+
+0.6.0 changes the seed of deterministic `{{faker.*}}` and `{{id()}}` values
+(#53). Before, the seed was the request id, which counts the requests to all
+tenants and all mocks. Now it is the hit number of the mock for that tenant.
+Regenerate every fixture recorded with `deterministic: true` or
+`MOCKSTAR_DETERMINISTIC=1`, including `{{faker.dateIso}}` values (the date
+stays in the same 24-hour window). Request ids and `{{now.*}}` do not change.
+
+Webhook payloads change too: each delivery now gets new `{{id()}}` values.
+Before 0.6.0, every delivery of one webhook repeated the same ids.
 
 ### Upgrading to 0.5.0: regenerate deterministic fixtures
 
