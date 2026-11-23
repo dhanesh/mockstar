@@ -256,13 +256,17 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
           provenance: mode=max
           sbom: true
-      - name: trivy scan — block on CRITICAL (RT-19, S4)
+      # Gate on fixable HIGH as well as CRITICAL: downstream users scan images built
+      # FROM mockstar with exactly this policy, so a CRITICAL-only gate let #50 ship.
+      # Exceptions live in .trivyignore — each with a reason and an exp: date.
+      - name: trivy scan — block on fixable HIGH/CRITICAL (RT-19, S4)
         uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
-          severity: CRITICAL
+          severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
+          trivyignores: .trivyignore
       - name: install cosign
         uses: sigstore/cosign-installer@v3
       - name: install syft (for CycloneDX SBOM)
