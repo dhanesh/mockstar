@@ -49,7 +49,24 @@ describe("RT-6: release workflow retry + halt-clean wiring", () => {
   it("declares a `halt-clean` job gated on failure()", () => {
     expect(yml).toMatch(/^\s{2}halt-clean:/m);
     const block = yml.split(/^\s{2}halt-clean:/m)[1] ?? "";
-    expect(block).toMatch(/if:\s*\$\{\{\s*failure\(\)\s*\}\}/);
+    expect(block).toMatch(
+      /if:\s*\$\{\{\s*failure\(\)[\s&]*(needs\.preflight\.outputs\.backfill != 'true'\s*)?\}\}/,
+    );
+  });
+
+  // Backfill (re-running a published tag) must never republish or delete live artifacts:
+  // a failed backfill binary build would otherwise make halt-clean delete a signed tag.
+  it("backfill mode skips every publish job, provenance and halt-clean", () => {
+    const guard = "needs.preflight.outputs.backfill != 'true'";
+    for (const job of ["publish-npm", "publish-container", "publish-helm", "slsa-provenance", "halt-clean"]) {
+      const block = (yml.split(new RegExp(`^\\s{2}${job}:`, "m"))[1] ?? "").split(/^\s{2}[a-z-]+:\s*$/m)[0];
+      expect(block).toContain(guard);
+    }
+  });
+
+  it("release-notes still runs when backfill skipped the publish jobs", () => {
+    const block = (yml.split(/^\s{2}release-notes:/m)[1] ?? "").split(/^\s{2}[a-z-]+:\s*$/m)[0];
+    expect(block).toMatch(/if:\s*\$\{\{\s*!cancelled\(\)\s*&&\s*!failure\(\)\s*\}\}/);
   });
 
   // @constraint S1 — unsigned-artifact deletion is the halt-clean load-bearing step

@@ -37,7 +37,7 @@ jobs:
 
   macos-integration:
     name: macos (self-hosted; manual dispatch only in v1)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 10
     # NOTE: Apple's hosted runners don't allow sudoless mkcert install into the
     # system Keychain. This job is opt-in via workflow_dispatch for now; self-hosted
