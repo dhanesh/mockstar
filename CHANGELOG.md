@@ -1,3 +1,11 @@
+# [0.5.0](https://github.com/dhanesh/mockstar/compare/v0.4.1...v0.5.0) (2026-11-23)
+
+
+### Features
+
+* **templating:** per-request deterministic faker; pin faker; review follow-ups ([444405d](https://github.com/dhanesh/mockstar/commit/444405d47ce49671a40eaa8c9e1f6a72f7dde11c)), closes [#52](https://github.com/dhanesh/mockstar/issues/52) [#50](https://github.com/dhanesh/mockstar/issues/50)
+* **templating:** upgrade faker to 10, make deterministic dateIso stable, allowlist faker helpers ([1b168c2](https://github.com/dhanesh/mockstar/commit/1b168c285127cea34dd4dcdb3d26d85a15e21d05)), closes [#50](https://github.com/dhanesh/mockstar/issues/50)
+
 ## [0.4.1](https://github.com/dhanesh/mockstar/compare/v0.4.0...v0.4.1) (2026-11-23)
 
 
