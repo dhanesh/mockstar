@@ -77,7 +77,7 @@ Supported tokens inside `{{ … }}` expressions (compiled at load time — RT-6.
 | `{{request.headers.<name>}}` | Request header (case-insensitive) |
 | `{{request.body.<dot.path>}}` | Dot-path into the parsed JSON request body |
 | `{{tenant}}` | Tenant identifier for the request |
-| `{{requestId}}` | Per-request UUID assigned by mockstar |
+| `{{requestId}}` | Request id assigned by mockstar: a UUID, or `req-00000001`, `req-00000002`, … (one counter per server) in deterministic mode |
 | `{{faker.uuid}}` | Random UUID v4 |
 | `{{faker.email}}` | Random email address |
 | `{{faker.name}}` | Random full name |

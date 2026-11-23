@@ -113,7 +113,7 @@ Any string value inside `response.body` or `response.headers` can contain `{{ â€
 | Token | Value |
 |---|---|
 | `{{tenant}}` | Tenant identifier the request was routed to |
-| `{{requestId}}` | Per-request UUID assigned by mockstar |
+| `{{requestId}}` | Request id assigned by mockstar: a UUID, or `req-00000001`, `req-00000002`, â€¦ (one counter per server) in deterministic mode |
 
 ### Random data (faker)
 

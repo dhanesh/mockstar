@@ -27,6 +27,10 @@ When a `POST /orders` request matches this mock, Mockstar serves the 201 respons
 
 Webhooks fire for every response of the entry, including a matched [scenario](../SCENARIOS.md) response.
 
+The webhook body is rendered separately from the response. `{{id()}}` and `{{id.named(...)}}`
+in a webhook mint new values: they do not repeat the response's ids. To put the same id in
+both, take it from the request (`{{request.body.orderId}}`, `{{request.params.id}}`) or use a literal.
+
 ### Delivering to a local receiver
 
 The SSRF guard blocks `http://` and private/loopback addresses by default. For a receiver on
