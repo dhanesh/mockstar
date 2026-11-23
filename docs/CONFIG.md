@@ -17,6 +17,10 @@ Each top-level directory under `mocks/` is one tenant. Tenant identifiers are `/
 
 ## Mock entry shape
 
+> Examples marked `jsonc` carry `//` comments for explanation. Mock files and
+> `tenant.json` must be strict JSON: delete the comments before you use them.
+> A mock file is `{ "$schema": "...", "mocks": [ ...entries ] }` or a bare array of entries.
+
 ```jsonc
 {
   "id": "get-user-by-id",
@@ -121,13 +125,15 @@ Upstream URLs are validated against the SSRF guard (RT-8 / S6). Private ranges a
 
 ## Global server config
 
-Controlled via env or programmatic `launch({ server: {...} })`:
+Set through the CLI (flags and env) or programmatically with `launch({ server: {...} })`.
+**Env vars are read only by the CLI.** `launch()` ignores them: pass `deterministic: true`
+and `server: { adminEnabled: true, rootToken: "..." }` explicitly.
 
-| Setting | Env | Default |
+| Setting | CLI flag / env (CLI only) | Default |
 |---|---|---|
-| `host` | `MOCKSTAR_HOST` | `127.0.0.1` (S4) |
-| `port` | `MOCKSTAR_PORT` | `3000` |
-| `tenancyModes` | — | `['path', 'header']` |
+| `host` | `--host`, `MOCKSTAR_HOST` | `127.0.0.1` (S4) |
+| `port` | `--port`, `MOCKSTAR_PORT` | `3000` |
+| `tenancyModes` | none: library only (`launch({ server: { tenancyModes } })`) | `['path', 'header']` |
 | `adminEnabled` | auto-`true` when `MOCKSTAR_ADMIN_TOKEN` is set | `false` |
 | `rootToken` | `MOCKSTAR_ADMIN_TOKEN` | unset |
-| `deterministic` | `MOCKSTAR_DETERMINISTIC=1` | `false` |
+| `deterministic` | `--deterministic`, `MOCKSTAR_DETERMINISTIC=1` | `false` |

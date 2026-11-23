@@ -7,7 +7,15 @@ Dynamic mocks delegate to named functions in the `handlers/` directory. Each fil
 ```ts
 // handlers/echo.ts
 import type { Context } from 'hono';
-import type { HandlerHelpers } from '@dhaneshpurohit/mockstar';
+
+// The package does not export a helper type yet, so declare the part you use.
+// At runtime `helpers` is { tenant, requestId, faker }, and faker has the same
+// methods as the `{{faker.*}}` tokens: uuid, email, name, integer, pick, boolean, dateIso.
+type HandlerHelpers = {
+  tenant: string;
+  requestId: string;
+  faker: { uuid(): string; email(): string; name(): string; integer(min: number, max: number): number };
+};
 
 export async function echo(ctx: Context, helpers: HandlerHelpers): Promise<Response> {
   const body = await ctx.req.json().catch(() => ({}));
@@ -40,11 +48,11 @@ Reference it in config:
 ```ts
 import { describe, it, expect } from 'bun:test';
 import { echo } from './echo.ts';
-import { createFaker } from '@dhaneshpurohit/mockstar';
 
 it('echoes the request body', async () => {
-  // Use the library's faker in deterministic mode for stable assertions.
-  const helpers = { tenant: 't1', requestId: 'r1', faker: createFaker({ deterministic: true, seed: 0 }) };
+  // A fixed stub keeps the assertion stable. (The package does not export its faker factory.)
+  const faker = { uuid: () => 'uuid-1', email: () => 'a@b.c', name: () => 'Ann', integer: (min: number) => min };
+  const helpers = { tenant: 't1', requestId: 'r1', faker };
   const ctx = {
     req: { json: async () => ({ hello: 'world' }) },
   } as unknown as Parameters<typeof echo>[0];

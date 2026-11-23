@@ -47,14 +47,14 @@ src/
     config/                    # Mock config loading + schema validation (Zod)
     errors/                    # Error types
     handlers/                  # Named JS handler loading + execution
-    journal/                   # Request/response journal (replay, assertion)
+    journal/                   # In-memory request journal (per-tenant ring buffer)
     matching/                  # URL matching engine — path-trie + discriminators
     observability/             # Prometheus metrics + structured logging
-    scenarios/                 # Scenario state machine (switch active scenario per tenant)
+    scenarios/                 # Per-entry scenarios: `when:` predicates pick an alternate response
     templating/                # {{ }} template engine — request reflection + Faker
     tenancy/                   # Multi-tenant isolation (one directory per tenant)
   features/
-    admin/                     # Admin API (/_mockstar/...) for scenario switching, journal query
+    admin/                     # Admin API: /health, /ready, /metrics, /__admin/tenants/:t/{mocks,journal,webhooks...}
     enhance/                   # Response enhancement hooks
     openapi/                   # OpenAPI import — converts an OpenAPI doc into mock configs (no generator; import direction only)
     proxy/                     # Pass-through proxy for unmatched routes
@@ -69,46 +69,60 @@ bench/                         # Benchmarks
 ## Mock Config Format
 
 ```
-mocks/
+mocks/                # the config root (CLI: `mockstar serve mocks/`)
   <tenant>/           # one directory per tenant (default tenant: "default")
     users.json        # mock config file — one file per resource
-handlers/             # named JS/TS dynamic handlers
+handlers/             # named JS/TS dynamic handlers (default: ../handlers next to the config root)
   echo.ts
 ```
 
-**Pin `$schema` in every mock file** — pre-1.0 shape changes between minors:
+**Pin `$schema` in every mock file** — pre-1.0 shape changes between minors. `mockstar init` writes the URL for the installed minor:
 ```json
 {
-  "$schema": "https://schemas.mockstar.dev/v0.1/mock.json",
-  "routes": [...]
+  "$schema": "https://schemas.mockstar.dev/v0.6/mock.json",
+  "mocks": [
+    {
+      "id": "hello",
+      "match": { "method": "GET", "path": "/hello" },
+      "response": { "kind": "static", "status": 200, "body": { "message": "hi {{faker.name}}" } }
+    }
+  ]
 }
 ```
+
+Response kinds: `static`, `dynamic` (named handler), `passthrough`. Full reference: `docs/CONFIG.md`.
 
 ## Key Patterns
 
 **Library embed** (SDET use case — Jest, Vitest, `bun test`):
 ```ts
 import { launch } from '@dhaneshpurohit/mockstar'
-const server = await launch({ mocksDir: './fixtures/mocks' })
-// ...tests...
-await server.stop()
+const mock = await launch({ configRoot: './fixtures/mocks', deterministic: true, watch: false })
+// launch() binds no port: call the Hono app directly (wrap it in Bun.serve if code needs a URL)
+const res = await mock.server.hono.fetch(new Request('http://localhost/hello'))
+await mock.stop()
 ```
+See `docs/SDET.md` for options and what `deterministic` guarantees.
 
-**Scenario switching** (admin API):
-```bash
-curl -X POST http://localhost:3000/_mockstar/scenarios \
-  -d '{"tenant": "default", "scenario": "error-state"}'
-```
+**Scenarios** are chosen per request, not switched through an API. Each mock entry may carry `scenarios: [{ id, when: { params | query | headers | body }, response }]`; the first matching `when` overrides the response. See `docs/SCENARIOS.md`.
 
-**Response templating gotcha**: whole-string placeholders in a JSON body preserve source type — `{{ request.body.amount }}` stays a number, not a string. Only interpolated (partial) strings always coerce to string.
+**Admin API** (`/__admin/tenants/:tenant/...`): `GET mocks`, `GET journal`, `GET webhooks`, `GET webhooks/journal`, `GET webhooks/await`, `POST webhooks/:deliveryId/replay`. The admin API is off unless enabled: CLI — set `MOCKSTAR_ADMIN_TOKEN` (16+ chars); library — `launch({ server: { adminEnabled: true } })`. Then send `Authorization: Bearer <token>` where the token is that tenant's `adminToken` from `mocks/<tenant>/tenant.json` (16+ chars). The root token only opens `/metrics`; on tenant endpoints it gets 403 `root_token_cannot_access_tenant_scope`. `/health` and `/ready` need no token.
 
-**Path trie matching**: candidates are ordered strictly by `match.priority` (higher wins), with declaration order as the tiebreaker when priority is equal — there is no path-specificity scoring (`/users/:id` does not automatically lose to `/users/active`). If you need a more-specific route to win, set `priority` explicitly. Query params are matched as optional by default.
+**Webhooks to localhost** need `"allowHttp": true` and `"allowPrivateNetworks": true` on the webhook. Without them the delivery is rejected by the SSRF guard: the response is still served, and the failure shows only in the webhook journal.
 
-**Multi-tenancy**: each tenant is an isolated directory; the `Host` header (or `X-Mockstar-Tenant` override) determines which tenant's mocks are served.
+**Response templating gotcha**: whole-string placeholders in a JSON response body preserve source type — `{{ request.body.amount }}` stays a number, not a string. Only interpolated (partial) strings always coerce to string. **Webhook bodies do not preserve type**: every templated value renders as a string (`docs/webhooks/README.md`).
+
+**Faker allowlist**: `{{faker.*}}` supports exactly `uuid`, `email`, `name`, `integer(min, max)`, `pick([...])`, `boolean`, `dateIso`. Any other `faker.x` renders literally as `{{faker.x}}`.
+
+**Deterministic mode** (`--deterministic`, `MOCKSTAR_DETERMINISTIC=1`, `launch({ deterministic: true })`): faker and `{{id()}}` are seeded per (tenant, mock entry, hit number of that entry), so other tenants' and other mocks' traffic does not change a mock's values. Fixture values change when mockstar changes the bundled faker or the seed scheme (0.5.0, 0.6.0) — see "Upgrading" in `docs/SDET.md`.
+
+**Path trie matching**: candidates are ordered strictly by `match.priority` (higher wins), with declaration order as the tiebreaker when priority is equal — there is no path-specificity scoring (`/users/:id` does not automatically lose to `/users/active`). If you need a more-specific route to win, set `priority` explicitly. A query/header/body predicate in `match` must be satisfied (an entry with `query: { tier: "premium" }` does not match a request without `tier`); extra request params the predicate does not name are ignored.
+
+**Multi-tenancy**: each tenant is an isolated directory. Tenancy modes (default `["path", "header"]`): path `/t/<tenant>/...`, header `X-Mockstar-Tenant: <tenant>`, or subdomain. With no tenant, requests go to `default`.
 
 ## Gotchas
 
 - `bun run build` must precede `bun run build:binary` — binaries are built from `dist/`, not `src/`
 - Handler changes are **not** hot-reloaded, in dev mode or Docker — `buildHandlerRegistry()` runs once in `launch()` and the file watcher only watches tenant mock-config directories, never `handlersDir`. Restart the process (or rebuild the image) to pick up handler changes
-- The journal is in-memory only; it resets on server restart. For persistent replay, use the `--journal-file` flag
+- The request journal is in-memory only; it resets on server restart. Only webhook deliveries can be appended to disk (`--webhook-journal-file`), and that file is not reloaded on start
 - Biome replaces ESLint + Prettier — don't add `.eslintrc` or `.prettierrc`
