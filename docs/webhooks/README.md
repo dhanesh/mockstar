@@ -36,7 +36,7 @@ In precedence order (highest first):
 
 ## Templating
 
-URL, body, and header values support the existing Mockstar template engine — `{{ request.body.x }}`, `{{ tenant }}`, `{{ requestId }}`, `{{ faker.uuid }}`, `{{ now.iso }}`, `{{ env.X }}`, etc. Same rules as response bodies, with one caveat: webhook bodies are rendered as strings (no type-preservation for JSON leaves yet — that's a v0.2 enhancement).
+URL, body, and header values support the existing Mockstar template engine — `{{ request.body.x }}`, `{{ tenant }}`, `{{ requestId }}`, `{{ faker.uuid }}`, `{{ now.iso }}`, `{{ env.X }}`, etc. Same rules as response bodies, with one caveat: in an object body every templated value renders as a string, so `"{{ faker.integer(1, 5) }}"` sends `"3"`, not `3` (no type preservation yet). Non-templated numbers, booleans and `null` are sent as written, and rendered values are JSON-escaped. Tokens with quoted arguments, such as `{{ id("evt_", 14) }}`, work in object bodies since 0.6.1 (#56).
 
 ## Signing (HMAC-SHA256)
 

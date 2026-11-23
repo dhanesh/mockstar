@@ -36,8 +36,6 @@ function entries(url: string): Entry[] {
       webhooks: [
         webhookSpec({
           url,
-          // String body: an object body is JSON.stringify'd before compiling, which escapes the
-          // quotes inside `id("evt_", 14)` and breaks the token (separate, pre-existing bug).
           body: '{"evt":"{{id("evt_", 14)}}","uuid":"{{faker.uuid}}"}',
           headers: { "content-type": "application/json" },
         }),
