@@ -115,6 +115,11 @@ export interface WebhookJournalEntry {
   webhookId: string;
   /** Inbound request id that triggered the delivery (U4 linkage; RT-15). */
   triggerRequestId: string;
+  /**
+   * Deterministic mode only: the triggering mock entry's hit number, which seeds the payload's
+   * faker and `{{id()}}` values. Replay re-renders with it so the payload is reproduced (#53).
+   */
+  triggerSeq?: number;
   /** 1-indexed attempt counter; final entry has attempt === total. */
   attempt: number;
   outcome: DeliveryOutcome;

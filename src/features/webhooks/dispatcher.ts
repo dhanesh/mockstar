@@ -45,6 +45,8 @@ export interface DispatcherTriggerInput {
   matchPath: string;
   /** The inbound request id (RT-15 — links inbound request to outbound deliveries). */
   triggerRequestId: string;
+  /** Deterministic hit number that seeded `templateContext`; journaled for replay (#53). */
+  triggerSeq?: number;
   /** Mock-entry id whose match scheduled these webhooks (used for journal entry → spec lookup at replay time, INT-2). */
   entryId: string;
   /** Webhook specs attached to the matched mock entry (post-config-load compiled form). */
@@ -283,6 +285,7 @@ function recordAttempt(
     entryId: input.entryId,
     webhookId: spec.id,
     triggerRequestId: input.triggerRequestId,
+    ...(input.triggerSeq !== undefined && { triggerSeq: input.triggerSeq }),
     attempt: record.attempt,
     outcome: record.outcome,
     durationUs: record.durationUs,

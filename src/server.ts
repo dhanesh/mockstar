@@ -193,6 +193,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
   const clock: Clock = createClock({ deterministic: opts.deterministic ?? false });
   const handlerTimeoutMs = opts.handlerTimeoutMs ?? 5_000;
   const genRequestId = createRequestIdGenerator(opts.deterministic ?? false);
+  const nextHit = createHitCounter(opts.deterministic ?? false);
 
   const app = new Hono();
 
@@ -210,16 +211,14 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     const spec = specs.find((s) => s.id === original.webhookId);
     if (!spec) return { ok: false, code: "webhook_spec_removed" };
 
+    // Re-seed with the original delivery's hit number so a deterministic replay reproduces it.
+    const replayHit = original.triggerSeq ?? 0;
     // Build a minimal template context. Replay uses the CURRENT snapshot's spec
     // and an EMPTY request snapshot — templates referencing request data render
     // as empty strings. Documented in DECISIONS.md INT-2.
     const replayCtx = {
       // Same scope as the original fan-out, so a deterministic replay re-renders the same values.
-      faker: fakerFor({
-        tenant,
-        endpoint: `${original.entryId}#webhooks`,
-        requestId: original.triggerRequestId,
-      }),
+      faker: fakerFor({ tenant, endpoint: `${original.entryId}#webhooks`, hit: replayHit }),
       request: { method: "GET", path: "/__replay", query: {}, headers: {}, body: null, params: {} },
       tenant,
       requestId: original.triggerRequestId,
@@ -227,8 +226,8 @@ export function createServer(opts: CreateServerOptions): RunningServer {
       idHelpers: createIdHelpers({
         deterministic: opts.deterministic ?? false,
         tenant,
-        endpoint: original.entryId,
-        requestCounter: 0,
+        endpoint: `${original.entryId}#webhooks`,
+        requestCounter: replayHit,
       }),
     };
 
@@ -245,6 +244,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
         tenant,
         matchPath: "/__replay", // synthetic path; admin-skip prefix-list is checked, this is safe
         triggerRequestId: original.triggerRequestId,
+        ...(original.triggerSeq !== undefined && { triggerSeq: original.triggerSeq }),
         entryId: original.entryId,
         webhooks: [spec],
         templateContext: replayCtx,
@@ -288,6 +288,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
       rateLimiter,
       handlerTimeoutMs,
       genRequestId,
+      nextHit,
       webhookJournal,
       webhookEvents,
       queueForTenant,
@@ -325,6 +326,8 @@ interface DispatchDeps {
   rateLimiter: TenantRateLimiter;
   handlerTimeoutMs: number;
   genRequestId: () => string;
+  /** Deterministic hit number per (tenant, mock entry); seeds faker and `{{id()}}` (#53). */
+  nextHit: (tenant: string, entryId: string) => number;
   // Webhook fan-out (T4: post-response microtask).
   webhookJournal: WebhookJournalRegistry;
   webhookEvents: DeliveryEventRegistry;
@@ -335,6 +338,7 @@ interface DispatchDeps {
 
 interface WebhookTrigger {
   entryId: string;
+  hit: number;
   webhooks: readonly CompiledWebhookSpec[];
   body: unknown;
   params: Record<string, string>;
@@ -466,11 +470,14 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
 
     // Webhook fan-out (T4: still in the post-response microtask, never on hot path).
     if (webhookTrigger) {
+      // Own `#webhooks` stream, seeded by the same hit number as the response (#53), so the
+      // response's draws never shift webhook values and each delivery gets fresh ids.
+      const webhookEndpoint = `${webhookTrigger.entryId}#webhooks`;
       const idHelpers = createIdHelpers({
         deterministic: deps.opts.deterministic ?? false,
         tenant,
-        endpoint: webhookTrigger.entryId,
-        requestCounter: 0,
+        endpoint: webhookEndpoint,
+        requestCounter: webhookTrigger.hit,
       });
       dispatchWebhooks(
         {
@@ -485,12 +492,12 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
           tenant,
           matchPath,
           triggerRequestId: requestId,
+          ...(deps.opts.deterministic && { triggerSeq: webhookTrigger.hit }),
           entryId: webhookTrigger.entryId,
           webhooks: webhookTrigger.webhooks,
           requestHeaders: new Map(Object.entries(webhookTrigger.headers)),
           templateContext: {
-            // Own stream (`#webhooks`) so the response's faker calls never shift webhook values.
-            faker: deps.fakerFor({ tenant, endpoint: `${webhookTrigger.entryId}#webhooks`, requestId }),
+            faker: deps.fakerFor({ tenant, endpoint: webhookEndpoint, hit: webhookTrigger.hit }),
             request: {
               method,
               path: matchPath,
@@ -560,8 +567,11 @@ async function routeToMock(
     };
   }
 
-  // One faker per request (TN8): its values depend on this request's identity only.
-  const faker = deps.fakerFor({ tenant, endpoint: hit.entry.id, requestId });
+  // Taken synchronously right after the match, before any await, so concurrent requests are
+  // numbered in arrival order. Only this entry's own traffic advances it (#53).
+  const seq = deps.nextHit(tenant, hit.entry.id);
+  // One faker per request (TN8): its values depend on this request's (tenant, entry, hit) only.
+  const faker = deps.fakerFor({ tenant, endpoint: hit.entry.id, hit: seq });
 
   // Webhook fan-out trigger info (T5). Built once; threaded through both scenario and main return paths.
   const compiledWebhooks = tenantSnap.compiledWebhooks.get(hit.entry.id) ?? [];
@@ -569,6 +579,7 @@ async function routeToMock(
     compiledWebhooks.length > 0
       ? {
           entryId: hit.entry.id,
+          hit: seq,
           webhooks: compiledWebhooks,
           body,
           params: hit.params,
@@ -601,6 +612,7 @@ async function routeToMock(
         deterministic: deps.opts.deterministic ?? false,
         tenant,
         requestId,
+        hit: seq,
         entryId: hit.entry.id,
         ctx,
         params: hit.params,
@@ -647,6 +659,7 @@ async function routeToMock(
         maxResponseBytes: tenantSnap.limits.maxResponseBytes,
         tenant,
         requestId,
+        hit: seq,
         body,
       });
       break;
@@ -731,6 +744,28 @@ async function safeParseBody(ctx: Context, maxBodyBytes: number): Promise<SafeBo
  * produce byte-identical IDs for matching request sequences (prevents flaky cross-launch replay
  * assertions).
  */
+/**
+ * Deterministic seed counter per (tenant, mock entry) — #53. The public request id is one
+ * counter for the whole server, so seeding from it made a tenant's fixtures depend on every
+ * other tenant's (and every other mock's) traffic. This counter only advances when THIS entry
+ * of THIS tenant is hit. Closure-scoped per server, like the request-id counter. Size is
+ * bounded by tenants × entries ever matched. Non-deterministic mode never reads the value.
+ */
+function createHitCounter(deterministic: boolean): (tenant: string, entryId: string) => number {
+  if (!deterministic) return (): number => 0;
+  const byTenant = new Map<string, Map<string, number>>();
+  return (tenant, entryId) => {
+    let byEntry = byTenant.get(tenant);
+    if (!byEntry) {
+      byEntry = new Map();
+      byTenant.set(tenant, byEntry);
+    }
+    const n = (byEntry.get(entryId) ?? 0) + 1;
+    byEntry.set(entryId, n);
+    return n;
+  };
+}
+
 function createRequestIdGenerator(deterministic: boolean): () => string {
   if (!deterministic) return (): string => crypto.randomUUID();
   let counter = 0;
