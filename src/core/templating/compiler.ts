@@ -7,7 +7,7 @@
 // Priority: binding — on hot path
 
 import type { Entry } from "../config/schema.ts";
-import type { FakerInstance } from "./faker.ts";
+import { type FakerInstance, isFakerMethod } from "./faker.ts";
 import type { IdHelpers } from "./tier2/id.ts";
 import { BASE62 } from "./tier2/id.ts";
 import type { Clock } from "./tier2/now.ts";
@@ -145,10 +145,16 @@ function parseToken(expr: string): TemplateOp {
   if (trimmed.startsWith("faker.")) {
     const rest = trimmed.slice("faker.".length);
     const parenIdx = rest.indexOf("(");
-    if (parenIdx === -1) {
-      return { kind: "faker", method: rest as keyof FakerInstance, args: [] };
+    const method = parenIdx === -1 ? rest : rest.slice(0, parenIdx);
+    // Allowlist, not a property lookup: `faker.constructor` / `faker.hasOwnProperty` must not
+    // reach Object.prototype, and a typo must render literally (like any unknown token)
+    // instead of throwing a TypeError on every request.
+    if (!isFakerMethod(method)) {
+      return { kind: "literal", value: `{{${expr}}}` };
     }
-    const method = rest.slice(0, parenIdx) as keyof FakerInstance;
+    if (parenIdx === -1) {
+      return { kind: "faker", method, args: [] };
+    }
     const argsSource = rest.slice(parenIdx + 1, rest.lastIndexOf(")"));
     const args = argsSource.trim() === "" ? [] : (JSON.parse(`[${argsSource}]`) as readonly unknown[]);
     return { kind: "faker", method, args };
