@@ -16,7 +16,7 @@ import {
   renderScenario,
   scenarioResponseForNonStatic,
 } from "./core/scenarios/merger.ts";
-import { type FakerInstance, createFaker } from "./core/templating/faker.ts";
+import { type FakerFactory, createFakerFactory } from "./core/templating/faker.ts";
 import { createIdHelpers } from "./core/templating/tier2/id.ts";
 import { type Clock, createClock } from "./core/templating/tier2/now.ts";
 import { effectivePath, tenantMiddleware } from "./core/tenancy/index.ts";
@@ -188,7 +188,8 @@ export function createServer(opts: CreateServerOptions): RunningServer {
       ? installProcessHandlers({ logger, setReady: ready.set })
       : (): void => undefined;
 
-  const faker: FakerInstance = createFaker({ deterministic: opts.deterministic ?? false });
+  // Per-request faker streams (TN8) — see createFakerFactory.
+  const fakerFor: FakerFactory = createFakerFactory({ deterministic: opts.deterministic ?? false });
   const clock: Clock = createClock({ deterministic: opts.deterministic ?? false });
   const handlerTimeoutMs = opts.handlerTimeoutMs ?? 5_000;
   const genRequestId = createRequestIdGenerator(opts.deterministic ?? false);
@@ -213,7 +214,12 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     // and an EMPTY request snapshot — templates referencing request data render
     // as empty strings. Documented in DECISIONS.md INT-2.
     const replayCtx = {
-      faker,
+      // Same scope as the original fan-out, so a deterministic replay re-renders the same values.
+      faker: fakerFor({
+        tenant,
+        endpoint: `${original.entryId}#webhooks`,
+        requestId: original.triggerRequestId,
+      }),
       request: { method: "GET", path: "/__replay", query: {}, headers: {}, body: null, params: {} },
       tenant,
       requestId: original.triggerRequestId,
@@ -275,7 +281,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
     dispatch(ctx, {
       opts,
       logger,
-      faker,
+      fakerFor,
       clock,
       journal,
       metrics,
@@ -312,7 +318,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
 interface DispatchDeps {
   opts: CreateServerOptions;
   logger: StructuredLogger;
-  faker: FakerInstance;
+  fakerFor: FakerFactory;
   clock: Clock;
   journal: JournalRegistry;
   metrics: Metrics;
@@ -483,7 +489,8 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
           webhooks: webhookTrigger.webhooks,
           requestHeaders: new Map(Object.entries(webhookTrigger.headers)),
           templateContext: {
-            faker: deps.faker,
+            // Own stream (`#webhooks`) so the response's faker calls never shift webhook values.
+            faker: deps.fakerFor({ tenant, endpoint: `${webhookTrigger.entryId}#webhooks`, requestId }),
             request: {
               method,
               path: matchPath,
@@ -553,6 +560,9 @@ async function routeToMock(
     };
   }
 
+  // One faker per request (TN8): its values depend on this request's identity only.
+  const faker = deps.fakerFor({ tenant, endpoint: hit.entry.id, requestId });
+
   // Webhook fan-out trigger info (T5). Built once; threaded through both scenario and main return paths.
   const compiledWebhooks = tenantSnap.compiledWebhooks.get(hit.entry.id) ?? [];
   const webhookTrigger: WebhookTrigger | undefined =
@@ -586,7 +596,7 @@ async function routeToMock(
     if (scenarioMatch) {
       scenarioId = scenarioMatch.id;
       const scenarioRenderOpts = {
-        faker: deps.faker,
+        faker,
         clock: deps.clock,
         deterministic: deps.opts.deterministic ?? false,
         tenant,
@@ -631,7 +641,7 @@ async function routeToMock(
         compiled,
         ctx,
         params: hit.params,
-        faker: deps.faker,
+        faker,
         clock: deps.clock,
         deterministic: deps.opts.deterministic ?? false,
         maxResponseBytes: tenantSnap.limits.maxResponseBytes,
@@ -648,7 +658,7 @@ async function routeToMock(
         registry: snapshot.handlers,
         tenant,
         requestId,
-        faker: deps.faker,
+        faker,
         boundary: { logger: deps.logger, timeoutMs: deps.handlerTimeoutMs },
       });
       break;

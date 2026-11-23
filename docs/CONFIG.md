@@ -80,7 +80,7 @@ Supported tokens inside `{{ … }}` expressions (compiled at load time — RT-6.
 | `{{faker.integer(min, max)}}` | Random integer in `[min, max]` |
 | `{{faker.pick(["a","b"])}}` | Random element from the array |
 | `{{faker.boolean}}` | `true` or `false` |
-| `{{faker.dateIso}}` | Random recent date as ISO 8601 string |
+| `{{faker.dateIso}}` | Random recent date as ISO 8601 string (in deterministic mode: a fixed date in the 24 h before 2026-01-01T00:00:00Z) |
 | `{{id("prefix_", 14)}}` | Opaque ID: prefix + 14 base62 chars |
 | `{{id("prefix_", 14, "abc…")}}` | Same with a custom alphabet |
 | `{{id.named("key", "prefix_", 14)}}` | Mint once per request per name; repeated calls with the same key return the same value |

@@ -17,7 +17,7 @@ export interface ClockOptions {
   fixedEpochMs?: number;
 }
 
-const DEFAULT_FIXED_EPOCH_MS = Date.UTC(2026, 0, 1, 0, 0, 0);
+export const DEFAULT_FIXED_EPOCH_MS = Date.UTC(2026, 0, 1, 0, 0, 0);
 
 export function createClock(opts: ClockOptions): Clock {
   if (opts.deterministic) {

@@ -57,6 +57,41 @@ The faker templates (`{{faker.name}}`, `{{faker.uuid}}`) seed from a
 deterministic RNG when the flag is on. Without it, `{{faker.uuid}}` changes
 on every run and test assertions that compare against fixtures will flake.
 
+### What "deterministic" guarantees
+
+- **Same mockstar version, same request sequence → same output.** mockstar
+  bundles a pinned `@faker-js/faker`, so your own lockfile does not change the
+  values.
+- **Each request has its own faker stream**, seeded from the tenant, the mock
+  entry and the request id. A request's values do not depend on the templates
+  of other mocks or on how many faker calls earlier requests made. Webhooks get
+  a separate stream, and a webhook replay re-renders the original values.
+- **Arrival order still matters.** Deterministic request ids are a counter
+  (`req-00000001`, `req-00000002`, ...) shared by all tenants. If parallel
+  tests send requests in a different order, each request gets a different id
+  and different values. For stable fixtures, send requests one at a time, or
+  start one mockstar per test file.
+- **Not across mockstar versions that change the bundled faker.** Faker does
+  not keep seeded output stable between its releases. When mockstar upgrades
+  faker, the release notes say so, and you must regenerate committed fixtures.
+- `{{faker.dateIso}}` does not follow the wall clock in deterministic mode. It
+  returns a fixed date in the 24 hours before `2026-01-01T00:00:00Z`, which is
+  the same epoch as `{{now.iso}}`. Expect a 2025 date in fixtures.
+
+### Upgrading to 0.5.0: regenerate deterministic fixtures
+
+0.5.0 changes every deterministic `{{faker.*}}` value, for two reasons:
+
+1. faker moves from 9 to 10 (CVE-2026-73231, see #50). faker 10 returns
+   different values for the same seed.
+2. Each request now uses its own faker stream, not one stream shared by the
+   whole server.
+
+Before 0.5.0, `dateIso` changed on every run, so assertions on it could not
+have been stable. Regenerate any fixture that was recorded with
+`deterministic: true` or `MOCKSTAR_DETERMINISTIC=1`. `{{id()}}` and `{{now.*}}`
+values do not change.
+
 ## Framework-specific gotchas
 
 ### Jest 30

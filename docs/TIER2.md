@@ -32,7 +32,7 @@ All tokens work in both `response.body` string values and `response.headers` val
 | `{{faker.integer(min, max)}}` | Random integer in `[min, max]` |
 | `{{faker.pick(["a","b"])}}` | Random element from the array |
 | `{{faker.boolean}}` | `true` or `false` |
-| `{{faker.dateIso}}` | Random recent date as ISO 8601 string |
+| `{{faker.dateIso}}` | Random recent date as ISO 8601 string (in deterministic mode: a fixed date in the 24 h before 2026-01-01T00:00:00Z) |
 
 ## Type preservation
 
