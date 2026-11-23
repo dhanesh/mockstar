@@ -567,8 +567,10 @@ async function routeToMock(
     };
   }
 
-  // Taken synchronously right after the match, before any await, so concurrent requests are
-  // numbered in arrival order. Only this entry's own traffic advances it (#53).
+  // Taken synchronously right after the match, so no await sits between read and increment.
+  // Concurrent requests to one entry are numbered in the order they get here (after their
+  // bodies are read), which is not guaranteed to be send order. Only this entry's traffic
+  // advances it (#53).
   const seq = deps.nextHit(tenant, hit.entry.id);
   // One faker per request (TN8): its values depend on this request's (tenant, entry, hit) only.
   const faker = deps.fakerFor({ tenant, endpoint: hit.entry.id, hit: seq });

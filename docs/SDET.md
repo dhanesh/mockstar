@@ -76,7 +76,8 @@ on every run and test assertions that compare against fixtures will flake.
   response that triggered them, so each delivery gets new `{{id()}}` values.
   A webhook replay re-renders the original values.
 - **`{{requestId}}` is not per mock.** The request id (`req-00000001`, ...) in
-  templates, the journal and logs counts all requests to the server. Do not
+  templates, handler `helpers.requestId`, the journal and logs counts all
+  requests to the server. Do not
   assert on it in fixtures that must not depend on other traffic.
 - **Not across mockstar versions that change the bundled faker.** Faker does
   not keep seeded output stable between its releases. When mockstar upgrades

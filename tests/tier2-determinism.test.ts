@@ -3,9 +3,8 @@
 //
 // The two-server test below is the strongest e2e assertion: boot the server twice, drive the
 // same sequence of requests against both, and assert every response-body pair is identical.
-// Works because the server's requestId counter resets on each launch — so request N against
-// server A has the same seed as request N against server B, modulo the tenant+endpoint+req
-// hash that feeds createIdHelpers.
+// Works because the per-(tenant, mock entry) hit counters reset on each launch — so the Nth
+// hit of a mock on server A has the same seed as the Nth hit on server B (#53).
 
 import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
