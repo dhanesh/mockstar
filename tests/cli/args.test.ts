@@ -32,8 +32,8 @@ describe("#60 --help after a subcommand", () => {
   it("subprocess: serve --help and init --help print usage, exit 0, start nothing, write nothing", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "mockstar-help-"));
     for (const argv of [
-      ["serve", "--help"],
       ["init", "--help"],
+      ["serve", "--help"],
     ]) {
       const proc = Bun.spawn(["bun", CLI, ...argv], { cwd, stdout: "pipe", stderr: "pipe" });
       const timer = setTimeout(() => proc.kill(), 5000); // a started server would never exit

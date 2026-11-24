@@ -7,7 +7,11 @@
 // validated by the integration test (G3) and CI workflow (G1/G2).
 
 import { afterEach, describe, expect, it } from "bun:test";
-import { dispatchProxyCommand, resolveAllowInterpreterGrant } from "../src/features/proxy/cli.ts";
+import {
+  dispatchProxyCommand,
+  resolveAllowInterpreterGrant,
+  wantsProxyHelp,
+} from "../src/features/proxy/cli.ts";
 import {
   ALLOW_INTERPRETER_CAPABILITY_GRANT_ENV,
   ALLOW_INTERPRETER_CAPABILITY_GRANT_FLAG,
@@ -69,6 +73,29 @@ describe("dispatchProxyCommand — help and routing (G5)", () => {
     sink.restore();
     expect(code1).toBe(0);
     expect(code2).toBe(0);
+  });
+
+  // #60: `--help` after a proxy subcommand must print help, never run the subcommand
+  // (install can change the system trust store). Pure check, so install never runs here.
+  it("treats --help / -h after any subcommand as help", () => {
+    for (const argv of [
+      ["install", "--help"],
+      ["start", "-h"],
+      ["uninstall", "--help"],
+      ["reload", "-h"],
+    ]) {
+      expect(wantsProxyHelp(argv)).toBe(true);
+    }
+    expect(wantsProxyHelp(["install", "--force"])).toBe(false);
+    expect(wantsProxyHelp(["status"])).toBe(false);
+  });
+
+  it("`status --help` prints help instead of a status report", async () => {
+    sink = captureOutput();
+    const code = await dispatchProxyCommand(["status", "--help"]);
+    sink.restore();
+    expect(code).toBe(0);
+    expect(sink.stdout.join("")).toContain("mockstar proxy <subcommand>");
   });
 
   it("returns 2 and prints error on unknown subcommand", async () => {
