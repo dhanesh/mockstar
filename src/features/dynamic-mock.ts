@@ -51,6 +51,8 @@ export async function renderDynamic(input: DynamicInput): Promise<Response> {
           name: (): string => input.faker.name(),
           integer: (min, max): number => input.faker.integer(min, max),
           pick: <T>(items: readonly T[]): T => input.faker.pick(items),
+          boolean: (): boolean => input.faker.boolean(),
+          dateIso: (): string => input.faker.dateIso(),
         },
       }),
     input.boundary,

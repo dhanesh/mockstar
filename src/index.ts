@@ -90,6 +90,12 @@ export async function launch(opts: LaunchOptions): Promise<Launched> {
 }
 
 export type { RunningServer, CreateServerOptions } from "./server.ts";
+
+// Handler authoring (#61): type handlers with the real helper shape, and build the same faker
+// a handler receives (`createFaker({ deterministic: true, seed })`) for unit tests.
+export type { MockHandler, HandlerHelpers, FakerBundle } from "./core/handlers/index.ts";
+export { createFaker } from "./core/templating/faker.ts";
+export type { FakerInstance } from "./core/templating/faker.ts";
 export { SnapshotHolder } from "./core/config/index.ts";
 
 // Receiver-side verification surface (docs/webhooks/SECURITY.md promises these are reachable

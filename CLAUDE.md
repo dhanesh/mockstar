@@ -120,6 +120,8 @@ See `docs/SDET.md` for options and what `deterministic` guarantees.
 
 **Multi-tenancy**: each tenant is an isolated directory. Tenancy modes (default `["path", "header"]`): path `/t/<tenant>/...`, header `X-Mockstar-Tenant: <tenant>`, or subdomain. With no tenant, requests go to `default`.
 
+**Handler types**: from 0.7.0 the package exports `MockHandler`, `HandlerHelpers` and `createFaker` (see `docs/HANDLERS.md`).
+
 ## Gotchas
 
 - `bun run build` must precede `bun run build:binary` — binaries are built from `dist/`, not `src/`

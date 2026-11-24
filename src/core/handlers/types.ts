@@ -22,6 +22,9 @@ export interface FakerBundle {
   name(): string;
   integer(min: number, max: number): number;
   pick<T>(items: readonly T[]): T;
+  boolean(): boolean;
+  /** ISO-8601 timestamp; deterministic mode pins it to the fixed clock's day. */
+  dateIso(): string;
 }
 
 export interface HandlerRegistry {

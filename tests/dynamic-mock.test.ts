@@ -216,3 +216,20 @@ describe("renderDynamic — guard", () => {
     await expect(renderDynamic(input)).rejects.toThrow(/non-dynamic entry 'static-1'/);
   });
 });
+
+// #61 — handler helpers are part of the public API: typed, and with every faker method the
+// `{{faker.*}}` allowlist has (boolean and dateIso were missing from the handler bundle).
+describe("#61 public handler API", () => {
+  it("the package entry exports createFaker, and handlers get boolean() and dateIso()", async () => {
+    const pkg = await import("../src/index.ts");
+    expect(typeof pkg.createFaker).toBe("function");
+    const typed: import("../src/index.ts").MockHandler = (_ctx, helpers) =>
+      Response.json({ b: helpers.faker.boolean(), d: helpers.faker.dateIso() });
+    const res = await renderDynamic(
+      makeInput({ entry: dynamicEntry("t"), registry: registryOf({ t: typed }) }),
+    );
+    const body = (await res.json()) as { b: unknown; d: string };
+    expect(typeof body.b).toBe("boolean");
+    expect(Number.isNaN(Date.parse(body.d))).toBe(false);
+  });
+});

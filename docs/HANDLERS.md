@@ -7,16 +7,10 @@ Dynamic mocks delegate to named functions in the `handlers/` directory. Each fil
 ```ts
 // handlers/echo.ts
 import type { Context } from 'hono';
+import type { HandlerHelpers } from '@dhaneshpurohit/mockstar'; // exported from 0.7.0
 
-// The package does not export a helper type yet, so declare the part you use.
-// At runtime `helpers` is { tenant, requestId, faker }, and faker has the same
-// methods as the `{{faker.*}}` tokens: uuid, email, name, integer, pick, boolean, dateIso.
-type HandlerHelpers = {
-  tenant: string;
-  requestId: string;
-  faker: { uuid(): string; email(): string; name(): string; integer(min: number, max: number): number };
-};
-
+// `helpers` is { tenant, requestId, faker }. faker has the same methods as the
+// `{{faker.*}}` tokens: uuid, email, name, integer, pick, boolean, dateIso.
 export async function echo(ctx: Context, helpers: HandlerHelpers): Promise<Response> {
   const body = await ctx.req.json().catch(() => ({}));
   return Response.json({
@@ -45,18 +39,24 @@ Reference it in config:
 
 ## Testing a handler in isolation
 
+Before 0.7.0 the package exported neither `HandlerHelpers` nor `createFaker`: declare the
+helper type yourself and pass a stub faker.
+
 ```ts
-import { describe, it, expect } from 'bun:test';
+import { it, expect } from 'bun:test';
+import { createFaker } from '@dhaneshpurohit/mockstar'; // exported from 0.7.0
 import { echo } from './echo.ts';
 
 it('echoes the request body', async () => {
-  // A fixed stub keeps the assertion stable. (The package does not export its faker factory.)
-  const faker = { uuid: () => 'uuid-1', email: () => 'a@b.c', name: () => 'Ann', integer: (min: number) => min };
-  const helpers = { tenant: 't1', requestId: 'r1', faker };
+  // The same faker a handler gets. A fixed seed keeps the values stable.
+  const helpers = { tenant: 't1', requestId: 'r1', faker: createFaker({ deterministic: true, seed: 1 }) };
   const ctx = {
     req: { json: async () => ({ hello: 'world' }) },
   } as unknown as Parameters<typeof echo>[0];
   const res = await echo(ctx, helpers);
   expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.echoed).toEqual({ hello: 'world' });
+  expect(body.id).toBe(createFaker({ deterministic: true, seed: 1 }).uuid());
 });
 ```
