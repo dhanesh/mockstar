@@ -84,14 +84,22 @@ on every run and test assertions that compare against fixtures will flake.
   of test order, give it its own tenant or its own mockstar.
 - **`{{requestId}}` is not per mock.** The request id (`req-00000001`, ...) in
   templates, handler `helpers.requestId`, the journal and logs counts all
-  requests to the server. Do not
-  assert on it in fixtures that must not depend on other traffic.
+  requests to the server. The webhook delivery id (`dlv-00000001`, ...) in
+  `X-Mockstar-Delivery-Id` counts all deliveries the same way. Do not
+  assert on either in fixtures that must not depend on other traffic.
 - **Not across mockstar versions that change the bundled faker.** Faker does
   not keep seeded output stable between its releases. When mockstar upgrades
   faker, the release notes say so, and you must regenerate committed fixtures.
 - `{{faker.dateIso}}` does not follow the wall clock in deterministic mode. It
   returns a fixed date in the 24 hours before `2026-01-01T00:00:00Z`, which is
   the same epoch as `{{now.iso}}`. Expect a 2025 date in fixtures.
+
+### Upgrading to 0.6.2: webhook delivery id header
+
+`X-Mockstar-Delivery-Id` is now one id per delivery (#59). In deterministic mode
+it changes from `req-NNNNNNNN` to `dlv-NNNNNNNN`; regenerate fixtures that
+recorded it. The request id is now in `X-Mockstar-Request-Id`. See
+[Delivery headers](webhooks/README.md#delivery-headers).
 
 ### Upgrading to 0.6.0: regenerate deterministic fixtures
 

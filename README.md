@@ -171,7 +171,7 @@ Capabilities at a glance:
 | | |
 |---|---|
 | **Configuration channels** | Per-route `url`, `{{ env.NAME }}` interpolation, admin API, opt-in `X-Mockstar-Webhook-Url` request header (gated by `--allow-webhook-url-header`) |
-| **Delivery contract** | At-least-once within queue + circuit bounds, exponential backoff with jitter (default `[1s, 2s, 4s, 8s, 16s]`), `X-Mockstar-Delivery-Id` header (currently the triggering request id: stable across retries, but shared by every webhook that one request fires, so do not deduplicate on it alone) |
+| **Delivery contract** | At-least-once within queue + circuit bounds, exponential backoff with jitter (default `[1s, 2s, 4s, 8s, 16s]`), `X-Mockstar-Delivery-Id` header (one id per delivery, the same on its retries; a replay gets a new one) and `X-Mockstar-Request-Id` (the triggering request). See [Delivery headers](docs/webhooks/README.md#delivery-headers) |
 | **Signing** | Opt-in HMAC-SHA256 with a **configurable wire format** — `signedPayload` (bytes signed) and `signatureTemplate` (header value) are independent, plus `digestEncoding: hex \| base64`. Ships verified shapes for GitHub, Slack, Stripe, Shopify and Razorpay. Secrets via `{{ env.X }}` or `file:/path` (inline rejected at config-load) |
 | **Request caps** | Per-tenant `maxBodyBytes` (413, enforced on the byte stream so chunked encoding can't bypass it) and `requestsPerSecond` (429 + `Retry-After`, token bucket so bursts aren't punished; default 10,000/s) |
 | **Reliability** | Per-webhook circuit breaker, drop-oldest queue cap, per-attempt `AbortSignal.timeout`, optional `expectResponse: { status, body }` body assertion |

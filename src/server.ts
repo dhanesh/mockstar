@@ -194,6 +194,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
   const clock: Clock = createClock({ deterministic: opts.deterministic ?? false });
   const handlerTimeoutMs = opts.handlerTimeoutMs ?? 5_000;
   const genRequestId = createRequestIdGenerator(opts.deterministic ?? false);
+  const nextDeliveryId = createDeliveryIdGenerator(opts.deterministic ?? false);
   const nextHit = createHitCounter(opts.deterministic ?? false);
 
   const app = new Hono();
@@ -242,6 +243,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
         queueForTenant,
         circuitFor,
         allowWebhookUrlHeader,
+        nextDeliveryId,
       },
       {
         tenant,
@@ -292,6 +294,7 @@ export function createServer(opts: CreateServerOptions): RunningServer {
       handlerTimeoutMs,
       genRequestId,
       nextHit,
+      nextDeliveryId,
       webhookJournal,
       webhookEvents,
       queueForTenant,
@@ -329,6 +332,8 @@ interface DispatchDeps {
   rateLimiter: TenantRateLimiter;
   handlerTimeoutMs: number;
   genRequestId: () => string;
+  /** Per-delivery webhook id: `dlv-NNNNNNNN` in deterministic mode, else a UUID (#59). */
+  nextDeliveryId: () => string;
   /** Deterministic hit number per (tenant, mock entry); seeds faker and `{{id()}}` (#53). */
   nextHit: (tenant: string, entryId: string) => number;
   // Webhook fan-out (T4: post-response microtask).
@@ -481,6 +486,7 @@ async function dispatch(ctx: Context, deps: DispatchDeps): Promise<Response> {
           queueForTenant: deps.queueForTenant,
           circuitFor: deps.circuitFor,
           allowWebhookUrlHeader: deps.allowWebhookUrlHeader,
+          nextDeliveryId: deps.nextDeliveryId,
         },
         {
           tenant,
@@ -803,5 +809,19 @@ function createRequestIdGenerator(deterministic: boolean): () => string {
   return (): string => {
     counter += 1;
     return `req-${counter.toString().padStart(8, "0")}`;
+  };
+}
+
+/**
+ * Per-server webhook delivery-id generator (#59). Same shape as the request-id generator: a
+ * counter in deterministic mode, so `X-Mockstar-Delivery-Id` is reproducible for the same
+ * traffic, and a UUID otherwise. Like request ids, the counter is shared by all tenants.
+ */
+function createDeliveryIdGenerator(deterministic: boolean): () => string {
+  if (!deterministic) return (): string => crypto.randomUUID();
+  let counter = 0;
+  return (): string => {
+    counter += 1;
+    return `dlv-${counter.toString().padStart(8, "0")}`;
   };
 }

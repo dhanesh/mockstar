@@ -37,6 +37,12 @@ export interface DispatcherDeps {
   circuitFor: (tenant: string, webhookId: string, spec: CompiledWebhookSpec) => CircuitBreaker;
   /** Server-level flag: --allow-webhook-url-header (B5, TN5). When false, header URL is ignored. */
   allowWebhookUrlHeader: boolean;
+  /**
+   * Mints the per-delivery id (journal key, replay key, `X-Mockstar-Delivery-Id`). The server
+   * injects a counter in deterministic mode (`dlv-00000001`, ...) and a UUID otherwise (#59).
+   * Defaults to a UUID for callers that do not care.
+   */
+  nextDeliveryId?: () => string;
 }
 
 export interface DispatcherTriggerInput {
@@ -84,7 +90,7 @@ export function dispatchWebhooks(deps: DispatcherDeps, input: DispatcherTriggerI
   const enqueued: string[] = [];
 
   for (const spec of input.webhooks) {
-    const deliveryId = makeDeliveryId();
+    const deliveryId = deps.nextDeliveryId?.() ?? crypto.randomUUID();
     enqueued.push(deliveryId);
 
     const breaker = deps.circuitFor(input.tenant, spec.id, spec);
@@ -104,7 +110,7 @@ export function dispatchWebhooks(deps: DispatcherDeps, input: DispatcherTriggerI
           breaker.metricValue(),
         );
       },
-      attempt: () => performAttempt(spec, input, deps),
+      attempt: () => performAttempt(spec, input, deps, deliveryId),
       onAttempt: (record) => recordAttempt(record, spec, input, deps, deliveryId),
       onTerminal: (summary) => {
         deps.events.publish(summary);
@@ -132,6 +138,7 @@ async function performAttempt(
   spec: CompiledWebhookSpec,
   input: DispatcherTriggerInput,
   _deps: DispatcherDeps,
+  deliveryId: string,
 ): Promise<{ httpStatus: number; durationUs: number; resolvedUrl: string }> {
   const attemptStart = performance.now();
   // Fresh per attempt: retries and replays draw the same values in the same order.
@@ -196,9 +203,15 @@ async function performAttempt(
     }
   }
 
-  // Idempotency-id header — same deliveryId across all retries (B3).
+  // Idempotency-id header: this delivery's own id, the same across its retries (B3) and
+  // distinct for every other delivery, including other webhooks of the same request (#59).
+  // A replay is a new delivery with a new id. The triggering request id goes in its own header.
+  // A value the spec sets wins for both.
   if (!renderedHeaders.has("x-mockstar-delivery-id")) {
-    renderedHeaders.set("x-mockstar-delivery-id", input.triggerRequestId);
+    renderedHeaders.set("x-mockstar-delivery-id", deliveryId);
+  }
+  if (!renderedHeaders.has("x-mockstar-request-id")) {
+    renderedHeaders.set("x-mockstar-request-id", input.triggerRequestId);
   }
 
   // Per-attempt timeout via AbortSignal.timeout (T8, RT-16).
@@ -310,9 +323,4 @@ function recordAttempt(
     { tenant: input.tenant, webhook: spec.id },
     record.durationUs,
   );
-}
-
-function makeDeliveryId(): string {
-  // Random UUID is fine — not on a hot enough path to need a counter.
-  return crypto.randomUUID();
 }
