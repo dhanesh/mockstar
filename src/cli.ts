@@ -165,7 +165,7 @@ async function main(): Promise<number> {
     for (const path of result.skipped) {
       process.stdout.write(`skipped ${path} (already exists; pass --force to overwrite)\n`);
     }
-    process.stdout.write("\nNext: bunx mockstar ./mocks\n");
+    process.stdout.write("\nNext: bunx @dhaneshpurohit/mockstar ./mocks\n");
     return 0;
   }
 
@@ -264,7 +264,7 @@ function usage(): string {
     "mockstar <command> [options]",
     "",
     "Commands:",
-    "  init [dir]                  Scaffold a starter mocks/ + mockstar.config.json",
+    "  init [dir]                  Scaffold a starter mocks/default/example.json",
     "  serve [config-root]         Start the mock server (default command)",
     "  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON",
     "  enhance <mocks-dir>         Rewrite imported mocks with Tier 2 placeholders",

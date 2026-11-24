@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { minorTagFromVersion, runInit } from "../../src/cli/commands/init.ts";
@@ -20,13 +20,20 @@ describe("mockstar init", () => {
     expect(minorTagFromVersion("5")).toBe("v5.0");
   });
 
-  it("creates mocks/default/example.json + mockstar.config.json", async () => {
+  it("creates mocks/default/example.json and no mockstar.config.json (#62: nothing reads it)", async () => {
     const dir = await scratch();
     const result = await runInit({ dir, minorTag: "v0.1", force: false });
-    expect(result.created.length).toBe(2);
+    expect(result.created).toEqual([join(dir, "mocks", "default", "example.json")]);
     expect(result.skipped.length).toBe(0);
     expect(existsSync(join(dir, "mocks", "default", "example.json"))).toBe(true);
-    expect(existsSync(join(dir, "mockstar.config.json"))).toBe(true);
+    expect(existsSync(join(dir, "mockstar.config.json"))).toBe(false);
+  });
+
+  it("leaves an existing mockstar.config.json alone, even with --force", async () => {
+    const dir = await scratch();
+    await writeFile(join(dir, "mockstar.config.json"), "{}\n");
+    await runInit({ dir, minorTag: "v0.1", force: true });
+    expect(await readFile(join(dir, "mockstar.config.json"), "utf8")).toBe("{}\n");
   });
 
   it("the generated example.json validates against the MocksFile Zod schema", async () => {
@@ -54,14 +61,14 @@ describe("mockstar init", () => {
     await runInit({ dir, minorTag: "v0.1", force: false });
     const second = await runInit({ dir, minorTag: "v0.1", force: false });
     expect(second.created).toEqual([]);
-    expect(second.skipped.length).toBe(2);
+    expect(second.skipped.length).toBe(1);
   });
 
   it("--force overwrites existing files", async () => {
     const dir = await scratch();
     await runInit({ dir, minorTag: "v0.1", force: false });
     const second = await runInit({ dir, minorTag: "v0.2", force: true });
-    expect(second.created.length).toBe(2);
+    expect(second.created.length).toBe(1);
     const doc = JSON.parse(await readFile(join(dir, "mocks", "default", "example.json"), "utf8")) as {
       $schema: string;
     };
