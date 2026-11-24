@@ -41,7 +41,8 @@ jobs:
           bun link @dhaneshpurohit/mockstar
           bunx @dhaneshpurohit/mockstar init .
           test -f ./mocks/default/example.json
-          test -f ./mockstar.config.json
+          # init no longer writes mockstar.config.json: nothing reads it (#62).
+          test ! -e ./mockstar.config.json
           bunx @dhaneshpurohit/mockstar ./mocks --port 4017 &
           SERVER_PID=$!
           trap "kill ${SERVER_PID} 2>/dev/null || true" EXIT
