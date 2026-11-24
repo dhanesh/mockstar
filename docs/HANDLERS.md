@@ -22,6 +22,9 @@ export async function echo(ctx: Context, helpers: HandlerHelpers): Promise<Respo
 }
 ```
 
+`Context` comes from `hono`, which installs with mockstar. With pnpm (strict
+`node_modules`), add `hono` to your own dependencies to import its types.
+
 Reference it in config:
 
 ```jsonc
