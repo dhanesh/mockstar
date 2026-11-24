@@ -1,3 +1,10 @@
+## [0.6.1](https://github.com/dhanesh/mockstar/compare/v0.6.0...v0.6.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **webhooks:** allow quoted token arguments in object webhook bodies ([2079894](https://github.com/dhanesh/mockstar/commit/207989483d4f7389bd45a75bd18df648769d0305)), closes [#56](https://github.com/dhanesh/mockstar/issues/56)
+
 # [0.6.0](https://github.com/dhanesh/mockstar/compare/v0.5.0...v0.6.0) (2026-11-23)
 
 
