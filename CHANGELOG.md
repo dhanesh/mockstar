@@ -1,3 +1,10 @@
+## [0.6.2](https://github.com/dhanesh/mockstar/compare/v0.6.1...v0.6.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **webhooks:** give each delivery its own X-Mockstar-Delivery-Id ([16a9439](https://github.com/dhanesh/mockstar/commit/16a943966a46da341fb25eaaa807009de16ec878)), closes [#59](https://github.com/dhanesh/mockstar/issues/59)
+
 ## [0.6.1](https://github.com/dhanesh/mockstar/compare/v0.6.0...v0.6.1) (2026-11-24)
 
 
