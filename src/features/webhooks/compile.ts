@@ -12,11 +12,13 @@ import type { CompiledWebhookSpec } from "./types.ts";
  *
  * Body templating handles two shapes:
  *   - string body: compiled directly (whole-string rendering)
- *   - object/array body: serialised once at compile time with placeholder tokens
- *     intact, then compileTemplate'd as a string. This is sufficient for v0.x;
- *     it loses type-preservation for JSON bodies (numbers in templates render
- *     as strings) but matches T7's stated reuse of the existing engine.
- *     Type-preserving JSON bodies (renderCompiledJson) can be added later.
+ *   - object/array body: every string leaf (and object key) is compiled on its own and
+ *     the result is serialised with JSON.stringify at render time (#56). Compiling the
+ *     stringified body as one template escaped the quotes inside tokens such as
+ *     `{{id("evt_", 14)}}` and broke them. Leaves render in key order, so faker/id draws
+ *     happen in the same order as before. Rendered values are still strings (numbers in
+ *     templates render as "3"), and are now JSON-escaped. Type-preserving JSON bodies
+ *     (renderCompiledJson) remain a possible future change.
  */
 export function compileWebhookSpecs(entries: readonly Entry[]): Map<string, readonly CompiledWebhookSpec[]> {
   const map = new Map<string, readonly CompiledWebhookSpec[]>();
@@ -33,8 +35,7 @@ function compileOne(spec: WebhookSpecT): CompiledWebhookSpec {
 
   let body: CompiledTemplate | null = null;
   if (spec.body !== undefined && spec.body !== null) {
-    const bodyString = typeof spec.body === "string" ? spec.body : JSON.stringify(spec.body);
-    body = compileTemplate(bodyString);
+    body = typeof spec.body === "string" ? compileTemplate(spec.body) : compileJsonBody(spec.body);
   }
 
   const headers = new Map<string, CompiledTemplate>();
@@ -77,4 +78,44 @@ function compileOne(spec: WebhookSpecT): CompiledWebhookSpec {
     allowPrivateNetworks: spec.allowPrivateNetworks,
     acceptHeaderOverride: spec.acceptHeaderOverride,
   };
+}
+
+type BodyNode =
+  | { kind: "string"; template: CompiledTemplate }
+  | { kind: "literal"; value: unknown }
+  | { kind: "array"; items: BodyNode[] }
+  | { kind: "object"; entries: Array<[CompiledTemplate, BodyNode]> };
+
+function compileNode(value: unknown): BodyNode {
+  if (typeof value === "string") return { kind: "string", template: compileTemplate(value) };
+  if (Array.isArray(value)) return { kind: "array", items: value.map(compileNode) };
+  if (value !== null && typeof value === "object") {
+    return {
+      kind: "object",
+      entries: Object.entries(value).map(([k, v]) => [compileTemplate(k), compileNode(v)]),
+    };
+  }
+  return { kind: "literal", value };
+}
+
+/** Same traversal order as JSON.stringify, so token draws keep their pre-#56 order. */
+function renderNode(node: BodyNode, ctx: Parameters<CompiledTemplate["render"]>[0]): unknown {
+  switch (node.kind) {
+    case "string":
+      return node.template.render(ctx);
+    case "literal":
+      return node.value;
+    case "array":
+      return node.items.map((n) => renderNode(n, ctx));
+    case "object": {
+      const out: Record<string, unknown> = {};
+      for (const [key, child] of node.entries) out[key.render(ctx)] = renderNode(child, ctx);
+      return out;
+    }
+  }
+}
+
+function compileJsonBody(value: unknown): CompiledTemplate {
+  const root = compileNode(value);
+  return { render: (ctx) => JSON.stringify(renderNode(root, ctx)) };
 }

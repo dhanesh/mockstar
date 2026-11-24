@@ -16,13 +16,13 @@ All tokens work in both `response.body` string values and `response.headers` val
 | `{{request.path}}` | Full path of the inbound request |
 | `{{request.params.<name>}}` | Path parameter captured by `:name` in `match.path` (e.g. `/orders/:id`) |
 | `{{request.query.<name>}}` | URL query-string value |
-| `{{request.headers.<name>}}` | Request header value (case-insensitive lookup) |
+| `{{request.headers.<name>}}` | Request header value. Write `<name>` in lowercase (`{{request.headers.x-api-key}}`); `X-Api-Key` renders empty |
 | `{{request.body.<dot.path>}}` | Dot-path into the parsed JSON request body |
 | `{{tenant}}` | The tenant identifier the request was routed to |
-| `{{requestId}}` | Per-request UUID assigned by mockstar |
+| `{{requestId}}` | Request id assigned by mockstar: a UUID, or `req-00000001`, `req-00000002`, … (one counter per server) in deterministic mode |
 | `{{id("prefix_", 14)}}` | Mint an opaque ID with a prefix and base62 alphabet (14 random chars) |
 | `{{id("prefix_", 14, "0123456789abcdef")}}` | Mint an ID with a custom alphabet (hex shown here) |
-| `{{id.named("order_id", "", 17, "0-9A-Z")}}` | Mint once per request per name — repeated `id.named("order_id", …)` calls return the same value |
+| `{{id.named("order_id", "", 17, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")}}` | Mint once per request per name — repeated `id.named("order_id", …)` calls in the same response return the same value (a webhook renders separately and gets its own value) |
 | `{{now.unix}}` | Current time as Unix seconds (number) |
 | `{{now.millis}}` | Current time as Unix milliseconds (number) |
 | `{{now.iso}}` | Current time as ISO 8601 string |

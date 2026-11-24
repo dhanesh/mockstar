@@ -33,7 +33,7 @@ URL never moves once a release ships.
 When a minor bump breaks your mocks files, bring them current with:
 
 ```bash
-mockstar migrate --schema --from v0.1 --to v0.2 ./mocks
+mockstar migrate --schema ./mocks --from v0.1 --to v0.2   # add --dry-run to preview
 ```
 
 The subcommand rewrites the `$schema` field in every `*.json` under the given

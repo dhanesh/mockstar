@@ -63,6 +63,23 @@ bun run src/cli.ts ./examples/mocks
 
 A persona-specific deployment walkthrough lives in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
+### CLI reference
+
+```bash
+mockstar serve ./mocks [--port 3000] [--host 127.0.0.1] [--handlers ./handlers] \
+  [--deterministic] [--no-watch] [--allow-webhook-url-header] [--webhook-journal-file <path>]
+mockstar init [dir] | import <openapi> <out-dir> | enhance <tenant-dir> | migrate --schema <dir> --from vX.Y --to vX.Z
+mockstar help        # full list, including env vars
+```
+
+| Env (CLI only) | Effect |
+|---|---|
+| `MOCKSTAR_DETERMINISTIC=1` | Same as `--deterministic` |
+| `MOCKSTAR_ADMIN_TOKEN` | Enables the admin API; this root token opens `/metrics`. Tenant admin routes need the tenant's `adminToken` |
+| `MOCKSTAR_PORT`, `MOCKSTAR_HOST` | Listen address |
+
+Use `mockstar help` (not `mockstar serve --help`) to print the options.
+
 ## Config layout
 
 ```
@@ -96,7 +113,7 @@ Any string value inside `response.body` or `response.headers` can contain `{{ â€
 | Token | Value |
 |---|---|
 | `{{tenant}}` | Tenant identifier the request was routed to |
-| `{{requestId}}` | Per-request UUID assigned by mockstar |
+| `{{requestId}}` | Request id assigned by mockstar: a UUID, or `req-00000001`, `req-00000002`, â€¦ (one counter per server) in deterministic mode |
 
 ### Random data (faker)
 
@@ -126,7 +143,7 @@ Any string value inside `response.body` or `response.headers` can contain `{{ â€
 | `{{now.millis}}` | Current time as Unix milliseconds (number) |
 | `{{now.iso}}` | Current time as ISO 8601 string |
 
-In `--deterministic` mode (`MOCKSTAR_DETERMINISTIC=1`) all faker and `now.*` tokens return fixed seed-derived values so CI replays are byte-identical.
+In `--deterministic` mode (`MOCKSTAR_DETERMINISTIC=1` for the CLI, `launch({ deterministic: true })` for the library), `now.*` returns a fixed time (`2026-01-01T00:00:00Z`) and faker and `id()` values are seeded per tenant, mock and hit number, so CI replays are byte-identical. See [docs/SDET.md](./docs/SDET.md#what-deterministic-guarantees) for exactly what is and is not guaranteed.
 
 Full reference including type-preservation rules and worked examples: [docs/TIER2.md](./docs/TIER2.md).
 
@@ -154,7 +171,7 @@ Capabilities at a glance:
 | | |
 |---|---|
 | **Configuration channels** | Per-route `url`, `{{ env.NAME }}` interpolation, admin API, opt-in `X-Mockstar-Webhook-Url` request header (gated by `--allow-webhook-url-header`) |
-| **Delivery contract** | At-least-once within queue + circuit bounds, exponential backoff with jitter (default `[1s, 2s, 4s, 8s, 16s]`), idempotent `X-Mockstar-Delivery-Id` header |
+| **Delivery contract** | At-least-once within queue + circuit bounds, exponential backoff with jitter (default `[1s, 2s, 4s, 8s, 16s]`), `X-Mockstar-Delivery-Id` header (currently the triggering request id: stable across retries, but shared by every webhook that one request fires, so do not deduplicate on it alone) |
 | **Signing** | Opt-in HMAC-SHA256 with a **configurable wire format** â€” `signedPayload` (bytes signed) and `signatureTemplate` (header value) are independent, plus `digestEncoding: hex \| base64`. Ships verified shapes for GitHub, Slack, Stripe, Shopify and Razorpay. Secrets via `{{ env.X }}` or `file:/path` (inline rejected at config-load) |
 | **Request caps** | Per-tenant `maxBodyBytes` (413, enforced on the byte stream so chunked encoding can't bypass it) and `requestsPerSecond` (429 + `Retry-After`, token bucket so bursts aren't punished; default 10,000/s) |
 | **Reliability** | Per-webhook circuit breaker, drop-oldest queue cap, per-attempt `AbortSignal.timeout`, optional `expectResponse: { status, body }` body assertion |

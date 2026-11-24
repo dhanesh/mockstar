@@ -23,6 +23,9 @@ mockstar enhance <mocks-dir> --dry-run    # report what would change, no writes
 mockstar enhance <mocks-dir> --spec=api.json   # use a spec's field names as extra hints
 ```
 
+`<mocks-dir>` is a **tenant directory** (e.g. `mocks/default`), not the config root. The walk is
+non-recursive, so pointing it at `mocks/` prints `Enhanced 0/0 files` and changes nothing.
+
 ## The `_mockstarGenerated` boundary
 
 Every enhanced file gets a top-level sibling key `_mockstarGenerated` that records exactly what
@@ -39,7 +42,7 @@ was rewritten:
       {
         "entry": "create-order",
         "path": "body.id",
-        "token": "{{id(\"order_\", 14)}}",
+        "token": "{{id(\"order_\", 12)}}",
         "original": "order_abc123XYZ456"
       }
     ]

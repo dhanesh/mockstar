@@ -140,8 +140,9 @@ matters (TDD, mutation testing) and the suite is Bun-native.
 
 ## When NOT to use the library embed
 
-- You need multi-tenant tests with subdomain tenancy — easier to run
-  `bunx @dhaneshpurohit/mockstar` in a separate process and point `fetch` at it.
+- Note the reverse for subdomain tenancy: tenancy modes can only be set
+  through the library (`launch({ server: { tenancyModes: ["subdomain"] } })`).
+  The CLI always uses the default `["path", "header"]`.
 - You want to verify the full CLI contract — use the `mockstar` binary
   directly and assert on its network surface.
 

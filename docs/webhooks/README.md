@@ -7,14 +7,14 @@ Outbound webhook delivery for matched mock requests. Per-route configuration, HM
 ```json
 // mocks/default/orders.json
 {
-  "$schema": "https://schemas.mockstar.dev/v0.1/mock.json",
+  "$schema": "https://schemas.mockstar.dev/v0.6/mock.json",
   "mocks": [{
     "id": "orders-create",
     "match": { "method": "POST", "path": "/orders" },
     "response": { "kind": "static", "status": 201, "body": { "id": "{{ id(\"ord_\", 12) }}" } },
     "webhooks": [{
       "id": "order-created",
-      "url": "https://api.partner.com/hooks/order-created",
+      "url": "https://api.partner.example/hooks/order-created",
       "method": "POST",
       "headers": { "content-type": "application/json" },
       "body": { "orderId": "{{ request.body.orderId }}", "tenant": "{{ tenant }}" }
@@ -23,7 +23,25 @@ Outbound webhook delivery for matched mock requests. Per-route configuration, HM
 }
 ```
 
-When a `POST /orders` request matches this mock, Mockstar serves the 201 response immediately, then **after the response flushes** fires the webhook to `https://api.partner.com/hooks/order-created` with the templated body. Delivery runs on a per-tenant queue; retries follow `[1s, 2s, 4s, 8s, 16s] ±20%` with up to 6 attempts by default.
+When a `POST /orders` request matches this mock, Mockstar serves the 201 response immediately, then **after the response flushes** fires the webhook to `https://api.partner.example/hooks/order-created` with the templated body. Delivery runs on a per-tenant queue; retries follow `[1s, 2s, 4s, 8s, 16s] ±20%` with up to 6 attempts by default.
+
+Webhooks fire for every response of the entry, including a matched [scenario](../SCENARIOS.md) response.
+
+The webhook body is rendered separately from the response. `{{id()}}` and `{{id.named(...)}}`
+in a webhook mint new values: they do not repeat the response's ids. To put the same id in
+both, take it from the request (`{{request.body.orderId}}`, `{{request.params.id}}`) or use a literal.
+
+### Delivering to a local receiver
+
+The SSRF guard blocks `http://` and private/loopback addresses by default. For a receiver on
+`http://127.0.0.1` (typical in tests), set both on the webhook:
+
+```json
+{ "id": "to-test-receiver", "url": "http://127.0.0.1:4010/hooks", "allowHttp": true, "allowPrivateNetworks": true }
+```
+
+Without them the mock response is still served, but the delivery fails validation. The failure
+is visible only in the webhook journal (`outcome`, `error`), not in the response.
 
 ## URL configuration channels
 
@@ -36,7 +54,7 @@ In precedence order (highest first):
 
 ## Templating
 
-URL, body, and header values support the existing Mockstar template engine — `{{ request.body.x }}`, `{{ tenant }}`, `{{ requestId }}`, `{{ faker.uuid }}`, `{{ now.iso }}`, `{{ env.X }}`, etc. Same rules as response bodies, with one caveat: webhook bodies are rendered as strings (no type-preservation for JSON leaves yet — that's a v0.2 enhancement).
+URL, body, and header values support the existing Mockstar template engine — `{{ request.body.x }}`, `{{ tenant }}`, `{{ requestId }}`, `{{ faker.uuid }}`, `{{ now.iso }}`, `{{ env.X }}`, etc. Same rules as response bodies, with one caveat: in an object body every templated value renders as a string, so `"{{ faker.integer(1, 5) }}"` sends `"3"`, not `3` (no type preservation yet). Non-templated numbers, booleans and `null` are sent as written, and rendered values are JSON-escaped. Tokens with quoted arguments, such as `{{ id("evt_", 14) }}`, work in object bodies since 0.6.1 (#56).
 
 ## Signing (HMAC-SHA256)
 
@@ -121,7 +139,8 @@ should not additionally emit `x-mockstar-timestamp`.
 const stringToSign = `${req.headers['x-mockstar-timestamp']}.${rawBody}`;
 const expected = crypto.createHmac('sha256', SECRET).update(stringToSign).digest('hex');
 const provided = req.headers['x-mockstar-signature'].replace(/^sha256=/, '');
-if (!crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(provided, 'hex'))) reject();
+const a = Buffer.from(expected, 'hex'), b = Buffer.from(provided, 'hex');
+if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) reject(); // timingSafeEqual throws on length mismatch
 if (Date.now() - Number(req.headers['x-mockstar-timestamp']) > 300_000) reject();
 ```
 
@@ -157,7 +176,10 @@ Inline string secrets are **rejected at config-load**.
 | GET | `/__admin/tenants/:tenant/webhooks/await?id=<deliveryId>&timeoutMs=5000` | Block until delivery terminates |
 | POST | `/__admin/tenants/:tenant/webhooks/:deliveryId/replay` | Re-enqueue from journal |
 
-Auth: tenant-scope for all of these (`MOCKSTAR_ADMIN_TOKEN` + tenant token).
+Auth: the admin API must be enabled (CLI: set `MOCKSTAR_ADMIN_TOKEN`; library:
+`launch({ server: { adminEnabled: true } })`). Every endpoint above then needs
+`Authorization: Bearer <tenant adminToken>`, the `adminToken` from `mocks/<tenant>/tenant.json`.
+The root token is rejected here with 403 `root_token_cannot_access_tenant_scope`.
 
 ## Observability
 

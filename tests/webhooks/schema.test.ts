@@ -91,7 +91,7 @@ describe("MockEntry accepts webhooks[] as additive field (RT-8)", () => {
       id: "mock1",
       match: { path: "/api/x" },
       response: { kind: "static", status: 200, body: { ok: true } },
-      webhooks: [{ id: "wh1", url: "https://api.partner.com/hook" }],
+      webhooks: [{ id: "wh1", url: "https://api.partner.example/hook" }],
     });
     expect(entry.webhooks).toHaveLength(1);
   });
