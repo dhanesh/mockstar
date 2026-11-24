@@ -31,6 +31,27 @@ The webhook body is rendered separately from the response. `{{id()}}` and `{{id.
 in a webhook mint new values: they do not repeat the response's ids. To put the same id in
 both, take it from the request (`{{request.body.orderId}}`, `{{request.params.id}}`) or use a literal.
 
+### Delivery headers
+
+Every delivery carries two ids. A header with the same name in the webhook's `headers` wins.
+
+| Header | Value | Use it to |
+|---|---|---|
+| `X-Mockstar-Delivery-Id` | This delivery's id: the same on every retry of the delivery, different for every other delivery (also for other webhooks of the same request). It is the `deliveryId` in the webhook journal and in the `await` and `replay` admin endpoints. | Deduplicate retries; replay what you received |
+| `X-Mockstar-Request-Id` | The id of the request that triggered the webhook (the request journal's `requestId`) | Link a delivery to the request that caused it |
+
+In deterministic mode the delivery id is `dlv-00000001`, `dlv-00000002`, ... in the order the
+deliveries are queued, counted over all tenants. Otherwise it is a UUID.
+
+A replay is a new delivery: it gets a new delivery id (returned as `newDeliveryId`), so a
+receiver that deduplicates on `X-Mockstar-Delivery-Id` processes it. `X-Mockstar-Request-Id`
+stays the original request's id. To test that a receiver ignores a duplicate, send the same
+delivery id yourself, or set your own id header in the webhook's `headers`.
+
+> **Changed in 0.6.2 (#59).** Before, `X-Mockstar-Delivery-Id` was the triggering request id:
+> every webhook one request fired had the same value, and a replay repeated the original's
+> value. Receivers that read the request id from it should read `X-Mockstar-Request-Id`.
+
 ### Delivering to a local receiver
 
 The SSRF guard blocks `http://` and private/loopback addresses by default. For a receiver on
