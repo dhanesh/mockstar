@@ -67,7 +67,8 @@ A persona-specific deployment walkthrough lives in [docs/DEPLOYMENT.md](./docs/D
 
 ```bash
 mockstar serve ./mocks [--port 3000] [--host 127.0.0.1] [--handlers ./handlers] \
-  [--deterministic] [--no-watch] [--allow-webhook-url-header] [--webhook-journal-file <path>]
+  [--deterministic] [--no-watch] [--allow-webhook-url-header] [--webhook-journal-file <path>] \
+  [--tenancy-modes path,header,subdomain]
 mockstar init [dir] | import <openapi> <out-dir> | enhance <tenant-dir> | migrate --schema <dir> --from vX.Y --to vX.Z
 mockstar help        # full list, including env vars
 ```
@@ -77,6 +78,7 @@ mockstar help        # full list, including env vars
 | `MOCKSTAR_DETERMINISTIC=1` | Same as `--deterministic` |
 | `MOCKSTAR_ADMIN_TOKEN` | Enables the admin API; this root token opens `/metrics`. Tenant admin routes need the tenant's `adminToken` |
 | `MOCKSTAR_PORT`, `MOCKSTAR_HOST` | Listen address |
+| `MOCKSTAR_TENANCY_MODES` | Same as `--tenancy-modes`: a comma list of `path`, `header`, `subdomain`, tried in order (default `path,header`). The flag wins |
 
 `mockstar help`, or `--help` after any command, prints the options. (Before 0.7.0,
 `mockstar serve --help` started a server and `init --help` scaffolded files.)

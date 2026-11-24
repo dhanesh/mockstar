@@ -133,7 +133,7 @@ and `server: { adminEnabled: true, rootToken: "..." }` explicitly.
 |---|---|---|
 | `host` | `--host`, `MOCKSTAR_HOST` | `127.0.0.1` (S4) |
 | `port` | `--port`, `MOCKSTAR_PORT` | `3000` |
-| `tenancyModes` | none: library only (`launch({ server: { tenancyModes } })`) | `['path', 'header']` |
+| `tenancyModes` | `--tenancy-modes path,header,subdomain`, `MOCKSTAR_TENANCY_MODES` (from 0.7.0; before that, library only) | `['path', 'header']` |
 | `adminEnabled` | auto-`true` when `MOCKSTAR_ADMIN_TOKEN` is set | `false` |
 | `rootToken` | `MOCKSTAR_ADMIN_TOKEN` | unset |
 | `deterministic` | `--deterministic`, `MOCKSTAR_DETERMINISTIC=1` | `false` |

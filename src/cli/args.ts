@@ -1,6 +1,8 @@
 // CLI argument parsing and usage text. Kept apart from cli.ts, which runs main() on import,
 // so tests can call parseArgs directly (#60).
 
+import { TenancyMode, type TenancyModeT } from "../core/config/schema.ts";
+
 export interface ParsedArgs {
   command: "serve" | "import" | "enhance" | "migrate" | "init" | "proxy" | "help" | "version";
   proxyArgs?: readonly string[];
@@ -26,6 +28,10 @@ export interface ParsedArgs {
   allowWebhookUrlHeader?: boolean;
   // RT-10, T2: optional path for an append-only webhook delivery log (post-restart replay).
   webhookJournalFile?: string;
+  // #63: tenancy modes for serve (flag beats MOCKSTAR_TENANCY_MODES). Undefined = server default.
+  tenancyModes?: TenancyModeT[];
+  /** A usage error found while parsing; main() prints it and exits 2. */
+  error?: string;
 }
 
 /**
@@ -104,7 +110,24 @@ export function parseArgs(
     allowWebhookUrlHeader:
       serveArgv.includes("--allow-webhook-url-header") || env.MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER === "1",
     webhookJournalFile: getFlag(serveArgv, "--webhook-journal-file"),
+    ...parseTenancyModes(getFlag(serveArgv, "--tenancy-modes") ?? env.MOCKSTAR_TENANCY_MODES),
   };
+}
+
+/** #63: comma-separated tenancy modes, validated against the config schema's enum. */
+function parseTenancyModes(raw: string | undefined): Pick<ParsedArgs, "tenancyModes" | "error"> {
+  if (raw === undefined) return {};
+  const modes = raw
+    .split(",")
+    .map((m) => m.trim())
+    .filter((m) => m.length > 0);
+  if (modes.length === 0)
+    return { error: `--tenancy-modes needs at least one of: ${TenancyMode.options.join(", ")}` };
+  const bad = modes.filter((m) => !TenancyMode.safeParse(m).success);
+  if (bad.length > 0) {
+    return { error: `unknown tenancy mode ${bad.join(", ")} (use: ${TenancyMode.options.join(", ")})` };
+  }
+  return { tenancyModes: modes as TenancyModeT[] };
 }
 
 export function getFlag(args: readonly string[], name: string): string | undefined {
@@ -138,11 +161,14 @@ export function usage(): string {
     "  --no-watch                  Disable file-watch hot reload",
     "  --allow-webhook-url-header  Honour X-Mockstar-Webhook-Url request header (TN5; default off)",
     "  --webhook-journal-file <p>  Append-only log of webhook deliveries for post-restart replay",
+    "  --tenancy-modes <list>      Comma list of path, header, subdomain, tried in order",
+    "                              (default path,header; env: MOCKSTAR_TENANCY_MODES)",
     "  -h, --help                  Show this help (also after any command)",
     "",
     "Env:",
     "  MOCKSTAR_ADMIN_TOKEN                Root admin token (enables /metrics)",
     "  MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER   Set to 1 to honour the header URL channel (B5)",
+    "  MOCKSTAR_TENANCY_MODES              Same as --tenancy-modes",
     "",
   ].join("\n")}\n`;
 }

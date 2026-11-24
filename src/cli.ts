@@ -15,6 +15,10 @@ import { MOCKSTAR_VERSION } from "./version.ts";
 
 async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2), process.env);
+  if (args.error) {
+    process.stderr.write(`mockstar: ${args.error}\n`);
+    return 2;
+  }
 
   // O6 preflight — runs before any other work so version issues surface immediately.
   const pf = preflight();
@@ -128,6 +132,7 @@ async function main(): Promise<number> {
       port: args.port ?? 3000,
       adminEnabled,
       rootToken: process.env.MOCKSTAR_ADMIN_TOKEN,
+      ...(args.tenancyModes && { tenancyModes: args.tenancyModes }),
     },
   });
 

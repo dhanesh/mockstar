@@ -37,6 +37,15 @@ describe("tenantMiddleware", () => {
     expect(body.tenant).toBe("contoso");
   });
 
+  it("subdomain mode ignores IP-address hosts (127.0.0.1 is not tenant '127')", async () => {
+    const a = app(["subdomain", "header"]);
+    for (const url of ["http://127.0.0.1:3000/hello", "http://10.1.2.3/hello", "http://[::1]:3000/hello"]) {
+      const res = await a.request(url, { headers: { "x-mockstar-tenant": "acme" } });
+      const body = (await res.json()) as { tenant: string };
+      expect(body.tenant).toBe("acme");
+    }
+  });
+
   it('falls back to "default" tenant when none supplied (non-strict)', async () => {
     const a = app(["header"]);
     const res = await a.request("http://localhost/anywhere");
