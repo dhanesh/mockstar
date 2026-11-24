@@ -78,7 +78,8 @@ mockstar help        # full list, including env vars
 | `MOCKSTAR_ADMIN_TOKEN` | Enables the admin API; this root token opens `/metrics`. Tenant admin routes need the tenant's `adminToken` |
 | `MOCKSTAR_PORT`, `MOCKSTAR_HOST` | Listen address |
 
-Use `mockstar help` (not `mockstar serve --help`) to print the options.
+`mockstar help`, or `--help` after any command, prints the options. (Before 0.7.0,
+`mockstar serve --help` started a server and `init --help` scaffolded files.)
 
 ## Config layout
 

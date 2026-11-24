@@ -3,6 +3,7 @@
 // Satisfies: T4 (boot time target applies to this path)
 
 import { resolve } from "node:path";
+import { parseArgs, usage } from "./cli/args.ts";
 import { minorTagFromVersion, runInit } from "./cli/commands/init.ts";
 import { runMigrateSchema } from "./cli/commands/migrate.ts";
 import { preflight } from "./core/preflight.ts";
@@ -12,113 +13,8 @@ import { dispatchProxyCommand } from "./features/proxy/cli.ts";
 import { launch } from "./index.ts";
 import { MOCKSTAR_VERSION } from "./version.ts";
 
-interface ParsedArgs {
-  command: "serve" | "import" | "enhance" | "migrate" | "init" | "proxy" | "help" | "version";
-  proxyArgs?: readonly string[];
-  configRoot?: string;
-  handlersDir?: string;
-  port?: number;
-  host?: string;
-  specPath?: string;
-  outDir?: string;
-  tenantName?: string;
-  deterministic?: boolean;
-  watch?: boolean;
-  allowPrivate?: boolean;
-  enhanceDir?: string;
-  dryRun?: boolean;
-  migrateSchema?: boolean;
-  migrateFrom?: string;
-  migrateTo?: string;
-  migrateDir?: string;
-  initDir?: string;
-  force?: boolean;
-  // RT-10, B5: server flag that gates the X-Mockstar-Webhook-Url channel (TN5). Default false.
-  allowWebhookUrlHeader?: boolean;
-  // RT-10, T2: optional path for an append-only webhook delivery log (post-restart replay).
-  webhookJournalFile?: string;
-}
-
-function parseArgs(argv: readonly string[]): ParsedArgs {
-  const [head, ...rest] = argv;
-  if (!head || head === "--help" || head === "-h" || head === "help") return { command: "help" };
-  if (head === "--version" || head === "-v" || head === "version") return { command: "version" };
-  if (head === "proxy") {
-    return { command: "proxy", proxyArgs: rest };
-  }
-  if (head === "import") {
-    const specPath = rest[0];
-    const outDir = rest.find((r, i) => i > 0 && !r.startsWith("-")) ?? "./mocks";
-    return {
-      command: "import",
-      specPath,
-      outDir,
-      tenantName: rest.find((r) => r.startsWith("--tenant="))?.slice("--tenant=".length),
-      allowPrivate: rest.includes("--allow-private"),
-    };
-  }
-  if (head === "enhance") {
-    const enhanceDir = rest.find((r) => !r.startsWith("-"));
-    return {
-      command: "enhance",
-      enhanceDir,
-      specPath: getFlag(rest, "--spec"),
-      dryRun: rest.includes("--dry-run"),
-    };
-  }
-  if (head === "init") {
-    const initDir = rest.find((r) => !r.startsWith("-"));
-    return {
-      command: "init",
-      initDir: initDir ?? ".",
-      force: rest.includes("--force"),
-    };
-  }
-  if (head === "migrate") {
-    const migrateDir = rest.find((r) => !r.startsWith("-"));
-    return {
-      command: "migrate",
-      migrateSchema: rest.includes("--schema"),
-      migrateFrom: getFlag(rest, "--from"),
-      migrateTo: getFlag(rest, "--to"),
-      migrateDir,
-      dryRun: rest.includes("--dry-run"),
-    };
-  }
-  // serve — the default command. Accept it BOTH explicitly (`serve [config-root]`)
-  // and implicitly (`mockstar ./mocks`). When the `serve` keyword is present, strip it
-  // so the first remaining token is the (optional) config root; otherwise the whole
-  // argv is the serve invocation. The config root is the first token only when it isn't
-  // a flag — flag values (e.g. the `4000` in `--port 4000`) are never treated as a path.
-  const serveArgv = head === "serve" ? rest : argv;
-  const firstPositional = serveArgv[0];
-  const configRoot = !firstPositional || firstPositional.startsWith("-") ? "./mocks" : firstPositional;
-  return {
-    command: "serve",
-    configRoot,
-    handlersDir: getFlag(serveArgv, "--handlers"),
-    port: Number.parseInt(getFlag(serveArgv, "--port") ?? process.env.MOCKSTAR_PORT ?? "3000", 10),
-    host: getFlag(serveArgv, "--host") ?? process.env.MOCKSTAR_HOST ?? "127.0.0.1",
-    deterministic: serveArgv.includes("--deterministic") || process.env.MOCKSTAR_DETERMINISTIC === "1",
-    watch: !serveArgv.includes("--no-watch"),
-    // B5/TN5: defaults OFF; admin must explicitly enable to honour X-Mockstar-Webhook-Url.
-    allowWebhookUrlHeader:
-      serveArgv.includes("--allow-webhook-url-header") ||
-      process.env.MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER === "1",
-    webhookJournalFile: getFlag(serveArgv, "--webhook-journal-file"),
-  };
-}
-
-function getFlag(args: readonly string[], name: string): string | undefined {
-  const prefixed = args.find((a) => a.startsWith(`${name}=`));
-  if (prefixed) return prefixed.slice(name.length + 1);
-  const idx = args.indexOf(name);
-  if (idx >= 0) return args[idx + 1];
-  return undefined;
-}
-
 async function main(): Promise<number> {
-  const args = parseArgs(process.argv.slice(2));
+  const args = parseArgs(process.argv.slice(2), process.env);
 
   // O6 preflight — runs before any other work so version issues surface immediately.
   const pf = preflight();
@@ -257,37 +153,6 @@ async function main(): Promise<number> {
     void launched.stop().then(() => process.exit(0));
   });
   return 0;
-}
-
-function usage(): string {
-  return `${[
-    "mockstar <command> [options]",
-    "",
-    "Commands:",
-    "  init [dir]                  Scaffold a starter mocks/default/example.json",
-    "  serve [config-root]         Start the mock server (default command)",
-    "  import <spec> <out-dir>     Convert an OpenAPI 3.x spec to Mockstar JSON",
-    "  enhance <mocks-dir>         Rewrite imported mocks with Tier 2 placeholders",
-    "  migrate --schema <mocks-dir> --from <minor> --to <minor>",
-    "                              Rewrite $schema URLs when bumping a minor",
-    "  proxy <install|start|...>   Run the HTTPS transparent upstream proxy (tier1)",
-    "  help                        Show this help",
-    "  version                     Print version",
-    "",
-    "Serve options:",
-    "  --handlers <path>           Path to handlers directory (default ../handlers)",
-    "  --port <port>               Listen port (default 3000; env: MOCKSTAR_PORT)",
-    "  --host <host>               Bind host (default 127.0.0.1; env: MOCKSTAR_HOST)",
-    "  --deterministic             Enable CI deterministic mode",
-    "  --no-watch                  Disable file-watch hot reload",
-    "  --allow-webhook-url-header  Honour X-Mockstar-Webhook-Url request header (TN5; default off)",
-    "  --webhook-journal-file <p>  Append-only log of webhook deliveries for post-restart replay",
-    "",
-    "Env:",
-    "  MOCKSTAR_ADMIN_TOKEN                Root admin token (enables /metrics)",
-    "  MOCKSTAR_ALLOW_WEBHOOK_URL_HEADER   Set to 1 to honour the header URL channel (B5)",
-    "",
-  ].join("\n")}\n`;
 }
 
 // Entry point. Bun executes this file directly via bunx.
