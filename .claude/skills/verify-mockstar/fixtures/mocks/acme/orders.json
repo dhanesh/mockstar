@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schemas.mockstar.dev/v0.7/mock.json",
+  "mocks": [
+    {
+      "id": "get-order",
+      "match": { "method": "GET", "path": "/orders/:id" },
+      "response": {
+        "kind": "static",
+        "status": 200,
+        "headers": { "content-type": "application/json" },
+        "body": { "id": "{{request.params.id}}", "tenant": "{{tenant}}", "customer": "{{faker.name}}", "status": "paid" }
+      },
+      "scenarios": [
+        {
+          "id": "missing-order",
+          "when": { "params": { "id": "o-404" } },
+          "response": { "status": 404, "body": { "error": "order_not_found", "id": "{{request.params.id}}" } }
+        }
+      ]
+    },
+    {
+      "id": "create-order",
+      "match": { "method": "POST", "path": "/orders" },
+      "response": { "kind": "static", "status": 201, "body": { "id": "{{request.body.id}}", "status": "created" } },
+      "webhooks": [
+        {
+          "id": "order-created",
+          "url": "http://127.0.0.1:__RX_PORT__/hooks/order-created",
+          "allowHttp": true,
+          "allowPrivateNetworks": true,
+          "headers": { "content-type": "application/json" },
+          "body": { "event": "order.created", "orderId": "{{request.body.id}}", "eventId": "{{id(\"evt_\", 12)}}" }
+        },
+        {
+          "id": "order-audit",
+          "url": "http://127.0.0.1:__RX_PORT__/hooks/order-audit",
+          "allowHttp": true,
+          "allowPrivateNetworks": true,
+          "body": "{\"audit\":\"order {{request.body.id}}\"}"
+        }
+      ]
+    }
+  ]
+}

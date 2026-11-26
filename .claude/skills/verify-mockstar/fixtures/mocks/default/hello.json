@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schemas.mockstar.dev/v0.7/mock.json",
+  "mocks": [
+    {
+      "id": "hello",
+      "match": { "method": "GET", "path": "/hello" },
+      "response": { "kind": "static", "status": 200, "body": { "message": "hello from default", "tenant": "{{tenant}}" } }
+    }
+  ]
+}
