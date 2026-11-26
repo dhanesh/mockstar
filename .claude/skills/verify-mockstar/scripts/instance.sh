@@ -3,7 +3,7 @@
 #
 #   instance.sh launch <instance>   start mockstar + a webhook receiver; prints JSON
 #   instance.sh status <instance>   read-only health checks; prints JSON; exit 0 only if all pass
-#   instance.sh env    <instance>   prints shell exports (PORT, RX_PORT, TOKEN, RUN, BASE, PYTHON)
+#   instance.sh env    <instance>   prints shell exports (PORT, RX_PORT, TOKEN, ROOT_TOKEN, RUN, BASE, PYTHON)
 #   instance.sh stop   <instance>   stop this instance's processes by pid, release its ports
 #
 # Per-instance state lives in .verify-run/<instance>/ at the repo root: its own mocks copy
@@ -122,7 +122,7 @@ status)
 env)
   read_state
   [[ -n "$PORT" ]] || { echo "instance $inst is not launched" >&2; exit 1; }
-  echo "export PORT=$PORT RX_PORT=$RX_PORT TOKEN=$TOKEN RUN=$RUN BASE=http://127.0.0.1:$PORT PYTHON=$PY"
+  echo "export PORT=$PORT RX_PORT=$RX_PORT TOKEN=$TOKEN ROOT_TOKEN=root-$TOKEN RUN=$RUN BASE=http://127.0.0.1:$PORT PYTHON=$PY"
   ;;
 
 stop)

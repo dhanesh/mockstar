@@ -58,8 +58,12 @@ running.
 Load the instance's values into the shell before driving:
 
 ```sh
-eval "$("$SKILL/scripts/instance.sh" env "$INSTANCE")"   # sets BASE, PORT, RX_PORT, TOKEN, RUN
+eval "$("$SKILL/scripts/instance.sh" env "$INSTANCE")"   # sets BASE, PORT, RX_PORT, TOKEN, ROOT_TOKEN, RUN
 ```
+
+`TOKEN` is the `acme` tenant's admin token (tenant admin routes). `ROOT_TOKEN` is the
+server's root token (`MOCKSTAR_ADMIN_TOKEN`): it opens `/metrics` and is refused on tenant
+routes. Both are fake and exist only under `.verify-run/$INSTANCE/`.
 
 Fixture tenants: `default` (`GET /hello`) and `acme` (`GET /orders/:id` with a
 `missing-order` scenario for id `o-404`, and `POST /orders` firing two webhooks to the
@@ -129,6 +133,12 @@ sha256; `--side-effect` and at least one `--artifact` are required):
 
 It prints the record path, `.verify/<instance>/<feature>/<sha>/evidence.json`. Commit your
 change first: the record names HEAD, so evidence for uncommitted code names the wrong head.
+
+Evidence stays on the machine that drove the app: `.verify/` is gitignored on purpose,
+because it holds per-run artifacts, not source. What is committed is the feature map: a
+feature's `- proven: <sha>` line names the commit the recipe was driven on, and anyone can
+re-run the recipe on that commit to reproduce the proof. Under factory-conductor the
+conductor reads `.verify/` directly. Report the record paths in your summary.
 Artifact file names must be unique per record and must not be `evidence.json`,
 `doctor.json` or start with `proof-`.
 

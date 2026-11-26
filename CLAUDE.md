@@ -106,7 +106,7 @@ See `docs/SDET.md` for options and what `deterministic` guarantees.
 
 **Scenarios** are chosen per request, not switched through an API. Each mock entry may carry `scenarios: [{ id, when: { params | query | headers | body }, response }]`; the first matching `when` overrides the response. See `docs/SCENARIOS.md`.
 
-**Admin API** (`/__admin/tenants/:tenant/...`): `GET mocks`, `GET journal`, `GET webhooks`, `GET webhooks/journal`, `GET webhooks/await`, `POST webhooks/:deliveryId/replay`. The admin API is off unless enabled: CLI — set `MOCKSTAR_ADMIN_TOKEN` (16+ chars); library — `launch({ server: { adminEnabled: true } })`. Then send `Authorization: Bearer <token>` where the token is that tenant's `adminToken` from `mocks/<tenant>/tenant.json` (16+ chars). The root token only opens `/metrics`; on tenant endpoints it gets 403 `root_token_cannot_access_tenant_scope`. `/health` and `/ready` need no token.
+**Admin API** (`/__admin/tenants/:tenant/...`): `GET mocks`, `GET journal`, `GET webhooks`, `GET webhooks/journal`, `GET webhooks/await`, `POST webhooks/:deliveryId/replay`. The admin API is off unless enabled: CLI — set `MOCKSTAR_ADMIN_TOKEN` (16+ chars); library — `launch({ server: { adminEnabled: true } })`. Then send `Authorization: Bearer <token>` where the token is that tenant's `adminToken` from `mocks/<tenant>/tenant.json` (16+ chars). The root token only opens `/metrics`; on tenant endpoints it gets 403 `root_token_cannot_access_tenant_scope`. No token gets 401 `missing_token`. `/health` and `/ready` need no token.
 
 **Webhooks to localhost** need `"allowHttp": true` and `"allowPrivateNetworks": true` on the webhook. Without them the delivery is rejected by the SSRF guard: the response is still served, and the failure shows only in the webhook journal.
 
@@ -121,6 +121,14 @@ See `docs/SDET.md` for options and what `deterministic` guarantees.
 **Multi-tenancy**: each tenant is an isolated directory. Tenancy modes (default `["path", "header"]`, tried in order): path `/t/<tenant>/...`, header `X-Mockstar-Tenant: <tenant>`, or subdomain (first label of the host; IP hosts are skipped). Set them with `--tenancy-modes` / `MOCKSTAR_TENANCY_MODES` (CLI, 0.7.0+) or `launch({ server: { tenancyModes } })`. With no tenant, requests go to `default`.
 
 **Handler types**: from 0.7.0 the package exports `MockHandler`, `HandlerHelpers` and `createFaker` (see `docs/HANDLERS.md`).
+
+## Verifying a change
+
+Prove a change against the running app, not only with tests: follow
+`.claude/skills/verify-mockstar/SKILL.md`. It launches isolated instances
+(`scripts/instance.sh launch <name>`), drives the features listed in its `features/` map,
+and records evidence per feature and commit under `.verify/` (gitignored). Add a feature
+file when you add user-facing behaviour.
 
 ## Gotchas
 

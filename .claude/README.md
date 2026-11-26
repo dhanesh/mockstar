@@ -5,6 +5,9 @@ agents (Claude Code) working in this repo. It implements the "scoped trusted too
 rail (R5) from the agent-readiness audit: an agent gets the fast verify loop for free
 and must stop for a human on anything consequential or irreversible.
 
+To prove a change works against the running app, use the project skill
+`skills/verify-mockstar/` (start with its `SKILL.md`).
+
 ## Policy at a glance
 
 - **`allow`** — auto-approved. The read-only + verify surface an agent needs to run
