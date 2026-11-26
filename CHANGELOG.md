@@ -1,3 +1,10 @@
+## [0.7.1](https://github.com/dhanesh/mockstar/compare/v0.7.0...v0.7.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **cli:** migrate --schema changes only the $schema URL, not the formatting ([ea2de30](https://github.com/dhanesh/mockstar/commit/ea2de30a3a14dd15f87a36fcdc0c1b6aaf20eeb6)), closes [#67](https://github.com/dhanesh/mockstar/issues/67)
+
 # [0.7.0](https://github.com/dhanesh/mockstar/compare/v0.6.2...v0.7.0) (2026-11-26)
 
 
