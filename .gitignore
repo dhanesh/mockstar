@@ -15,3 +15,7 @@ bench/results/
 
 # Subagent-driven-development scratch workspace (ledgers, briefs, review packages)
 .superpowers/
+
+# verify-mockstar evidence and per-instance run state (never commit)
+.verify/
+.verify-run/
