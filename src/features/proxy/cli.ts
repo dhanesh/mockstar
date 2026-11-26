@@ -36,9 +36,19 @@ import { ProxyError } from "./types.ts";
 
 // --- PUBLIC ENTRY --------------------------------------------------------
 
+/**
+ * True when the proxy argv asks for help: no subcommand, `help`, or `--help` / `-h` anywhere.
+ * Checked before dispatch so `proxy install --help` never runs install, which can change the
+ * system trust store (#60).
+ */
+export function wantsProxyHelp(argv: readonly string[]): boolean {
+  const [sub] = argv;
+  return !sub || sub === "help" || argv.includes("--help") || argv.includes("-h");
+}
+
 export async function dispatchProxyCommand(argv: readonly string[]): Promise<number> {
   const [sub, ...rest] = argv;
-  if (!sub || sub === "--help" || sub === "help") {
+  if (!sub || wantsProxyHelp(argv)) {
     process.stdout.write(proxyHelp());
     return 0;
   }

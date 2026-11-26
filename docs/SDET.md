@@ -148,9 +148,6 @@ matters (TDD, mutation testing) and the suite is Bun-native.
 
 ## When NOT to use the library embed
 
-- Note the reverse for subdomain tenancy: tenancy modes can only be set
-  through the library (`launch({ server: { tenancyModes: ["subdomain"] } })`).
-  The CLI always uses the default `["path", "header"]`.
 - You want to verify the full CLI contract — use the `mockstar` binary
   directly and assert on its network surface.
 

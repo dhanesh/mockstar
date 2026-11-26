@@ -2,6 +2,7 @@
 // Satisfies: S1 (hard tenant isolation — tenancy is the first routing step)
 // Satisfies: S2 (three configurable tenant-identification modes)
 
+import { isIP } from "node:net";
 import type { Context, MiddlewareHandler } from "hono";
 import type { TenancyModeT } from "../config/schema.ts";
 
@@ -66,6 +67,8 @@ function extract(ctx: Context, modes: readonly TenancyModeT[]): string | null {
       } catch {
         bareHost = (ctx.req.header("host") ?? "").split(":")[0] ?? "";
       }
+      // An IP literal has no subdomain: without this, 127.0.0.1 resolved to tenant "127".
+      if (isIP(bareHost.replace(/^\[|\]$/g, "")) !== 0) continue;
       const firstDot = bareHost.indexOf(".");
       if (firstDot > 0) {
         const sub = bareHost.slice(0, firstDot);

@@ -118,7 +118,9 @@ See `docs/SDET.md` for options and what `deterministic` guarantees.
 
 **Path trie matching**: candidates are ordered strictly by `match.priority` (higher wins), with declaration order as the tiebreaker when priority is equal — there is no path-specificity scoring (`/users/:id` does not automatically lose to `/users/active`). If you need a more-specific route to win, set `priority` explicitly. A query/header/body predicate in `match` must be satisfied (an entry with `query: { tier: "premium" }` does not match a request without `tier`); extra request params the predicate does not name are ignored.
 
-**Multi-tenancy**: each tenant is an isolated directory. Tenancy modes (default `["path", "header"]`): path `/t/<tenant>/...`, header `X-Mockstar-Tenant: <tenant>`, or subdomain. With no tenant, requests go to `default`.
+**Multi-tenancy**: each tenant is an isolated directory. Tenancy modes (default `["path", "header"]`, tried in order): path `/t/<tenant>/...`, header `X-Mockstar-Tenant: <tenant>`, or subdomain (first label of the host; IP hosts are skipped). Set them with `--tenancy-modes` / `MOCKSTAR_TENANCY_MODES` (CLI, 0.7.0+) or `launch({ server: { tenancyModes } })`. With no tenant, requests go to `default`.
+
+**Handler types**: from 0.7.0 the package exports `MockHandler`, `HandlerHelpers` and `createFaker` (see `docs/HANDLERS.md`).
 
 ## Gotchas
 
