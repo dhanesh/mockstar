@@ -76,10 +76,35 @@ export async function runMigrateSchema(options: MigrateOptions): Promise<Migrate
     record.$schema = toUrl;
     changed += 1;
     if (!options.dryRun) {
-      const trailingNewline = text.endsWith("\n") ? "\n" : "";
-      await writeFile(path, `${JSON.stringify(record, null, 2)}${trailingNewline}`);
+      await writeFile(path, rewriteSchemaUrl(text, fromUrl, toUrl, record));
     }
   }
 
   return { filesScanned: scanned, filesChanged: changed, mismatched };
+}
+
+/**
+ * Change only the top-level `$schema` string in `text`, keeping every other byte (#67).
+ * Tries each `"$schema": "<fromUrl>"` occurrence and keeps the first whose re-parsed document
+ * equals `expected` (the parsed file with `$schema` already set to `toUrl`), so a nested
+ * `$schema` with the same URL is never the one changed. Falls back to re-serialising the
+ * document only when no exact text match exists (e.g. the URL is written with `\/` escapes).
+ */
+function rewriteSchemaUrl(text: string, fromUrl: string, toUrl: string, expected: unknown): string {
+  const want = JSON.stringify(expected);
+  const pattern = new RegExp(
+    `("\\$schema"\\s*:\\s*)${JSON.stringify(fromUrl).replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}`,
+    "g",
+  );
+  for (const match of text.matchAll(pattern)) {
+    const at = match.index ?? 0;
+    const candidate = `${text.slice(0, at)}${match[1]}${JSON.stringify(toUrl)}${text.slice(at + match[0].length)}`;
+    try {
+      if (JSON.stringify(JSON.parse(candidate)) === want) return candidate;
+    } catch {
+      // not this occurrence
+    }
+  }
+  const trailingNewline = text.endsWith("\n") ? "\n" : "";
+  return `${JSON.stringify(expected, null, 2)}${trailingNewline}`;
 }

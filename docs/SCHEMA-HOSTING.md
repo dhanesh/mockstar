@@ -36,10 +36,14 @@ When a minor bump breaks your mocks files, bring them current with:
 mockstar migrate --schema ./mocks --from v0.1 --to v0.2   # add --dry-run to preview
 ```
 
-The subcommand rewrites the `$schema` field in every `*.json` under the given
-directory, optionally running a migration transformer if one ships with the new
-minor. It NEVER touches response bodies or predicates. Run with `--dry-run`
-first to preview the affected files.
+The subcommand rewrites the top-level `$schema` URL in every `*.json` under the
+given directory (skipping `node_modules` and dot-directories). It changes only
+that string: formatting, key order and every other byte stay as they are (from
+0.7.1; before that it re-indented the whole file, #67). A `$schema` written with
+escaped slashes (`https:\/\/…`) is the exception: that file is re-written with
+2-space indentation. Files that point at a different minor than `--from` are
+listed and left alone (exit code 3). Run with `--dry-run` first to preview the
+affected files.
 
 ## Publishing flow
 
