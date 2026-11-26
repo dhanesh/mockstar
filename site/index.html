@@ -178,7 +178,7 @@ mockstar serve ./mocks     # http://127.0.0.1:3000
 curl localhost:3000/hello      # {"message":"Hello from mockstar"}
 curl localhost:3000/users/42   # {"id":"42","name":"…","email":"…"}</pre>
 <pre>{
-  "$schema": "https://schemas.mockstar.dev/v0.4/mock.json",
+  "$schema": "https://schemas.mockstar.dev/v0.7/mock.json",
   "mocks": [{
     "id": "get-user-by-id",
     "match": { "method": "GET", "path": "/users/:id" },
