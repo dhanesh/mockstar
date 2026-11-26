@@ -1,3 +1,18 @@
+# [0.7.0](https://github.com/dhanesh/mockstar/compare/v0.6.2...v0.7.0) (2026-11-26)
+
+
+### Bug Fixes
+
+* **cli:** --help after a subcommand prints help instead of running it ([e79a05f](https://github.com/dhanesh/mockstar/commit/e79a05fc5e39bc9d366c2e10233a765ca7a7d2d0)), closes [#60](https://github.com/dhanesh/mockstar/issues/60)
+* **cli:** proxy <subcommand> --help prints help instead of running it ([92c5e1a](https://github.com/dhanesh/mockstar/commit/92c5e1ad81051482deb0ddf500d7cdd0e29e53dc)), closes [#60](https://github.com/dhanesh/mockstar/issues/60)
+* **cli:** stop init writing mockstar.config.json, which nothing reads ([5fdfec9](https://github.com/dhanesh/mockstar/commit/5fdfec9f23498a62842219b3813ccc987875c5e4)), closes [#62](https://github.com/dhanesh/mockstar/issues/62)
+
+
+### Features
+
+* **cli:** --tenancy-modes flag and MOCKSTAR_TENANCY_MODES ([a47d2c0](https://github.com/dhanesh/mockstar/commit/a47d2c0e05be038b486579bf4da4cdb591fc18c7)), closes [#63](https://github.com/dhanesh/mockstar/issues/63)
+* **library:** export handler types and createFaker ([eeb60b5](https://github.com/dhanesh/mockstar/commit/eeb60b5f421add8038fa4f22954342141d4fe2a1)), closes [#61](https://github.com/dhanesh/mockstar/issues/61)
+
 ## [0.6.2](https://github.com/dhanesh/mockstar/compare/v0.6.1...v0.6.2) (2026-11-24)
 
 
