@@ -1,7 +1,7 @@
 # admin-tenant-auth: Tenant admin endpoints accept only that tenant's token
 
 - id: admin-tenant-auth
-- proven: no
+- proven: 98a96fca295cbae8e730495df2fb753523ec8296
 - anchors: src/features/admin/auth.ts, src/features/admin/endpoints.ts
 - constraints: mockstar:S3
 
