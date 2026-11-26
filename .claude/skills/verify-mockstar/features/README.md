@@ -7,3 +7,4 @@ Sweep order. Each line: the feature id and what a user sees.
 - [scenarios](scenarios.md) — a request matching a scenario's `when` gets the scenario response, and the journal names it
 - [webhooks](webhooks.md) — a mock fires its webhooks after responding, each with its own delivery id
 - [cli-migrate-schema](cli-migrate-schema.md) — `migrate --schema` bumps the pinned `$schema` minor and changes nothing else
+- [admin-tenant-auth](admin-tenant-auth.md) — a tenant admin route accepts that tenant's token, refuses the root token (403) and no token (401)
