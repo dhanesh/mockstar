@@ -1,7 +1,7 @@
 # tenant-selection: Route a request to a tenant by path, header or subdomain
 
 - id: tenant-selection
-- proven: bd7f51dddb70eebae32a53289a513f6eb87154a3
+- proven: 0bd3b6683103b7086d755abd584ec998efd87882
 - anchors: src/core/tenancy/extractor.ts, src/cli/args.ts:parseTenancyModes
 - constraints: mockstar:S1, mockstar:S2
 

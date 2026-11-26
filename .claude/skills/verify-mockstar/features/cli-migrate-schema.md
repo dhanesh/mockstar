@@ -1,7 +1,7 @@
 # cli-migrate-schema: Bump the pinned `$schema` minor in mock files
 
 - id: cli-migrate-schema
-- proven: bd7f51dddb70eebae32a53289a513f6eb87154a3
+- proven: 0bd3b6683103b7086d755abd584ec998efd87882
 - anchors: src/cli/commands/migrate.ts:rewriteSchemaUrl, src/cli/args.ts
 
 ## What it is
