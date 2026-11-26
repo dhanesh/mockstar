@@ -79,7 +79,7 @@ handlers/             # named JS/TS dynamic handlers (default: ../handlers next 
 **Pin `$schema` in every mock file** — pre-1.0 shape changes between minors. `mockstar init` writes the URL for the installed minor:
 ```json
 {
-  "$schema": "https://schemas.mockstar.dev/v0.6/mock.json",
+  "$schema": "https://schemas.mockstar.dev/v0.7/mock.json",
   "mocks": [
     {
       "id": "hello",

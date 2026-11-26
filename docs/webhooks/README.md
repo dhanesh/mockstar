@@ -7,7 +7,7 @@ Outbound webhook delivery for matched mock requests. Per-route configuration, HM
 ```json
 // mocks/default/orders.json
 {
-  "$schema": "https://schemas.mockstar.dev/v0.6/mock.json",
+  "$schema": "https://schemas.mockstar.dev/v0.7/mock.json",
   "mocks": [{
     "id": "orders-create",
     "match": { "method": "POST", "path": "/orders" },
