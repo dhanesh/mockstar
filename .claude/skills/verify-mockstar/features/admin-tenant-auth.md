@@ -24,15 +24,15 @@ fake, per instance, and live only under `.verify-run/`.
 
 ```sh
 eval "$("$SKILL/scripts/instance.sh" env "$INSTANCE")"; mkdir -p "$RUN/out"
-ROOT="root-$TOKEN"; J="$BASE/__admin/tenants/acme/journal"
+J="$BASE/__admin/tenants/acme/journal"   # $TOKEN: tenant token; $ROOT_TOKEN: server root token
 curl -sS "$BASE/t/acme/orders/o-1" >/dev/null   # puts one entry in the journal
 curl -sS -H "authorization: Bearer $TOKEN" -o "$RUN/out/admin-tenant-token.json" -w '%{http_code}\n' "$J"
-curl -sS -H "authorization: Bearer $ROOT"  -o "$RUN/out/admin-root-token.json"   -w '%{http_code}\n' "$J"
+curl -sS -H "authorization: Bearer $ROOT_TOKEN" -o "$RUN/out/admin-root-token.json"   -w '%{http_code}\n' "$J"
 curl -sS                                   -o "$RUN/out/admin-no-token.json"     -w '%{http_code}\n' "$J"
 ```
 
-Expected: `200`, `403`, `401`; each curl exits 0. The bodies: `{"tenant":"acme","count":1,
-"entries":[…/orders/o-1…]}`, `{"error":"root_token_cannot_access_tenant_scope"}`,
+Expected: `200`, `403`, `401`; each curl exits 0. The bodies: `{"tenant":"acme","count":<n>,
+"entries":[…/orders/o-1…]}` (`count` is 1 on a fresh instance; it grows with earlier drives), `{"error":"root_token_cannot_access_tenant_scope"}`,
 `{"error":"missing_token"}`.
 
 ## Proof
