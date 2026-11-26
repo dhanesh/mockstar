@@ -37,13 +37,17 @@ Expected: `200`, `200`, `200`, `404`; each curl exits 0. The first two bodies sa
 Subdomain mode needs its own instance, because the modes are fixed at start:
 
 ```sh
+eval "$("$SKILL/scripts/instance.sh" env "$INSTANCE")"; OUT="$RUN/out"   # keep the artifact in the main instance
 MOCKSTAR_TENANCY_MODES=subdomain,path,header "$SKILL/scripts/instance.sh" launch "$INSTANCE-sub"
-eval "$("$SKILL/scripts/instance.sh" env "$INSTANCE-sub")"; mkdir -p "$RUN/out"
-curl -sS -o "$RUN/out/tenant-subdomain.json" -w '%{http_code}\n' -H "host: acme.localhost:$PORT" "$BASE/orders/o-1"
+SUB_PORT=$("$SKILL/scripts/instance.sh" status "$INSTANCE-sub" | "$PYTHON" -c 'import sys,json; print(json.load(sys.stdin)["port"])')
+curl -sS -o "$OUT/tenant-subdomain.json" -w '%{http_code}\n' -H "host: acme.localhost:$SUB_PORT" "http://127.0.0.1:$SUB_PORT/orders/o-1"
+curl -sS -o "$OUT/tenant-subdomain-ip.json" -w '%{http_code}\n' -H 'x-mockstar-tenant: acme' "http://127.0.0.1:$SUB_PORT/orders/o-1"
 "$SKILL/scripts/instance.sh" stop "$INSTANCE-sub"
 ```
 
-Expected: `200` with `"tenant":"acme"`; stop prints `{"instance":"…-sub","stopped":true}`.
+Expected: launch prints `"ready":true`; the two curls print `200` and `200`, both bodies
+with `"tenant":"acme"` (the second shows an IP host is skipped and the header mode still
+applies); stop prints `{"instance":"…-sub","stopped":true}`.
 
 ## Proof
 
@@ -57,4 +61,5 @@ Expected: `200` with `"tenant":"acme"`; stop prints `{"instance":"…-sub","stop
 
 - In subdomain mode an IP host (`127.0.0.1`) is never read as a tenant (fixed in 0.7.0;
   before, it became tenant `127`).
-- Record the subdomain artifact before `stop`: stop deletes `.verify-run/<instance>-sub/`.
+- `stop` deletes `.verify-run/<instance>-sub/`, so the subdomain recipe writes its artifacts
+  to the main instance's `$RUN/out/`.
